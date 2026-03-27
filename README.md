@@ -1,6 +1,6 @@
 # Papion
 
-Scan GitHub Actions for safety issues — unpinned dependencies, missing SHA pins, and policy violations.
+Scan GitHub Actions for policy violations.
 
 ---
 
@@ -169,13 +169,13 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
-      - uses: maruloop/papion@v1
+      - uses: maruloop/papion/action@v1
 ```
 
 Override the ref to scan a specific tag or SHA:
 
 ```yaml
-      - uses: maruloop/papion@v1
+      - uses: maruloop/papion/action@v1
         with:
           ref: v2.1.0
 ```
