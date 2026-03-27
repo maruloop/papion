@@ -6,8 +6,7 @@ Scan GitHub Actions for safety issues — unpinned dependencies, missing SHA pin
 
 ## What Papion checks
 
-- **SHA pinning (recursive)** — all action references, direct and transitive, must be pinned to a full commit SHA
-- **Policy violations** — use of disallowed or unverified actions
+- **Policy violations** — evaluates policies against all action references, direct and transitive
 
 ---
 
