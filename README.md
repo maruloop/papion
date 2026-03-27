@@ -2,8 +2,6 @@
 
 Scan GitHub Actions for safety issues — unpinned dependencies, missing SHA pins, and policy violations.
 
-![Papion scan](https://img.shields.io/badge/papion-passing-brightgreen)
-
 ---
 
 ## What Papion checks
@@ -102,7 +100,7 @@ papion run actions/checkout@v4 --format json
 
 ## GitHub Action
 
-Add Papion to your workflow as an action maintainer to scan your own action on every push and generate a badge.
+Add Papion to your workflow as an action maintainer to scan your own action on every push.
 
 By default it scans the current repository at the current commit ref. You can override the ref with the `ref` input.
 
@@ -140,14 +138,6 @@ Override the ref to scan a specific tag or SHA:
 | `ref` | no | Ref to scan (default: current commit SHA) |
 | `format` | no | Output format: `human` (default) or `json` |
 | `fail-on` | no | Minimum level to fail the job: `warn` or `fail` (default: `fail`) |
-
-### Badge
-
-The action outputs a badge reflecting the scan result. Add it to your README:
-
-```markdown
-![Papion scan](https://your-org.github.io/your-repo/papion-badge.svg)
-```
 
 ---
 

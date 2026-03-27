@@ -361,15 +361,25 @@ Leverage GitHub-native controls instead of runtime interception
 
 ## Decision 14: Badge strategy
 
-### Decision
+### Status
 
-Use **CI-generated static badges**
+**Undecided** — options under consideration
 
-### Rationale
+### Options
 
-* No server dependency
-* Reproducible
-* Aligns with distributed model
+* **GitHub Actions workflow badge** — built-in, zero effort, shows workflow pass/fail. Not Papion-specific branding.
+  ```
+  https://github.com/owner/repo/actions/workflows/papion.yml/badge.svg
+  ```
+
+* **Gist + shields.io** — CI writes JSON result to a Gist, shields.io renders a custom badge. No server needed. Requires a Gist token in CI secrets. Widely used pattern.
+  ```
+  https://img.shields.io/endpoint?url=https://gist.github.com/.../papion.json
+  ```
+
+* **Commit SVG to repo** — CI generates badge SVG and commits it back. Simple but creates noisy commits and requires write permissions.
+
+* **GitHub Pages** — CI generates badge and deploys to `gh-pages`. Custom branding, no server, but slightly heavy for just a badge.
 
 ---
 
