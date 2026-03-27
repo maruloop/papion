@@ -6,6 +6,38 @@ Draft (v0 design direction agreed)
 
 ---
 
+## Milestones
+
+### v1.0.0 — CLI + GitHub Actions
+
+* Go CLI with WASM core
+* GitHub Action integration
+* CI-generated static badges
+* Distributed scanning only
+
+### v2.0.0 — papion.com (Static)
+
+* Static site hosted on Cloudflare (Workers for routing, Pages for assets)
+* Browser-based scanning via JS/WASM
+* URL pattern: `papion.com/owner/repo` → scans on demand in browser
+* No central index, no backend
+
+### v3.0.0 — Central Marketplace
+
+* Centralized scanning using Papion's own token + queue
+* Central searchable index
+* Version tracking, scan history
+* Badges served from central data
+
+### v4.0.0 — GitHub App
+
+* Owners opt in by installing Papion GitHub App
+* Papion uses per-owner App tokens instead of its own token
+* Better trust model, scales beyond single-token rate limits
+* Upgrades the token strategy from v3
+
+---
+
 ## Context
 
 Papion is envisioned as a "verifiable index of GitHub Actions" focused on safety (pinning, policy, scanning).
