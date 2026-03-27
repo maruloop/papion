@@ -6,7 +6,15 @@ Scan GitHub Actions for safety issues — unpinned dependencies, missing SHA pin
 
 ## What Papion checks
 
-- **Policy violations** — evaluates policies against all action references, direct and transitive
+Papion evaluates policies against all action references, direct and transitive.
+
+Built-in policies:
+
+- **SHA pinning** — all references must be pinned to a full commit SHA, not a tag or branch
+- **Allowed list** — only actions matching the allowed list are permitted
+- **Disallowed list** — actions matching the disallowed list are always rejected
+
+If an action appears in both lists, **disallowed takes precedence**.
 
 ---
 
