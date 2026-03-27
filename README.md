@@ -18,6 +18,31 @@ If an action appears in both lists, **disallowed takes precedence**.
 
 ---
 
+## Configuration
+
+Papion looks for configuration in the following order (first found wins):
+
+1. `.github/papion.toml`
+2. `papion.toml` (repo root)
+
+```toml
+[policy]
+sha_pinning = true  # default: true
+
+allowed = [
+  "actions/*",
+  "github/*",
+]
+
+disallowed = [
+  "some-org/unsafe-action",
+]
+```
+
+If an action matches both `allowed` and `disallowed`, **disallowed takes precedence**.
+
+---
+
 ## CLI
 
 ### Install
