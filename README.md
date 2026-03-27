@@ -72,6 +72,12 @@ papion run actions/setup-go@v5.0.0
 
 # Use a custom config file
 papion run actions/checkout@v4 --config path/to/papion.toml
+
+# Exit 1 on warnings or failures (default: fail)
+papion run actions/checkout@v4 --fail-on warn
+
+# Never exit 1 due to findings (useful for reporting only)
+papion run actions/checkout@v4 --fail-on none
 ```
 
 ### Output
@@ -123,12 +129,20 @@ papion run actions/checkout@v4 --format json
 }
 ```
 
+### Flags
+
+| Flag | Default | Description |
+|------|---------|-------------|
+| `--config` | — | Path to config file |
+| `--format` | `human` | Output format: `human` or `json` |
+| `--fail-on` | `fail` | Minimum level to exit 1: `warn`, `fail`, or `none` |
+
 ### Exit codes
 
 | Code | Meaning |
 |------|---------|
-| `0`  | No findings |
-| `1`  | One or more failures |
+| `0`  | No findings at or above `--fail-on` level |
+| `1`  | One or more findings at or above `--fail-on` level |
 | `2`  | Scan error (network, invalid target, etc.) |
 
 ---
