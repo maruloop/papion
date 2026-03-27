@@ -131,11 +131,11 @@ papion run actions/checkout@v4 --format json
 
 ### Flags
 
-| Flag | Default | Description |
-|------|---------|-------------|
-| `--config` | — | Path to config file |
-| `--format` | `human` | Output format: `human` or `json` |
-| `--fail-on` | `fail` | Minimum level to exit 1: `warn`, `fail`, or `none` |
+| Flag | Short | Default | Description |
+|------|-------|---------|-------------|
+| `--config` | | — | Path to config file |
+| `--format` | `-f` | `human` | Output format: `human` or `json` |
+| `--fail-on` | `-F` | `fail` | Minimum level to exit 1: `warn`, `fail`, or `none` |
 
 ### Exit codes
 
