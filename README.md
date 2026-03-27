@@ -22,8 +22,9 @@ If an action appears in both lists, **disallowed takes precedence**.
 
 Papion looks for configuration in the following order (first found wins):
 
-1. `.github/papion.toml`
-2. `papion.toml` (repo root)
+1. `--config` flag (if provided)
+2. `.github/papion.toml`
+3. `papion.toml` (repo root)
 
 ```toml
 [policy]
@@ -68,6 +69,9 @@ papion run actions/checkout@abc1234def5678
 
 # Scan a specific version
 papion run actions/setup-go@v5.0.0
+
+# Use a custom config file
+papion run actions/checkout@v4 --config path/to/papion.toml
 ```
 
 ### Output
