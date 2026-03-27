@@ -38,6 +38,21 @@ Draft (v0 design direction agreed)
 
 ---
 
+## Repository Structure
+
+```
+core/        # MoonBit core (parsing, rules, findings)   [v1]
+cli/         # Go CLI                                     [v1]
+action/      # GitHub Action                              [v1]
+web/         # Cloudflare static site + Worker            [v2]
+server/      # Backend application                        [v3]
+infra/       # OpenTofu — cloud + Cloudflare infra        [v3]
+docs/
+.claude/
+```
+
+---
+
 ## Context
 
 Papion is envisioned as a "verifiable index of GitHub Actions" focused on safety (pinning, policy, scanning).
