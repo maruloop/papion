@@ -102,7 +102,9 @@ papion run actions/checkout@v4 --format json
 
 ## GitHub Action
 
-Add Papion to your workflow to scan actions you depend on and generate a badge.
+Add Papion to your workflow as an action maintainer to scan your own action on every push and generate a badge.
+
+By default it scans the current repository at the current commit ref. You can override the ref with the `ref` input.
 
 ```yaml
 # .github/workflows/papion.yml
@@ -121,18 +123,21 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
       - uses: maruloop/papion@v1
+```
+
+Override the ref to scan a specific tag or SHA:
+
+```yaml
+      - uses: maruloop/papion@v1
         with:
-          targets: |
-            actions/checkout@v4
-            actions/setup-go@v5
-            actions/cache@v4
+          ref: v2.1.0
 ```
 
 ### Inputs
 
 | Input | Required | Description |
 |-------|----------|-------------|
-| `targets` | yes | Newline-separated list of `org/repo@ref` to scan |
+| `ref` | no | Ref to scan (default: current commit SHA) |
 | `format` | no | Output format: `human` (default) or `json` |
 | `fail-on` | no | Minimum level to fail the job: `warn` or `fail` (default: `fail`) |
 
