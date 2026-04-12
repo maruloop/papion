@@ -3,6 +3,9 @@
 ///
 /// Format: `owner/repo@ref` or `owner/repo/path...@ref`
 pub fn parse_action_ref(uses : String) -> Result[@papion.ActionRef, String] {
+  guard !uses.has_prefix("./") else {
+    return Err("relative path action not supported: \"" + uses + "\"")
+  }
   guard uses.find("@") is Some(at_idx) else {
     return Err("missing '@' in uses string: \"" + uses + "\"")
   }
@@ -127,9 +130,11 @@ pub fn extract_refs(yml : @papion.ActionYml) -> Array[@papion.ActionRef] {
         match step.uses {
           None => ()
           Some(uses_str) =>
-            match parse_action_ref(uses_str) {
-              Ok(r) => refs.push(r)
-              Err(_) => ()
+            if !uses_str.has_prefix("./") {
+              match parse_action_ref(uses_str) {
+                Ok(r) => refs.push(r)
+                Err(_) => ()
+              }
             }
         }
       }

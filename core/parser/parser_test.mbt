@@ -76,6 +76,15 @@ test "parse_action_ref error empty ref" {
 }
 
 ///|
+test "parse_action_ref error relative path" {
+  let result = parse_action_ref("./some/local/action")
+  assert_eq(
+    result,
+    Err("relative path action not supported: \"./some/local/action\""),
+  )
+}
+
+///|
 test "parse_action_yml minimal node action" {
   let json_str =
     #|{"name":"Setup Node","runs":{"using":"node20"}}
@@ -149,6 +158,30 @@ test "extract_refs from composite action" {
   assert_eq(refs[1], {
     owner: "actions",
     repo: "setup-node",
+    git_ref: "v4",
+    path: None,
+  })
+}
+
+///|
+test "extract_refs skips relative path steps" {
+  let yml : @papion.ActionYml = {
+    name: "My Action",
+    description: None,
+    runs: {
+      runner: "composite",
+      steps: Some([
+        { uses: Some("./local/action"), run: None, name: None },
+        { uses: Some("actions/checkout@v4"), run: None, name: None },
+        { uses: Some("./another/local"), run: None, name: None },
+      ]),
+    },
+  }
+  let refs = extract_refs(yml)
+  assert_eq(refs.length(), 1)
+  assert_eq(refs[0], {
+    owner: "actions",
+    repo: "checkout",
     git_ref: "v4",
     path: None,
   })
