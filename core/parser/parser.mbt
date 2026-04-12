@@ -27,6 +27,9 @@ pub fn parse_action_ref(uses : String) -> Result[@papion.ActionRef, String] {
     Some(slash2) => {
       let repo_str = rest[0:slash2].to_string()
       let path_str = rest[slash2 + 1:].to_string()
+      guard !path_str.is_empty() else {
+        return Err("empty path in uses string: \"" + uses + "\"")
+      }
       (repo_str, Some(path_str))
     }
   }
@@ -61,7 +64,8 @@ fn action_yml_from_json(json : Json) -> Result[@papion.ActionYml, String] {
   }
   let description = match obj.get("description") {
     Some(String(s)) => Some(s)
-    _ => None
+    Some(_) => return Err("invalid 'description' field: expected string")
+    None => None
   }
   let runs = match obj.get("runs") {
     Some(runs_json) =>
@@ -82,6 +86,7 @@ fn runs_from_json(json : Json) -> Result[@papion.Runs, String] {
     _ => return Err("missing or invalid 'using' field in runs")
   }
   let steps = match obj.get("steps") {
+    None => None
     Some(Array(arr)) => {
       let acc : Array[@papion.CompositeStep] = Array::new()
       for step_json in arr {
@@ -92,9 +97,21 @@ fn runs_from_json(json : Json) -> Result[@papion.Runs, String] {
       }
       Some(acc)
     }
-    _ => None
+    Some(_) => return Err("invalid 'steps' field: expected array")
   }
   Ok({ runner, steps })
+}
+
+///|
+fn optional_string_field(
+  obj : Map[String, Json],
+  field : String,
+) -> Result[String?, String] {
+  match obj.get(field) {
+    None => Ok(None)
+    Some(String(s)) => Ok(Some(s))
+    Some(_) => Err("invalid '" + field + "' field in step: expected string")
+  }
 }
 
 ///|
@@ -102,17 +119,17 @@ fn composite_step_from_json(
   json : Json,
 ) -> Result[@papion.CompositeStep, String] {
   guard json is Object(obj) else { return Err("expected JSON object for step") }
-  let uses = match obj.get("uses") {
-    Some(String(s)) => Some(s)
-    _ => None
+  let uses = match optional_string_field(obj, "uses") {
+    Ok(v) => v
+    Err(e) => return Err(e)
   }
-  let run = match obj.get("run") {
-    Some(String(s)) => Some(s)
-    _ => None
+  let run = match optional_string_field(obj, "run") {
+    Ok(v) => v
+    Err(e) => return Err(e)
   }
-  let name = match obj.get("name") {
-    Some(String(s)) => Some(s)
-    _ => None
+  let name = match optional_string_field(obj, "name") {
+    Ok(v) => v
+    Err(e) => return Err(e)
   }
   Ok({ uses, run, name })
 }
@@ -120,7 +137,9 @@ fn composite_step_from_json(
 ///|
 /// Extract all action references from the `uses:` fields of composite steps.
 ///
-/// Steps without `uses:` or with unparseable refs are silently skipped.
+/// Best-effort: relative path steps (./path) and unparseable refs are silently
+/// skipped. The caller receives all successfully parsed refs regardless of
+/// partial failures. Returns an empty array for non-composite actions.
 pub fn extract_refs(yml : @papion.ActionYml) -> Array[@papion.ActionRef] {
   let refs = Array::new()
   match yml.runs.steps {

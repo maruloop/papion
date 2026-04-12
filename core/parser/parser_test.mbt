@@ -85,6 +85,12 @@ test "parse_action_ref error relative path" {
 }
 
 ///|
+test "parse_action_ref error empty path" {
+  let result = parse_action_ref("owner/repo/@ref")
+  assert_eq(result, Err("empty path in uses string: \"owner/repo/@ref\""))
+}
+
+///|
 test "parse_action_yml minimal node action" {
   let json_str =
     #|{"name":"Setup Node","runs":{"using":"node20"}}
@@ -131,6 +137,30 @@ test "parse_action_yml malformed JSON" {
     Err(_) => ()
     Ok(_) => fail("expected Err for malformed JSON")
   }
+}
+
+///|
+test "parse_action_yml invalid description type" {
+  let json_str =
+    #|{"name":"My Action","description":123,"runs":{"using":"node20"}}
+  let result = parse_action_yml(json_str)
+  assert_eq(result, Err("invalid 'description' field: expected string"))
+}
+
+///|
+test "parse_action_yml invalid steps type" {
+  let json_str =
+    #|{"name":"My Action","runs":{"using":"composite","steps":"bad"}}
+  let result = parse_action_yml(json_str)
+  assert_eq(result, Err("invalid 'steps' field: expected array"))
+}
+
+///|
+test "parse_action_yml invalid uses type in step" {
+  let json_str =
+    #|{"name":"My Action","runs":{"using":"composite","steps":[{"uses":42}]}}
+  let result = parse_action_yml(json_str)
+  assert_eq(result, Err("invalid 'uses' field in step: expected string"))
 }
 
 ///|
