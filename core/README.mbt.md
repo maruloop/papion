@@ -7,8 +7,8 @@ Pure MoonBit engine for scanning GitHub Actions. No I/O, no host imports — all
 | Package | Purpose |
 |---------|---------|
 | `papion` (root) | Core data types shared by all packages |
-| `papion/parser` | Parse action.yml JSON into core types (**this PR**) |
-| `papion/config` | Parse policy configuration JSON (planned: WS3) |
+| `papion/parser` | Parse action.yml JSON into core types |
+| `papion/config` | Parse policy configuration JSON, glob matching for allowed/disallowed lists (**this PR**) |
 | `papion/rules` | Evaluate policy rules against action references (planned: WS4) |
 | `papion/format` | Format scan results as human-readable or JSON output (planned: WS7) |
 | `papion/engine` | Orchestrate a full scan (WASM entry point) (planned: WS5) |
