@@ -1,0 +1,26 @@
+name: Core Tests
+
+on:
+  push:
+    branches: [main]
+    paths: ['core/**']
+  pull_request:
+    paths: ['core/**']
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: core
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Set up MoonBit
+        run: |
+          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
+          echo "$HOME/.moon/bin" >> $GITHUB_PATH
+      - run: moon update
+      - run: moon fmt --check
+      - run: moon test
+      - run: moon build --target wasm-gc
+      - run: moon build --target js
