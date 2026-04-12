@@ -1,7 +1,0 @@
-// import {
-//   "maruloop/papion" @lib,
-// }
-
-options(
-  "is-main": true,
-)

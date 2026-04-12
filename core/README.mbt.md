@@ -54,8 +54,8 @@ The `runs` section of action.yml.
 
 ```
 Runs {
-  runner : String                // e.g. "composite", "node20" (`using` is reserved in MoonBit)
-  steps : Array[CompositeStep]  // only for composite actions
+  runner : String                 // e.g. "composite", "node20" (`using` is reserved in MoonBit)
+  steps : Array[CompositeStep]?  // present only for composite actions
 }
 ```
 

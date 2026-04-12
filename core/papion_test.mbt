@@ -25,11 +25,29 @@ test "ActionRef with path" {
 }
 
 ///|
+test "RefKind json roundtrip" {
+  let sha : @papion.RefKind = Sha
+  let tag : @papion.RefKind = Tag
+  let branch : @papion.RefKind = Branch
+  let s_json = @json.parse(sha.to_json().stringify())
+  let t_json = @json.parse(tag.to_json().stringify())
+  let b_json = @json.parse(branch.to_json().stringify())
+  let s_back : @papion.RefKind = @json.from_json(s_json)
+  let t_back : @papion.RefKind = @json.from_json(t_json)
+  let b_back : @papion.RefKind = @json.from_json(b_json)
+  assert_eq(sha, s_back)
+  assert_eq(tag, t_back)
+  assert_eq(branch, b_back)
+}
+
+///|
 test "FindingLevel json roundtrip" {
   let warn : @papion.FindingLevel = Warn
   let fail_ : @papion.FindingLevel = Fail
-  let w_back : @papion.FindingLevel = @json.from_json(warn.to_json())
-  let f_back : @papion.FindingLevel = @json.from_json(fail_.to_json())
+  let w_json = @json.parse(warn.to_json().stringify())
+  let f_json = @json.parse(fail_.to_json().stringify())
+  let w_back : @papion.FindingLevel = @json.from_json(w_json)
+  let f_back : @papion.FindingLevel = @json.from_json(f_json)
   assert_eq(warn, w_back)
   assert_eq(fail_, f_back)
 }
@@ -91,7 +109,7 @@ test "ActionYml json roundtrip - node action" {
   let a : @papion.ActionYml = {
     name: "Checkout",
     description: Some("Checkout a repo"),
-    runs: { runner: "node20", steps: [] },
+    runs: { runner: "node20", steps: None },
   }
   let json = @json.parse(a.to_json().stringify())
   let back : @papion.ActionYml = @json.from_json(json)
@@ -113,7 +131,7 @@ test "ActionYml json roundtrip - composite action" {
   let a : @papion.ActionYml = {
     name: "My Composite",
     description: None,
-    runs: { runner: "composite", steps: [step1, step2] },
+    runs: { runner: "composite", steps: Some([step1, step2]) },
   }
   let json = @json.parse(a.to_json().stringify())
   let back : @papion.ActionYml = @json.from_json(json)

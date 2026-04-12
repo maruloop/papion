@@ -58,7 +58,7 @@ pub(all) enum RefKind {
 
 pub(all) struct Runs {
   runner : String
-  steps : Array[CompositeStep]
+  steps : Array[CompositeStep]?
 } derive(Eq, Show, ToJson, @json.FromJson)
 
 pub(all) struct ScanResult {

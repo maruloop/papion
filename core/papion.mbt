@@ -23,7 +23,7 @@ pub(all) struct ActionYml {
 ///|
 pub(all) struct Runs {
   runner : String
-  steps : Array[CompositeStep]
+  steps : Array[CompositeStep]?
 } derive(Show, Eq, ToJson, FromJson)
 
 ///|
