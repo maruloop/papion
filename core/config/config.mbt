@@ -12,8 +12,9 @@ pub fn parse_policy(json_str : String) -> Result[@papion.Policy, String] {
       return Err("expected JSON object for Policy")
     }
     let obj = match obj.get("policy") {
+      None => obj
       Some(Object(inner)) => inner
-      _ => obj
+      Some(_) => return Err("invalid 'policy' field: expected object")
     }
     let sha_pinning = match obj.get("sha_pinning") {
       Some(True) => true
@@ -29,7 +30,9 @@ pub fn parse_policy(json_str : String) -> Result[@papion.Policy, String] {
           match item {
             String(s) => {
               if s.length() > max_pattern_len {
-                return Err("pattern too long in 'allowed': \{s}")
+                return Err(
+                  "pattern too long in 'allowed': \{s.length()} chars (max \{max_pattern_len})",
+                )
               }
               acc.push(s.to_lower())
             }
@@ -48,7 +51,9 @@ pub fn parse_policy(json_str : String) -> Result[@papion.Policy, String] {
           match item {
             String(s) => {
               if s.length() > max_pattern_len {
-                return Err("pattern too long in 'disallowed': \{s}")
+                return Err(
+                  "pattern too long in 'disallowed': \{s.length()} chars (max \{max_pattern_len})",
+                )
               }
               acc.push(s.to_lower())
             }
@@ -71,6 +76,7 @@ pub fn parse_policy(json_str : String) -> Result[@papion.Policy, String] {
 /// If the allowed list is empty, all refs are allowed (pass-all).
 /// Otherwise, the ref must match at least one pattern.
 /// Matching is against "owner/repo" (case-insensitive).
+/// Patterns in policy.allowed must be pre-normalized to lowercase (use parse_policy).
 pub fn matches_allowed(
   policy : @papion.Policy,
   action_ref : @papion.ActionRef,
@@ -86,6 +92,7 @@ pub fn matches_allowed(
 /// Returns true if the action ref is disallowed by the policy.
 ///
 /// Matching is against "owner/repo" (case-insensitive).
+/// Patterns in policy.disallowed must be pre-normalized to lowercase (use parse_policy).
 pub fn matches_disallowed(
   policy : @papion.Policy,
   action_ref : @papion.ActionRef,

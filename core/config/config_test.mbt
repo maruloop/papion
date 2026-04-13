@@ -102,6 +102,16 @@ test "parse_policy nested policy key full config" {
 }
 
 ///|
+test "parse_policy rejects non-object policy key" {
+  let json_str =
+    #|{"policy":[]}
+  match parse_policy(json_str) {
+    Err(_) => ()
+    Ok(_) => fail("expected Err for non-object policy key")
+  }
+}
+
+///|
 test "parse_policy normalizes patterns to lowercase" {
   let json_str =
     #|{"allowed":["Actions/*","GitHub/*"],"disallowed":["Bad-Org/Unsafe"]}
