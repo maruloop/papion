@@ -62,8 +62,10 @@ pub fn matches_allowed(
   if policy.allowed.is_empty() {
     return true
   }
-  let target = action_ref.owner + "/" + action_ref.repo
-  policy.allowed.iter().any(fn(pattern) { glob_match(pattern, target) })
+  let target = (action_ref.owner + "/" + action_ref.repo).to_lower()
+  policy.allowed
+  .iter()
+  .any(fn(pattern) { glob_match_lowered(pattern.to_lower(), target) })
 }
 
 ///|
@@ -74,6 +76,8 @@ pub fn matches_disallowed(
   policy : @papion.Policy,
   action_ref : @papion.ActionRef,
 ) -> Bool {
-  let target = action_ref.owner + "/" + action_ref.repo
-  policy.disallowed.iter().any(fn(pattern) { glob_match(pattern, target) })
+  let target = (action_ref.owner + "/" + action_ref.repo).to_lower()
+  policy.disallowed
+  .iter()
+  .any(fn(pattern) { glob_match_lowered(pattern.to_lower(), target) })
 }

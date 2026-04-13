@@ -29,6 +29,64 @@ test "parse_policy malformed JSON" {
 }
 
 ///|
+test "parse_policy rejects non-object top-level JSON" {
+  match parse_policy("[]") {
+    Err(_) => ()
+    Ok(_) => fail("expected Err for non-object top-level JSON")
+  }
+}
+
+///|
+test "parse_policy rejects non-bool sha_pinning" {
+  let json_str =
+    #|{"sha_pinning":"false"}
+  match parse_policy(json_str) {
+    Err(_) => ()
+    Ok(_) => fail("expected Err for non-bool sha_pinning")
+  }
+}
+
+///|
+test "parse_policy rejects non-array allowed" {
+  let json_str =
+    #|{"allowed":"actions/*"}
+  match parse_policy(json_str) {
+    Err(_) => ()
+    Ok(_) => fail("expected Err for non-array allowed")
+  }
+}
+
+///|
+test "parse_policy rejects non-array disallowed" {
+  let json_str =
+    #|{"disallowed":"bad-org/unsafe"}
+  match parse_policy(json_str) {
+    Err(_) => ()
+    Ok(_) => fail("expected Err for non-array disallowed")
+  }
+}
+
+///|
+test "parse_policy rejects non-string entry in allowed" {
+  let json_str =
+    #|{"allowed":["actions/*",1]}
+  match parse_policy(json_str) {
+    Err(_) => ()
+    Ok(_) => fail("expected Err for non-string entry in allowed")
+  }
+}
+
+///|
+test "parse_policy rejects non-string entry in disallowed" {
+  let json_str =
+    #|{"disallowed":["bad-org/unsafe",false]}
+  match parse_policy(json_str) {
+    Err(_) => ()
+    Ok(_) => fail("expected Err for non-string entry in disallowed")
+  }
+}
+
+///|
 test "matches_allowed empty list passes all" {
   let policy : @papion.Policy = {
     sha_pinning: true,

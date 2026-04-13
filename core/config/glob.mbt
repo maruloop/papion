@@ -1,11 +1,31 @@
+// Maximum pattern length to guard against pathological backtracking.
+
+///|
+let max_pattern_len : Int = 256
+
 ///|
 /// Match a glob pattern against text. Case-insensitive.
 ///
 /// Wildcards:
 /// - `*`  matches any sequence of non-`/` characters (single segment)
 /// - `**` matches any sequence of characters including `/`
+///
+/// Returns false if pattern exceeds 256 characters.
 pub fn glob_match(pattern : String, text : String) -> Bool {
+  if pattern.length() > max_pattern_len {
+    return false
+  }
   glob_match_view(pattern.to_lower()[:], text.to_lower()[:])
+}
+
+///|
+/// Like `glob_match` but assumes both pattern and text are already lowercased.
+/// Skips the `to_lower` allocation for callers that lowercase once up front.
+pub fn glob_match_lowered(pattern : String, text : String) -> Bool {
+  if pattern.length() > max_pattern_len {
+    return false
+  }
+  glob_match_view(pattern[:], text[:])
 }
 
 ///|
