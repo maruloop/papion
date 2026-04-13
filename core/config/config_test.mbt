@@ -87,6 +87,29 @@ test "parse_policy rejects non-string entry in disallowed" {
 }
 
 ///|
+test "parse_policy nested policy key full config" {
+  let json_str =
+    #|{"policy":{"sha_pinning":false,"allowed":["actions/*"],"disallowed":["bad-org/unsafe"]}}
+  let result = parse_policy(json_str)
+  assert_eq(
+    result,
+    Ok({
+      sha_pinning: false,
+      allowed: ["actions/*"],
+      disallowed: ["bad-org/unsafe"],
+    }),
+  )
+}
+
+///|
+test "parse_policy nested policy key empty object uses defaults" {
+  let json_str =
+    #|{"policy":{}}
+  let result = parse_policy(json_str)
+  assert_eq(result, Ok({ sha_pinning: true, allowed: [], disallowed: [] }))
+}
+
+///|
 test "matches_allowed empty list passes all" {
   let policy : @papion.Policy = {
     sha_pinning: true,

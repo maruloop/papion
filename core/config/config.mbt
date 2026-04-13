@@ -9,6 +9,10 @@ pub fn parse_policy(json_str : String) -> Result[@papion.Policy, String] {
     guard json is Object(obj) else {
       return Err("expected JSON object for Policy")
     }
+    let obj = match obj.get("policy") {
+      Some(Object(inner)) => inner
+      _ => obj
+    }
     let sha_pinning = match obj.get("sha_pinning") {
       Some(True) => true
       Some(False) => false
