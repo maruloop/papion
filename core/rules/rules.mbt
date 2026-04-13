@@ -11,7 +11,7 @@ fn format_target(action_ref : @papion.ActionRef) -> String {
 ///|
 /// Classify a git ref by its format.
 ///
-/// Returns `Sha` if the ref is exactly 40 lowercase hex characters.
+/// Returns `Sha` if the ref is exactly 40 hex characters (case-insensitive).
 /// Returns `Branch` for everything else — the pure core cannot distinguish
 /// tags from branches without API access, so the stricter classification is used.
 pub fn classify_ref(git_ref : String) -> @papion.RefKind {
@@ -20,7 +20,7 @@ pub fn classify_ref(git_ref : String) -> @papion.RefKind {
   }
   for ch in git_ref.iter() {
     match ch {
-      '0'..='9' | 'a'..='f' => ()
+      '0'..='9' | 'a'..='f' | 'A'..='F' => ()
       _ => return Branch
     }
   }
@@ -31,8 +31,8 @@ pub fn classify_ref(git_ref : String) -> @papion.RefKind {
 /// Check the SHA-pinning rule against an action reference.
 ///
 /// Produces a Fail finding when sha_pinning is enabled and the ref is not a
-/// 40-character lowercase hex SHA. Returns an empty array when the rule is
-/// disabled or the ref is already pinned.
+/// 40-character hex SHA (case-insensitive). Returns an empty array when the
+/// rule is disabled or the ref is already pinned.
 pub fn check_sha_pinning(
   action_ref : @papion.ActionRef,
   policy : @papion.Policy,
@@ -49,7 +49,7 @@ pub fn check_sha_pinning(
       rule: "sha-pinning",
       target: format_target(action_ref),
       context: None,
-      message: "action ref is not pinned to a SHA — use a 40-character lowercase hex commit SHA instead of a tag or branch name",
+      message: "action ref is not pinned to a SHA — use a 40-character hex commit SHA instead of a tag or branch name",
       suggestion: None,
     },
   ]
@@ -60,6 +60,7 @@ pub fn check_sha_pinning(
 ///
 /// Produces a Fail finding when the allowed list is non-empty and the action
 /// does not match any pattern. An empty allowed list passes all actions.
+/// Patterns in policy.allowed must be pre-normalized to lowercase (use parse_policy).
 pub fn check_allowed(
   action_ref : @papion.ActionRef,
   policy : @papion.Policy,
@@ -83,6 +84,7 @@ pub fn check_allowed(
 /// Check the disallowed-list rule against an action reference.
 ///
 /// Produces a Fail finding when the action matches any disallowed pattern.
+/// Patterns in policy.disallowed must be pre-normalized to lowercase (use parse_policy).
 pub fn check_disallowed(
   action_ref : @papion.ActionRef,
   policy : @papion.Policy,

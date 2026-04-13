@@ -5,9 +5,15 @@ test "classify_ref 40-char lowercase hex is Sha" {
 }
 
 ///|
-test "classify_ref 40-char uppercase hex is Branch" {
+test "classify_ref 40-char uppercase hex is Sha" {
   let sha = "A1B2C3D4E5F6A1B2C3D4E5F6A1B2C3D4E5F6A1B2"
-  assert_eq(classify_ref(sha), @papion.RefKind::Branch)
+  assert_eq(classify_ref(sha), @papion.RefKind::Sha)
+}
+
+///|
+test "classify_ref 40-char mixed-case hex is Sha" {
+  let sha = "a1B2c3D4e5F6a1B2c3D4e5F6a1B2c3D4e5F6a1B2"
+  assert_eq(classify_ref(sha), @papion.RefKind::Sha)
 }
 
 ///|
