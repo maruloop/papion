@@ -297,13 +297,18 @@ Strict separation
 
 ### Decision
 
-Prefer **Pure Core (no host import)** initially
+Prefer **Pure Core (no host import)** for v1
 
 ### Rationale
 
 * Simplifies multi-runtime support
 * Improves safety
 * Reduces complexity
+* Host pre-resolves any API-dependent data (e.g. `RefKind` via `GET /repos/{owner}/{repo}/git/ref/tags/{ref}` and `.../heads/{ref}`) and passes it into core via data structures
+
+### Future consideration (pre-v2)
+
+If YAML fetching moves into core via a `fetch_yaml` host import, a `resolve_ref_kind` import becomes a natural and low-cost addition. In that model the host shrinks to a thin shell — WASM runtime + import function implementations only. This is a compelling architecture for v2's Cloudflare Worker target where minimising host-side logic reduces deployment surface. The async constraint (WASM imports are synchronous by default) must be resolved first, either via Asyncify or JSPI.
 
 ---
 
