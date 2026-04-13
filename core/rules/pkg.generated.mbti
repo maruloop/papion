@@ -1,0 +1,26 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "maruloop/papion/rules"
+
+import {
+  "maruloop/papion",
+}
+
+// Values
+pub fn check_allowed(@papion.ActionRef, @papion.Policy) -> Array[@papion.Finding]
+
+pub fn check_disallowed(@papion.ActionRef, @papion.Policy) -> Array[@papion.Finding]
+
+pub fn check_sha_pinning(@papion.ActionRef, @papion.Policy) -> Array[@papion.Finding]
+
+pub fn classify_ref(String) -> @papion.RefKind
+
+pub fn evaluate(@papion.ActionRef, @papion.Policy) -> Array[@papion.Finding]
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits
+
