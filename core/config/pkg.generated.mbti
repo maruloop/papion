@@ -1,0 +1,26 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "maruloop/papion/config"
+
+import {
+  "maruloop/papion",
+}
+
+// Values
+pub fn glob_match(String, String) -> Bool
+
+pub fn glob_match_lowered(String, String) -> Bool
+
+pub fn matches_allowed(@papion.Policy, @papion.ActionRef) -> Bool
+
+pub fn matches_disallowed(@papion.Policy, @papion.ActionRef) -> Bool
+
+pub fn parse_policy(String) -> Result[@papion.Policy, String]
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits
+
