@@ -3,6 +3,8 @@
 ///
 /// The host converts TOML to JSON before passing to this function.
 /// Missing fields use defaults: sha_pinning=true, allowed=[], disallowed=[].
+/// Returns Err if any pattern exceeds 256 characters.
+/// Patterns are normalized to lowercase during parsing.
 pub fn parse_policy(json_str : String) -> Result[@papion.Policy, String] {
   try {
     let json = @json.parse(json_str)
@@ -25,7 +27,12 @@ pub fn parse_policy(json_str : String) -> Result[@papion.Policy, String] {
         let acc : Array[String] = Array::new()
         for item in arr {
           match item {
-            String(s) => acc.push(s)
+            String(s) => {
+              if s.length() > max_pattern_len {
+                return Err("pattern too long in 'allowed': \{s}")
+              }
+              acc.push(s.to_lower())
+            }
             _ => return Err("invalid entry in 'allowed': expected string")
           }
         }
@@ -39,7 +46,12 @@ pub fn parse_policy(json_str : String) -> Result[@papion.Policy, String] {
         let acc : Array[String] = Array::new()
         for item in arr {
           match item {
-            String(s) => acc.push(s)
+            String(s) => {
+              if s.length() > max_pattern_len {
+                return Err("pattern too long in 'disallowed': \{s}")
+              }
+              acc.push(s.to_lower())
+            }
             _ => return Err("invalid entry in 'disallowed': expected string")
           }
         }
@@ -67,9 +79,7 @@ pub fn matches_allowed(
     return true
   }
   let target = (action_ref.owner + "/" + action_ref.repo).to_lower()
-  policy.allowed
-  .iter()
-  .any(fn(pattern) { glob_match_lowered(pattern.to_lower(), target) })
+  policy.allowed.iter().any(fn(pattern) { glob_match_lowered(pattern, target) })
 }
 
 ///|
@@ -83,5 +93,5 @@ pub fn matches_disallowed(
   let target = (action_ref.owner + "/" + action_ref.repo).to_lower()
   policy.disallowed
   .iter()
-  .any(fn(pattern) { glob_match_lowered(pattern.to_lower(), target) })
+  .any(fn(pattern) { glob_match_lowered(pattern, target) })
 }

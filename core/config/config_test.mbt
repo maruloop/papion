@@ -102,6 +102,41 @@ test "parse_policy nested policy key full config" {
 }
 
 ///|
+test "parse_policy normalizes patterns to lowercase" {
+  let json_str =
+    #|{"allowed":["Actions/*","GitHub/*"],"disallowed":["Bad-Org/Unsafe"]}
+  let result = parse_policy(json_str)
+  assert_eq(
+    result,
+    Ok({
+      sha_pinning: true,
+      allowed: ["actions/*", "github/*"],
+      disallowed: ["bad-org/unsafe"],
+    }),
+  )
+}
+
+///|
+test "parse_policy rejects overlong pattern in allowed" {
+  let long_pattern = String::make(257, 'a')
+  let json_str = "{\"allowed\":[\"\{long_pattern}\"]}"
+  match parse_policy(json_str) {
+    Err(_) => ()
+    Ok(_) => fail("expected Err for overlong allowed pattern")
+  }
+}
+
+///|
+test "parse_policy rejects overlong pattern in disallowed" {
+  let long_pattern = String::make(257, 'a')
+  let json_str = "{\"disallowed\":[\"\{long_pattern}\"]}"
+  match parse_policy(json_str) {
+    Err(_) => ()
+    Ok(_) => fail("expected Err for overlong disallowed pattern")
+  }
+}
+
+///|
 test "parse_policy nested policy key empty object uses defaults" {
   let json_str =
     #|{"policy":{}}
@@ -142,15 +177,15 @@ test "matches_allowed with matching pattern" {
 }
 
 ///|
-test "matches_allowed case-insensitive" {
+test "matches_allowed case-insensitive owner in target" {
   let policy : @papion.Policy = {
     sha_pinning: true,
-    allowed: ["Actions/*"],
+    allowed: ["actions/*"],
     disallowed: [],
   }
   let action_ref : @papion.ActionRef = {
-    owner: "actions",
-    repo: "checkout",
+    owner: "Actions",
+    repo: "Checkout",
     git_ref: "v4",
     path: None,
   }
@@ -190,15 +225,15 @@ test "matches_disallowed with matching pattern" {
 }
 
 ///|
-test "matches_disallowed case-insensitive" {
+test "matches_disallowed case-insensitive owner in target" {
   let policy : @papion.Policy = {
     sha_pinning: true,
     allowed: [],
-    disallowed: ["Bad-Org/*"],
+    disallowed: ["bad-org/*"],
   }
   let action_ref : @papion.ActionRef = {
-    owner: "bad-org",
-    repo: "evil-action",
+    owner: "Bad-Org",
+    repo: "Evil-Action",
     git_ref: "v1",
     path: None,
   }
