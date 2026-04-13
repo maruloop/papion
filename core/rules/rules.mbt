@@ -1,6 +1,11 @@
 ///|
 fn format_target(action_ref : @papion.ActionRef) -> String {
-  action_ref.owner + "/" + action_ref.repo + "@" + action_ref.git_ref
+  let base = action_ref.owner + "/" + action_ref.repo
+  let with_path = match action_ref.path {
+    Some(p) => base + "/" + p
+    None => base
+  }
+  with_path + "@" + action_ref.git_ref
 }
 
 ///|
@@ -44,7 +49,7 @@ pub fn check_sha_pinning(
       rule: "sha-pinning",
       target: format_target(action_ref),
       context: None,
-      message: "action ref is not pinned to a SHA — use a 40-character commit SHA instead of a tag or branch name",
+      message: "action ref is not pinned to a SHA — use a 40-character lowercase hex commit SHA instead of a tag or branch name",
       suggestion: None,
     },
   ]

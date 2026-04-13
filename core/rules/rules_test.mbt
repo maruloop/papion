@@ -233,6 +233,42 @@ test "evaluate action in both allowed and disallowed produces disallowed finding
 }
 
 ///|
+test "check_sha_pinning with path includes path in target" {
+  let action_ref : @papion.ActionRef = {
+    owner: "myorg",
+    repo: "actions",
+    git_ref: "v2",
+    path: Some("deploy"),
+  }
+  let policy = @papion.Policy::default()
+  let findings = check_sha_pinning(action_ref, policy)
+  assert_eq(findings.length(), 1)
+  assert_eq(findings[0].target, "myorg/actions/deploy@v2")
+}
+
+///|
+test "evaluate with path includes path in finding target" {
+  let action_ref : @papion.ActionRef = {
+    owner: "myorg",
+    repo: "actions",
+    git_ref: "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+    path: Some("sub"),
+  }
+  let policy : @papion.Policy = {
+    sha_pinning: true,
+    allowed: ["github/*"],
+    disallowed: [],
+  }
+  let findings = evaluate(action_ref, policy)
+  assert_eq(findings.length(), 1)
+  assert_eq(findings[0].rule, "allowed-list")
+  assert_eq(
+    findings[0].target,
+    "myorg/actions/sub@a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
+  )
+}
+
+///|
 test "evaluate all passing produces no findings" {
   let action_ref : @papion.ActionRef = {
     owner: "actions",
