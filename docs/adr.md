@@ -414,6 +414,37 @@ Use browser execution as **optional runtime**, not primary
 
 ---
 
+## Decision 17: YAML parsing strategy
+
+### Options
+
+* **Host-side YAML→JSON conversion** — Go host converts action.yml YAML to JSON using a Go library before passing to core; core receives JSON strings only
+* **MoonBit YAML parser in core** — core imports a MoonBit YAML library and parses raw YAML strings directly
+
+### Decision
+
+Use **MoonBit YAML parser in core** via `moonbit-community/yaml` v0.0.4
+
+### Rationale
+
+* Eliminates host-side YAML dependency (no yaml.v3 or equivalent in Go)
+* Keeps parsing logic portable — same behaviour across CLI, browser, and Cloudflare Worker runtimes
+* Simplifies WS6 (Go host): host reads raw bytes and passes them unchanged
+* `moonbit-community/yaml` is ported from yaml-rust2 and supports the YAML subset sufficient for action.yml
+
+### Consequence
+
+* `parse_action_yml` accepts a raw YAML string instead of a pre-converted JSON string
+* Core module now depends on `moonbit-community/yaml`
+* Host passes raw action.yml content directly to core
+* Config (papion.toml / TOML) still converted to JSON by host — TOML is smaller scope and no MoonBit TOML library is required
+
+### Relation to Decision 10
+
+Core remains pure (no host imports). Decision 10's "no host import" principle is preserved — the YAML parser is a vendored MoonBit library, not a host import.
+
+---
+
 ## Final Architecture Summary
 
 Papion is:
