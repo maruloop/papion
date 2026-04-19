@@ -10,7 +10,7 @@ Draft (v0 design direction agreed)
 
 ### v1.0.0 — CLI + GitHub Actions
 
-* Go CLI with WASM core
+* Docker CLI with MoonBit native core
 * GitHub Action integration
 * CI-generated static badges
 * Distributed scanning only
@@ -42,7 +42,7 @@ Draft (v0 design direction agreed)
 
 ```
 core/        # MoonBit core (parsing, rules, findings)   [v1+]
-cli/         # Go CLI                                     [v1+]
+cli/         # Docker CLI (MoonBit native binaries)       [v1+]
 action/      # GitHub Action                              [v1+]
 web/         # Cloudflare static site + Worker            [v2+]
 server/      # Backend application                        [v3+]
@@ -230,19 +230,19 @@ Prefer **Archive download**
 
 Adopt **Multi-target build using MoonBit**
 
-* JS backend → Cloudflare / browser
-* WASM backend → Go CLI
+* Native backend → Docker CLI
+* JS/WASM backend → Cloudflare / browser
 
 ### Rationale
 
-* Combine ease of JS with portability of WASM
-* Avoid runtime dependency for CLI
+* Keep CLI runtime simple via MoonBit native binaries
+* Keep browser/edge runtime flexible via JS or WASM
 * Enable future extensibility
 
 ### Rejected
 
-* WASM-only (too complex early)
-* JS-only (limits CLI portability and sandboxing)
+* WASM-only (adds unnecessary CLI runtime coupling)
+* JS-only (limits native CLI performance and portability)
 
 ---
 
@@ -250,12 +250,12 @@ Adopt **Multi-target build using MoonBit**
 
 ### Decision
 
-WASM is used as **portable core engine**, not full application
+WASM is used as **optional portable runtime**, not mandatory for every host
 
 ### Rationale
 
 * Keep I/O outside core
-* Improve portability and testability
+* Preserve portability for browser/edge targets while allowing native CLI execution
 
 ---
 
@@ -418,7 +418,7 @@ Use browser execution as **optional runtime**, not primary
 
 ### Options
 
-* **Host-side YAML→JSON conversion** — Go host converts action.yml YAML to JSON using a Go library before passing to core; core receives JSON strings only
+* **Host-side YAML→JSON conversion** — host converts action.yml YAML to JSON before passing to core; core receives JSON strings only
 * **MoonBit YAML parser in core** — core imports a MoonBit YAML library and parses raw YAML strings directly
 
 ### Decision
@@ -427,9 +427,9 @@ Use **MoonBit YAML parser in core** via `moonbit-community/yaml` v0.0.4
 
 ### Rationale
 
-* Eliminates host-side YAML dependency (no yaml.v3 or equivalent in Go)
+* Eliminates host-side YAML dependency
 * Keeps parsing logic portable — same behaviour across CLI, browser, and Cloudflare Worker runtimes
-* Simplifies WS6 (Go host): host reads raw bytes and passes them unchanged
+* Simplifies host integration: host reads raw bytes and passes them unchanged
 * `moonbit-community/yaml` is ported from yaml-rust2 and supports the YAML subset sufficient for action.yml
 
 ### Consequence
@@ -453,7 +453,7 @@ Papion is:
 * With a **portable core engine (MoonBit)**
 * Executed via:
 
-  * CLI (Go + WASM)
+  * CLI (MoonBit native via Docker)
   * Browser (JS/WASM)
   * Cloudflare Worker (JS)
 * With a **lightweight central index**
