@@ -5,6 +5,9 @@ pub(all) struct ActionRef {
   git_ref : String
   path : String?
 } derive(Debug, Eq, ToJson, FromJson)
+pub impl Show for ActionRef with output(self, logger) {
+  logger.write_string(self.to_json().stringify())
+}
 
 ///|
 pub(all) enum RefKind {
@@ -12,6 +15,9 @@ pub(all) enum RefKind {
   Tag
   Branch
 } derive(Debug, Eq, ToJson, FromJson)
+pub impl Show for RefKind with output(self, logger) {
+  logger.write_string(self.to_json().stringify())
+}
 
 ///|
 pub(all) struct ActionYml {
@@ -19,12 +25,18 @@ pub(all) struct ActionYml {
   description : String?
   runs : Runs
 } derive(Debug, Eq, ToJson, FromJson)
+pub impl Show for ActionYml with output(self, logger) {
+  logger.write_string(self.to_json().stringify())
+}
 
 ///|
 pub(all) struct Runs {
   runner : String
   steps : Array[CompositeStep]?
 } derive(Debug, Eq, ToJson, FromJson)
+pub impl Show for Runs with output(self, logger) {
+  logger.write_string(self.to_json().stringify())
+}
 
 ///|
 pub(all) struct CompositeStep {
@@ -32,12 +44,18 @@ pub(all) struct CompositeStep {
   run : String?
   name : String?
 } derive(Debug, Eq, ToJson, FromJson)
+pub impl Show for CompositeStep with output(self, logger) {
+  logger.write_string(self.to_json().stringify())
+}
 
 ///|
 pub(all) enum FindingLevel {
   Warn
   Fail
 } derive(Debug, Eq, ToJson, FromJson)
+pub impl Show for FindingLevel with output(self, logger) {
+  logger.write_string(self.to_json().stringify())
+}
 
 ///|
 pub(all) struct Finding {
@@ -48,6 +66,9 @@ pub(all) struct Finding {
   message : String
   suggestion : String?
 } derive(Debug, Eq, ToJson, FromJson)
+pub impl Show for Finding with output(self, logger) {
+  logger.write_string(self.to_json().stringify())
+}
 
 ///|
 pub(all) struct Policy {
@@ -55,6 +76,9 @@ pub(all) struct Policy {
   allowed : Array[String]
   disallowed : Array[String]
 } derive(Debug, Eq, ToJson, FromJson)
+pub impl Show for Policy with output(self, logger) {
+  logger.write_string(self.to_json().stringify())
+}
 
 ///|
 pub fn Policy::default() -> Policy {
@@ -67,12 +91,18 @@ pub(all) struct ScanTarget {
   repo : String
   git_ref : String
 } derive(Debug, Eq, ToJson, FromJson)
+pub impl Show for ScanTarget with output(self, logger) {
+  logger.write_string(self.to_json().stringify())
+}
 
 ///|
 pub(all) struct Summary {
   failures : Int
   warnings : Int
 } derive(Debug, Eq, ToJson, FromJson)
+pub impl Show for Summary with output(self, logger) {
+  logger.write_string(self.to_json().stringify())
+}
 
 ///|
 pub(all) struct ScanResult {
@@ -80,3 +110,6 @@ pub(all) struct ScanResult {
   findings : Array[Finding]
   summary : Summary
 } derive(Debug, Eq, ToJson, FromJson)
+pub impl Show for ScanResult with output(self, logger) {
+  logger.write_string(self.to_json().stringify())
+}

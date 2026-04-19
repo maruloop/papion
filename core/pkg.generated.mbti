@@ -16,18 +16,21 @@ pub(all) struct ActionRef {
   git_ref : String
   path : String?
 } derive(Debug, Eq, ToJson, @json.FromJson)
+pub impl Show for ActionRef
 
 pub(all) struct ActionYml {
   name : String
   description : String?
   runs : Runs
 } derive(Debug, Eq, ToJson, @json.FromJson)
+pub impl Show for ActionYml
 
 pub(all) struct CompositeStep {
   uses : String?
   run : String?
   name : String?
 } derive(Debug, Eq, ToJson, @json.FromJson)
+pub impl Show for CompositeStep
 
 pub(all) struct Finding {
   level : FindingLevel
@@ -37,17 +40,20 @@ pub(all) struct Finding {
   message : String
   suggestion : String?
 } derive(Debug, Eq, ToJson, @json.FromJson)
+pub impl Show for Finding
 
 pub(all) enum FindingLevel {
   Warn
   Fail
 } derive(Debug, Eq, ToJson, @json.FromJson)
+pub impl Show for FindingLevel
 
 pub(all) struct Policy {
   sha_pinning : Bool
   allowed : Array[String]
   disallowed : Array[String]
 } derive(Debug, Eq, ToJson, @json.FromJson)
+pub impl Show for Policy
 pub fn Policy::default() -> Self
 
 pub(all) enum RefKind {
@@ -55,28 +61,33 @@ pub(all) enum RefKind {
   Tag
   Branch
 } derive(Debug, Eq, ToJson, @json.FromJson)
+pub impl Show for RefKind
 
 pub(all) struct Runs {
   runner : String
   steps : Array[CompositeStep]?
 } derive(Debug, Eq, ToJson, @json.FromJson)
+pub impl Show for Runs
 
 pub(all) struct ScanResult {
   target : ScanTarget
   findings : Array[Finding]
   summary : Summary
 } derive(Debug, Eq, ToJson, @json.FromJson)
+pub impl Show for ScanResult
 
 pub(all) struct ScanTarget {
   owner : String
   repo : String
   git_ref : String
 } derive(Debug, Eq, ToJson, @json.FromJson)
+pub impl Show for ScanTarget
 
 pub(all) struct Summary {
   failures : Int
   warnings : Int
 } derive(Debug, Eq, ToJson, @json.FromJson)
+pub impl Show for Summary
 
 // Type aliases
 
