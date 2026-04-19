@@ -17,14 +17,17 @@
 Use `moon ide` for symbol lookup — do not grep or read files blindly.
 
 ```sh
-# Peek definition at a specific location (file:line:col)
-moon ide peek-def --loc core/parser/parser.mbt:44:1
+# List all symbols in a file (use this to find line numbers first)
+moon ide outline core/parser/parser.mbt
+
+# Peek definition — loc must point at a symbol usage, not a definition
+moon ide peek-def --loc core/parser/parser.mbt:99:15
 
 # Find all references to a symbol at a location
-moon ide find-references --loc core/parser/parser.mbt:44:1
+moon ide find-references --loc core/parser/parser.mbt:99:15
 ```
 
-Both commands require `--loc file[:line[:col]]`. Line and column are 1-based.
+`outline` takes a file path. `peek-def` and `find-references` require `--loc file:line:col` pointing at a symbol usage (not a definition or blank line).
 
 ## MoonBit skills available
 
