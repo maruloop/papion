@@ -89,7 +89,7 @@ papion run actions/checkout@v4
 
   WARN  actions/checkout@v4
         Referenced by tag, not pinned to a SHA.
-        Tip: use actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        Tip: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
 
   FAIL  actions/github-script@v7 (used in composite step "setup")
         Not pinned to a SHA.
@@ -111,6 +111,7 @@ papion run actions/checkout@v4 --format json
     {
       "level": "warn",
       "rule": "sha-pinning",
+      "target": "actions/checkout@v4",
       "message": "Referenced by tag, not pinned to a SHA.",
       "suggestion": "actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683"
     },
