@@ -514,3 +514,33 @@ The current direction is distributed scanning first, with a possible later expan
 Papion deliberately avoids becoming a heavy centralized service and instead:
 
 > Distributes execution, centralizes discovery, and preserves reproducibility.
+
+---
+
+## External Context: GitHub Actions 2026 Security Roadmap
+
+Reference: https://github.blog/news-insights/product-news/whats-coming-to-our-github-actions-2026-security-roadmap/
+
+GitHub announced a major security roadmap for GitHub Actions in 2026, covering:
+
+* **Workflow-level dependency locking** — A `dependencies:` section in workflow YAML that locks all direct and transitive action references to commit SHAs (like `go.mod + go.sum`). Public preview in 3–6 months.
+* **Policy-driven execution** — Centralized workflow execution policies via rulesets (who can trigger, which events are allowed).
+* **Scoped secrets** — Credentials bound to specific execution contexts.
+* **Actions Data Stream** — Near real-time execution telemetry.
+* **Native egress firewall** — Layer 7 firewall for GitHub-hosted runners.
+
+### Impact on Papion
+
+**Where GitHub's roadmap overlaps with Papion:**
+
+* SHA pinning for **workflow consumers** becomes a platform feature. Papion's value here is reduced once dependency locking ships.
+
+**Where Papion remains differentiated:**
+
+* **Action scanning (not workflow scanning)** — GitHub's lock file secures workflow consumers. Papion scans the action itself. If a composite action internally uses unpinned actions, GitHub's lock file doesn't catch that — Papion does.
+* **Policy engine** — Allowed/disallowed lists for evaluating whether a third-party action is acceptable to use. GitHub's policies control execution context, not action selection.
+* **Marketplace and discoverability (v3+)** — No GitHub-native public index of action safety signals exists. That is Papion's v3 opportunity.
+
+### Strategic implication
+
+Papion's SHA pinning rule for **action-internal dependencies** remains valid. The larger opportunity shifts toward the **policy engine and marketplace**. GitHub is securing the execution layer; Papion owns the **evaluation and discovery** layer.
