@@ -18,7 +18,7 @@ jobs:
       - uses: hustcer/setup-moonbit@e9b0a3082767ae669bf7588992ae3ba9eac09baa
       - run: moon update
       - run: moon fmt --check
-      - run: moon test
+      - run: moon test --deny-warn
       - run: moon build --target wasm-gc
       - run: moon build --target js
       - name: Check generated interface is up to date

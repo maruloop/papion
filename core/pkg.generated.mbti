@@ -2,6 +2,7 @@
 package "maruloop/papion"
 
 import {
+  "moonbitlang/core/debug",
   "moonbitlang/core/json",
 }
 
@@ -15,19 +16,22 @@ pub(all) struct ActionRef {
   repo : String
   git_ref : String
   path : String?
-} derive(Eq, Show, ToJson, @json.FromJson)
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
+pub impl Show for ActionRef
 
 pub(all) struct ActionYml {
   name : String
   description : String?
   runs : Runs
-} derive(Eq, Show, ToJson, @json.FromJson)
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
+pub impl Show for ActionYml
 
 pub(all) struct CompositeStep {
   uses : String?
   run : String?
   name : String?
-} derive(Eq, Show, ToJson, @json.FromJson)
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
+pub impl Show for CompositeStep
 
 pub(all) struct Finding {
   level : FindingLevel
@@ -36,47 +40,55 @@ pub(all) struct Finding {
   context : String?
   message : String
   suggestion : String?
-} derive(Eq, Show, ToJson, @json.FromJson)
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
+pub impl Show for Finding
 
 pub(all) enum FindingLevel {
   Warn
   Fail
-} derive(Eq, Show, ToJson, @json.FromJson)
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
+pub impl Show for FindingLevel
 
 pub(all) struct Policy {
   sha_pinning : Bool
   allowed : Array[String]
   disallowed : Array[String]
-} derive(Eq, Show, ToJson, @json.FromJson)
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
 pub fn Policy::default() -> Self
+pub impl Show for Policy
 
 pub(all) enum RefKind {
   Sha
   Tag
   Branch
-} derive(Eq, Show, ToJson, @json.FromJson)
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
+pub impl Show for RefKind
 
 pub(all) struct Runs {
   runner : String
   steps : Array[CompositeStep]?
-} derive(Eq, Show, ToJson, @json.FromJson)
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
+pub impl Show for Runs
 
 pub(all) struct ScanResult {
   target : ScanTarget
   findings : Array[Finding]
   summary : Summary
-} derive(Eq, Show, ToJson, @json.FromJson)
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
+pub impl Show for ScanResult
 
 pub(all) struct ScanTarget {
   owner : String
   repo : String
   git_ref : String
-} derive(Eq, Show, ToJson, @json.FromJson)
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
+pub impl Show for ScanTarget
 
 pub(all) struct Summary {
   failures : Int
   warnings : Int
-} derive(Eq, Show, ToJson, @json.FromJson)
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
+pub impl Show for Summary
 
 // Type aliases
 
