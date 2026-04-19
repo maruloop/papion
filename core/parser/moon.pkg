@@ -1,4 +1,4 @@
 import {
   "maruloop/papion",
-  "moonbitlang/core/json",
+  "moonbit-community/yaml",
 }
