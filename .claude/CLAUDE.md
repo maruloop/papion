@@ -17,17 +17,14 @@
 Use `moon ide` for symbol lookup — do not grep or read files blindly.
 
 ```sh
-# Find definition of a symbol
-moon ide goto-definition -tags 'pub fn' -query 'parse_action_yml'
+# Peek definition at a specific location (file:line:col)
+moon ide peek-def --loc core/parser/parser.mbt:44:1
 
-# Find all usages
-moon ide find-references -tags 'struct' -query 'ScanResult'
-
-# Scope to a package
-moon ide goto-definition -query '@maruloop/papion/parser parse_action_yml'
+# Find all references to a symbol at a location
+moon ide find-references --loc core/parser/parser.mbt:44:1
 ```
 
-See `core/AGENTS.md` for full `moon ide` reference.
+Both commands require `--loc file[:line[:col]]`. Line and column are 1-based.
 
 ## MoonBit skills available
 
