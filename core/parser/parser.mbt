@@ -40,36 +40,60 @@ pub fn parse_action_ref(uses : String) -> Result[@papion.ActionRef, String] {
 }
 
 ///|
-/// Parse action.yml content (as JSON string) into an ActionYml.
-///
-/// The host must convert YAML to JSON before passing to this function.
-/// The JSON must preserve the original action.yml field names (e.g. `using`).
-pub fn parse_action_yml(json_str : String) -> Result[@papion.ActionYml, String] {
-  try {
-    let json = @json.parse(json_str)
-    action_yml_from_json(json)
-  } catch {
-    e => Err(e.to_string())
+/// Parse action.yml content (as YAML string) into an ActionYml.
+pub fn parse_action_yml(yaml_str : String) -> Result[@papion.ActionYml, String] {
+  let docs = @yaml.Yaml::load_from_string(yaml_str) catch {
+    e => return Err(e.to_string())
+  }
+  match docs.length() {
+    0 => return Err("empty YAML document")
+    1 => ()
+    _ => return Err("expected exactly one YAML document in action.yml")
+  }
+  action_yml_from_yaml(docs[0])
+}
+
+///|
+// Coerce any YAML scalar to String. Boolean and Integer use MoonBit's
+// canonical repr ("true"/"false", decimal) because the yaml library does
+// not preserve the original source text for those variants (unlike Real,
+// which carries repr~). This library follows YAML 1.2 semantics: bare
+// "on"/"yes"/etc. remain strings, only "true"/"false" parse as booleans.
+// Boolean coercion is therefore rare in practice but handled for safety.
+fn yaml_scalar_to_string(yaml : @yaml.Yaml) -> String? {
+  match yaml {
+    String(s) => Some(s)
+    Integer(n) => Some(n.to_string())
+    Boolean(b) => Some(if b { "true" } else { "false" })
+    Real(_, repr~) => Some(repr)
+    _ => None
   }
 }
 
 ///|
-fn action_yml_from_json(json : Json) -> Result[@papion.ActionYml, String] {
-  guard json is Object(obj) else {
-    return Err("expected JSON object for ActionYml")
+fn action_yml_from_yaml(yaml : @yaml.Yaml) -> Result[@papion.ActionYml, String] {
+  guard yaml is Map(obj) else {
+    return Err("expected YAML mapping for ActionYml")
   }
   let name = match obj.get("name") {
-    Some(String(s)) => s
-    _ => return Err("missing or invalid 'name' field")
+    Some(v) =>
+      match yaml_scalar_to_string(v) {
+        Some(s) => s
+        None => return Err("missing or invalid 'name' field")
+      }
+    None => return Err("missing or invalid 'name' field")
   }
   let description = match obj.get("description") {
-    Some(String(s)) => Some(s)
-    Some(_) => return Err("invalid 'description' field: expected string")
-    None => None
+    Some(Null) | None => None
+    Some(v) =>
+      match yaml_scalar_to_string(v) {
+        Some(s) => Some(s)
+        None => return Err("invalid 'description' field: expected string")
+      }
   }
   let runs = match obj.get("runs") {
-    Some(runs_json) =>
-      match runs_from_json(runs_json) {
+    Some(runs_yaml) =>
+      match runs_from_yaml(runs_yaml) {
         Ok(r) => r
         Err(e) => return Err(e)
       }
@@ -79,18 +103,22 @@ fn action_yml_from_json(json : Json) -> Result[@papion.ActionYml, String] {
 }
 
 ///|
-fn runs_from_json(json : Json) -> Result[@papion.Runs, String] {
-  guard json is Object(obj) else { return Err("expected JSON object for runs") }
+fn runs_from_yaml(yaml : @yaml.Yaml) -> Result[@papion.Runs, String] {
+  guard yaml is Map(obj) else { return Err("expected YAML mapping for runs") }
   let runner = match obj.get("using") {
-    Some(String(s)) => s
-    _ => return Err("missing or invalid 'using' field in runs")
+    Some(v) =>
+      match yaml_scalar_to_string(v) {
+        Some(s) => s
+        None => return Err("missing or invalid 'using' field in runs")
+      }
+    None => return Err("missing or invalid 'using' field in runs")
   }
   let steps = match obj.get("steps") {
     None => None
     Some(Array(arr)) => {
       let acc : Array[@papion.CompositeStep] = Array::new()
-      for step_json in arr {
-        match composite_step_from_json(step_json) {
+      for step_yaml in arr {
+        match composite_step_from_yaml(step_yaml) {
           Ok(step) => acc.push(step)
           Err(e) => return Err(e)
         }
@@ -103,31 +131,35 @@ fn runs_from_json(json : Json) -> Result[@papion.Runs, String] {
 }
 
 ///|
-fn optional_string_field(
-  obj : Map[String, Json],
+fn optional_yaml_string(
+  obj : Map[String, @yaml.Yaml],
   field : String,
 ) -> Result[String?, String] {
   match obj.get(field) {
     None => Ok(None)
-    Some(String(s)) => Ok(Some(s))
-    Some(_) => Err("invalid '" + field + "' field in step: expected string")
+    Some(Null) => Err("invalid '" + field + "' field in step: expected string")
+    Some(v) =>
+      match yaml_scalar_to_string(v) {
+        Some(s) => Ok(Some(s))
+        None => Err("invalid '" + field + "' field in step: expected string")
+      }
   }
 }
 
 ///|
-fn composite_step_from_json(
-  json : Json,
+fn composite_step_from_yaml(
+  yaml : @yaml.Yaml,
 ) -> Result[@papion.CompositeStep, String] {
-  guard json is Object(obj) else { return Err("expected JSON object for step") }
-  let uses = match optional_string_field(obj, "uses") {
+  guard yaml is Map(obj) else { return Err("expected YAML mapping for step") }
+  let uses = match optional_yaml_string(obj, "uses") {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let run = match optional_string_field(obj, "run") {
+  let run = match optional_yaml_string(obj, "run") {
     Ok(v) => v
     Err(e) => return Err(e)
   }
-  let name = match optional_string_field(obj, "name") {
+  let name = match optional_yaml_string(obj, "name") {
     Ok(v) => v
     Err(e) => return Err(e)
   }

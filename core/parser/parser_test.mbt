@@ -92,9 +92,11 @@ test "parse_action_ref error empty path" {
 
 ///|
 test "parse_action_yml minimal node action" {
-  let json_str =
-    #|{"name":"Setup Node","runs":{"using":"node20"}}
-  let result = parse_action_yml(json_str)
+  let yaml_str =
+    #|name: Setup Node
+    #|runs:
+    #|  using: node20
+  let result = parse_action_yml(yaml_str)
   assert_eq(
     result,
     Ok({
@@ -107,9 +109,16 @@ test "parse_action_yml minimal node action" {
 
 ///|
 test "parse_action_yml composite action with steps" {
-  let json_str =
-    #|{"name":"My Action","description":"does things","runs":{"using":"composite","steps":[{"uses":"actions/checkout@v4","name":"checkout"},{"run":"echo hello"}]}}
-  let result = parse_action_yml(json_str)
+  let yaml_str =
+    #|name: My Action
+    #|description: does things
+    #|runs:
+    #|  using: composite
+    #|  steps:
+    #|    - uses: actions/checkout@v4
+    #|      name: checkout
+    #|    - run: echo hello
+  let result = parse_action_yml(yaml_str)
   assert_eq(
     result,
     Ok({
@@ -131,36 +140,104 @@ test "parse_action_yml composite action with steps" {
 }
 
 ///|
-test "parse_action_yml malformed JSON" {
-  let result = parse_action_yml("not json at all")
+test "parse_action_yml malformed YAML" {
+  let result = parse_action_yml(":\t bad yaml\t:\n\t")
   match result {
     Err(_) => ()
-    Ok(_) => fail("expected Err for malformed JSON")
+    Ok(_) => fail("expected Err for malformed YAML")
   }
 }
 
 ///|
+test "parse_action_yml multi-document YAML rejected" {
+  let yaml_str =
+    #|name: My Action
+    #|runs:
+    #|  using: node20
+    #|---
+    #|name: Second Document
+    #|runs:
+    #|  using: node20
+  let result = parse_action_yml(yaml_str)
+  assert_eq(result, Err("expected exactly one YAML document in action.yml"))
+}
+
+///|
 test "parse_action_yml invalid description type" {
-  let json_str =
-    #|{"name":"My Action","description":123,"runs":{"using":"node20"}}
-  let result = parse_action_yml(json_str)
+  let yaml_str =
+    #|name: My Action
+    #|description:
+    #|  nested: map
+    #|runs:
+    #|  using: node20
+  let result = parse_action_yml(yaml_str)
   assert_eq(result, Err("invalid 'description' field: expected string"))
 }
 
 ///|
 test "parse_action_yml invalid steps type" {
-  let json_str =
-    #|{"name":"My Action","runs":{"using":"composite","steps":"bad"}}
-  let result = parse_action_yml(json_str)
+  let yaml_str =
+    #|name: My Action
+    #|runs:
+    #|  using: composite
+    #|  steps: bad
+  let result = parse_action_yml(yaml_str)
   assert_eq(result, Err("invalid 'steps' field: expected array"))
 }
 
 ///|
-test "parse_action_yml invalid uses type in step" {
-  let json_str =
-    #|{"name":"My Action","runs":{"using":"composite","steps":[{"uses":42}]}}
-  let result = parse_action_yml(json_str)
+test "parse_action_yml null uses in step rejected" {
+  let yaml_str =
+    #|name: My Action
+    #|runs:
+    #|  using: composite
+    #|  steps:
+    #|    - uses: ~
+  let result = parse_action_yml(yaml_str)
   assert_eq(result, Err("invalid 'uses' field in step: expected string"))
+}
+
+///|
+test "parse_action_yml invalid uses type in step" {
+  let yaml_str =
+    #|name: My Action
+    #|runs:
+    #|  using: composite
+    #|  steps:
+    #|    - uses:
+    #|        nested: object
+  let result = parse_action_yml(yaml_str)
+  assert_eq(result, Err("invalid 'uses' field in step: expected string"))
+}
+
+///|
+test "parse_action_yml yaml boolean name coercion" {
+  // The yaml library follows YAML 1.2: only "true"/"false" are booleans.
+  // Bare "on" is parsed as a string, so it passes through unchanged.
+  // Explicit true is parsed as Boolean(true) and coerced to "true".
+  let yaml_str =
+    #|name: true
+    #|runs:
+    #|  using: node20
+  let result = parse_action_yml(yaml_str)
+  match result {
+    Ok(yml) => assert_eq(yml.name, "true")
+    Err(e) => fail("expected Ok but got Err: \{e}")
+  }
+}
+
+///|
+test "parse_action_yml yaml integer description coercion" {
+  let yaml_str =
+    #|name: My Action
+    #|description: 42
+    #|runs:
+    #|  using: node20
+  let result = parse_action_yml(yaml_str)
+  match result {
+    Ok(yml) => assert_eq(yml.description, Some("42"))
+    Err(e) => fail("expected Ok but got Err: \{e}")
+  }
 }
 
 ///|
