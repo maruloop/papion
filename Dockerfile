@@ -23,5 +23,6 @@ FROM ubuntu:24.04
 RUN apt-get update && apt-get install -y libcurl4 libarchive13 ca-certificates && rm -rf /var/lib/apt/lists/*
 
 COPY --from=builder /src/core/_build/native/release/build/cli/cli.exe /usr/local/bin/papion
+RUN chmod +x /usr/local/bin/papion
 
 ENTRYPOINT ["papion"]

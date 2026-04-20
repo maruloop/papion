@@ -76,7 +76,7 @@ pub impl Show for RunOptions with output(self, logger) {
 fn split_target(
   target : String,
 ) -> Result[(String, String, String?, String), String] {
-  guard target.find("@") is Some(at_idx) else {
+  guard target.rev_find("@") is Some(at_idx) else {
     return Err("missing '@ref' in target: \"\{target}\"")
   }
   let before_at = target[:at_idx].to_string()
