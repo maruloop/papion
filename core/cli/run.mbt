@@ -28,6 +28,10 @@ pub fn run(args : Array[String]) -> Result[RunOutcome, CliError] {
     Ok(options) => options
     Err(err) => return Err(err)
   }
+  let config_json = match load_config(options.config) {
+    Ok(config_json) => config_json
+    Err(err) => return Err(RuntimeError(err))
+  }
   let tarball = match
     fetch_tarball(options.owner, options.repo, options.git_ref) {
     Ok(tarball) => tarball
@@ -35,10 +39,6 @@ pub fn run(args : Array[String]) -> Result[RunOutcome, CliError] {
   }
   let action_yml = match extract_action_yml(tarball, options.path) {
     Ok(action_yml) => action_yml
-    Err(err) => return Err(RuntimeError(err))
-  }
-  let config_json = match load_config(options.config) {
-    Ok(config_json) => config_json
     Err(err) => return Err(RuntimeError(err))
   }
   let result = match

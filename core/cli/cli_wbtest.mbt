@@ -240,6 +240,15 @@ test "run propagates arg error as ArgError" {
 }
 
 ///|
+test "run config stub error fires before fetch stub error" {
+  let result = run(["run", "actions/checkout@v4", "--config", "papion.toml"])
+  assert_eq(
+    result,
+    Err(RuntimeError("config loading is not implemented in WS6")),
+  )
+}
+
+///|
 test "run parse_args error on --config propagates before fetch" {
   let result = run(["run", "actions/checkout@v4", "--config"])
   assert_eq(result, Err(ArgError("missing value for --config")))
