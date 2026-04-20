@@ -480,6 +480,14 @@ For current architecture, transition CLI runtime to **MoonBit native binaries**,
 * Go+WASM remains historical context, not the active default
 * Browser and edge targets continue to use JS/WASM where appropriate
 
+### Consequence (expanded)
+
+* CLI host responsibilities (HTTP client, archive extraction, TOML loading) are implemented in MoonBit via C FFI (libcurl, libarchive, a TOML C library)
+* `path` in `owner/repo[/path]@ref` is resolved host-side: host extracts `<tarball-root>/<path>/action.yml` and passes raw YAML to core — `ScanTarget` stays as `{owner, repo, git_ref}`
+* Docker fallback: a pre-built image published to `ghcr.io/maruloop/papion` for platforms where native binary is unavailable
+* CI: `moon build --target native` added to CLI test workflow
+* Browser and edge targets (JS/WASM) are unaffected
+
 ---
 
 ## Final Architecture Summary

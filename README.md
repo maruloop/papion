@@ -49,13 +49,23 @@ If an action matches both `allowed` and `disallowed`, **disallowed takes precede
 ### Install
 
 ```sh
-go install github.com/maruloop/papion@latest
+# Homebrew
+brew install maruloop/tap/papion
+
+# Docker
+docker run --rm ghcr.io/maruloop/papion run actions/checkout@v4
+
+# From source
+git clone https://github.com/maruloop/papion.git
+cd papion
+moon build --target native
+cp ./target/native/release/build/cli/cli papion
 ```
 
 ### Usage
 
 ```sh
-papion run org/repo@ref
+papion run org/repo[/path]@ref
 ```
 
 **Examples:**
@@ -66,6 +76,9 @@ papion run actions/checkout@v4
 
 # Scan by SHA
 papion run actions/checkout@abc1234def5678
+
+# Scan a sub-path action (e.g. this repo's own action)
+papion run maruloop/papion/action@v1
 
 # Scan a specific version
 papion run actions/setup-go@v5.0.0
@@ -193,10 +206,19 @@ Override the ref to scan a specific tag or SHA:
 
 ## How it works
 
+Papion CLI is built as a MoonBit native binary, with a Docker image available as a fallback.
+
+CLI users do not need a Go or WASM runtime.
+
+The same MoonBit core for parsing, rules, and engine logic also compiles to WASM/JS for browser and Cloudflare Worker usage.
+
+At runtime Papion:
+
 1. Downloads the action archive from GitHub (no full clone)
-2. Parses `action.yml` and any composite steps
-3. Evaluates rules against all referenced actions
-4. Reports findings
+2. Resolves `org/repo[/path]@ref` to the target `action.yml`
+3. Parses `action.yml` and any composite steps
+4. Evaluates rules against all referenced actions
+5. Reports findings
 
 Scans run locally — no data is sent to any server.
 
