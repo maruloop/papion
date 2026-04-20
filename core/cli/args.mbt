@@ -59,17 +59,19 @@ pub(all) struct RunOptions {
 
 ///|
 pub impl Show for RunOptions with output(self, logger) {
-  let path = match self.path {
-    Some(path) => "Some(\"\{path}\")"
-    None => "None"
-  }
-  let config = match self.config {
-    Some(path) => "Some(\"\{path}\")"
-    None => "None"
-  }
+  logger.write_string("RunOptions(owner: ")
+  self.owner.output(logger)
+  logger.write_string(", repo: ")
+  self.repo.output(logger)
+  logger.write_string(", path: ")
+  self.path.output(logger)
+  logger.write_string(", git_ref: ")
+  self.git_ref.output(logger)
   logger.write_string(
-    "RunOptions(owner: \"\{self.owner}\", repo: \"\{self.repo}\", path: \{path}, git_ref: \"\{self.git_ref}\", format: \{self.format}, fail_on: \{self.fail_on}, config: \{config})",
+    ", format: \{self.format}, fail_on: \{self.fail_on}, config: ",
   )
+  self.config.output(logger)
+  logger.write_string(")")
 }
 
 ///|

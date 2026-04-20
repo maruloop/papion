@@ -15,9 +15,11 @@ pub(all) struct RunOutcome {
 
 ///|
 pub impl Show for RunOutcome with output(self, logger) {
-  logger.write_string(
-    "RunOutcome(exit_code: \{self.exit_code}, output: \"\{self.output}\")",
-  )
+  logger.write_string("RunOutcome(exit_code: ")
+  logger.write_string(self.exit_code.to_string())
+  logger.write_string(", output: ")
+  self.output.output(logger)
+  logger.write_string(")")
 }
 
 ///|
