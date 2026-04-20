@@ -257,6 +257,10 @@ WASM is used as **optional portable runtime**, not mandatory for every host
 * Keep I/O outside core
 * Preserve portability for browser/edge targets while allowing native CLI execution
 
+### Relation to Decision 7
+
+This decision follows Decision 7 by clarifying runtime scope: CLI uses MoonBit native binaries, while WASM remains available as a portable target for browser/edge use.
+
 ---
 
 ## Decision 9: Host responsibilities vs Core responsibilities
