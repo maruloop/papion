@@ -135,6 +135,18 @@ test "parse_args error unknown flag" {
 }
 
 ///|
+test "parse_args error invalid format value" {
+  let result = parse_args(["run", "actions/checkout@v4", "--format", "xml"])
+  assert_eq(result, Err(ArgError("invalid value for --format: \"xml\"")))
+}
+
+///|
+test "parse_args error invalid fail-on value" {
+  let result = parse_args(["run", "actions/checkout@v4", "--fail-on", "foo"])
+  assert_eq(result, Err(ArgError("invalid value for --fail-on: \"foo\"")))
+}
+
+///|
 test "run propagates fetch stub error as RuntimeError" {
   let result = run(["run", "actions/checkout@v4"])
   assert_eq(
