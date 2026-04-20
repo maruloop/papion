@@ -10,7 +10,7 @@ Draft (v0 design direction agreed)
 
 ### v1.0.0 — CLI + GitHub Actions
 
-* Go CLI with WASM core
+* MoonBit native binary CLI (Docker fallback)
 * GitHub Action integration
 * CI-generated static badges
 * Distributed scanning only
@@ -42,7 +42,7 @@ Draft (v0 design direction agreed)
 
 ```
 core/        # MoonBit core (parsing, rules, findings)   [v1+]
-cli/         # Go CLI                                     [v1+]
+cli/         # MoonBit native CLI + Docker fallback        [v1+]
 action/      # GitHub Action                              [v1+]
 web/         # Cloudflare static site + Worker            [v2+]
 server/      # Backend application                        [v3+]
@@ -230,19 +230,28 @@ Prefer **Archive download**
 
 Adopt **Multi-target build using MoonBit**
 
+* Native backend → MoonBit native binary (Docker CLI fallback)
+* JS/WASM backend → Cloudflare / browser
+
+### Historical decision (kept for traceability)
+
+Original direction before the CLI runtime change:
+
 * JS backend → Cloudflare / browser
 * WASM backend → Go CLI
 
+This historical direction is superseded for CLI runtime by Decision 18.
+
 ### Rationale
 
-* Combine ease of JS with portability of WASM
-* Avoid runtime dependency for CLI
+* Keep CLI runtime simple via MoonBit native binaries
+* Keep browser/edge runtime flexible via JS or WASM
 * Enable future extensibility
 
 ### Rejected
 
-* WASM-only (too complex early)
-* JS-only (limits CLI portability and sandboxing)
+* WASM-only (adds unnecessary CLI runtime coupling)
+* JS-only (limits native CLI performance and portability)
 
 ---
 
@@ -250,12 +259,17 @@ Adopt **Multi-target build using MoonBit**
 
 ### Decision
 
-WASM is used as **portable core engine**, not full application
+WASM is used as **optional portable runtime**, not mandatory for every host
 
 ### Rationale
 
 * Keep I/O outside core
-* Improve portability and testability
+* Preserve portability for browser/edge targets while allowing native CLI execution
+
+### Relation to Decision 7
+
+This decision follows Decision 7 by clarifying that WASM remains a portable runtime for browser/edge targets.
+After Decision 18, this still holds while CLI execution moves from Go+WASM to MoonBit native binaries.
 
 ---
 
@@ -418,7 +432,7 @@ Use browser execution as **optional runtime**, not primary
 
 ### Options
 
-* **Host-side YAML→JSON conversion** — Go host converts action.yml YAML to JSON using a Go library before passing to core; core receives JSON strings only
+* **Host-side YAML→JSON conversion** — host converts action.yml YAML to JSON before passing to core; core receives JSON strings only
 * **MoonBit YAML parser in core** — core imports a MoonBit YAML library and parses raw YAML strings directly
 
 ### Decision
@@ -427,9 +441,9 @@ Use **MoonBit YAML parser in core** via `moonbit-community/yaml` v0.0.4
 
 ### Rationale
 
-* Eliminates host-side YAML dependency (no yaml.v3 or equivalent in Go)
+* Eliminates host-side YAML dependency
 * Keeps parsing logic portable — same behaviour across CLI, browser, and Cloudflare Worker runtimes
-* Simplifies WS6 (Go host): host reads raw bytes and passes them unchanged
+* Simplifies host integration: host reads raw bytes and passes them unchanged
 * `moonbit-community/yaml` is ported from yaml-rust2 and supports the YAML subset sufficient for action.yml
 
 ### Consequence
@@ -445,6 +459,29 @@ Core remains pure (no host imports). Decision 10's "no host import" principle is
 
 ---
 
+## Decision 18: CLI runtime transition (Go+WASM → MoonBit native)
+
+### Context
+
+Decision 7 originally used Go CLI + WASM backend. This is retained above for historical traceability.
+
+### Decision
+
+For current architecture, transition CLI runtime to **MoonBit native binaries**, with **Docker CLI as fallback**, replacing Go+WASM as the default CLI execution path.
+
+### Rationale
+
+* Removes an extra runtime boundary in CLI execution
+* Simplifies CLI packaging and operational model
+* Aligns CLI runtime with current MoonBit-native direction
+
+### Consequence
+
+* Go+WASM remains historical context, not the active default
+* Browser and edge targets continue to use JS/WASM where appropriate
+
+---
+
 ## Final Architecture Summary
 
 Papion is:
@@ -453,7 +490,7 @@ Papion is:
 * With a **portable core engine (MoonBit)**
 * Executed via:
 
-  * CLI (Go + WASM)
+  * CLI (MoonBit native binary; Docker fallback)
   * Browser (JS/WASM)
   * Cloudflare Worker (JS)
 * With a **lightweight central index**
