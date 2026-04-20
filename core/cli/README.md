@@ -29,7 +29,7 @@ Rules:
 - `ScanTarget` passed to the engine is `{ owner, repo, git_ref }`.
 - `--format` defaults to `human`.
 - `--fail-on` defaults to `fail`.
-- `--config` is optional. When omitted, the host looks for `papion.toml`.
+- `--config` is optional. When omitted, default policy is used (no file lookup). Config file search (`papion.toml`, `.github/papion.toml`) is deferred to WS8.
 
 ## Responsibilities
 
@@ -56,20 +56,24 @@ For WS6, these native pieces compile through C stubs and return placeholder erro
 core/cli/
   README.md
   moon.pkg
-  main.mbt
-  args.mbt
-  run.mbt
-  github.mbt
-  archive.mbt
-  config.mbt
-  cwrap.c
-  cli_test.mbt
+  main_native.mbt       # native entry point (fn main, c_exit)
+  main_wasm.mbt         # wasm stub entry point
+  args.mbt              # argument parsing (CliError, RunOptions, parse_args)
+  run.mbt               # orchestration (run, exit_code_for)
+  github_native.mbt     # fetch_tarball via C FFI
+  github_wasm.mbt       # fetch_tarball stub
+  archive_native.mbt    # extract_action_yml via C FFI
+  archive_wasm.mbt      # extract_action_yml stub
+  config_native.mbt     # load_config via C FFI
+  config_wasm.mbt       # load_config stub
+  cwrap.c               # C glue stubs (papion_fetch_tarball, etc.)
+  cli_wbtest.mbt        # whitebox unit tests
 ```
 
 ## Data Flow
 
-1. `main.mbt` reads CLI args and calls `run`.
-2. `args.mbt` parses `run` options.
+1. `main_native.mbt` reads CLI args and calls `run`.
+2. `args.mbt` parses `run` options; returns `ArgError` or `RuntimeError` on failure.
 3. `run.mbt` orchestrates host calls:
    - fetch tarball
    - extract `action.yml`
@@ -77,7 +81,7 @@ core/cli/
    - call `engine.scan`
    - format result
    - determine exit code
-4. `github.mbt`, `archive.mbt`, and `config.mbt` isolate native host dependencies.
+4. `github_native.mbt`, `archive_native.mbt`, and `config_native.mbt` isolate native host dependencies.
 
 ## Native Dependencies
 

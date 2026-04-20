@@ -1,4 +1,18 @@
 ///|
+pub(all) enum CliError {
+  ArgError(String)
+  RuntimeError(String)
+} derive(Debug, Eq)
+
+///|
+pub impl Show for CliError with output(self, logger) {
+  match self {
+    ArgError(msg) => logger.write_string("ArgError(\"\{msg}\")")
+    RuntimeError(msg) => logger.write_string("RuntimeError(\"\{msg}\")")
+  }
+}
+
+///|
 pub(all) enum OutputFormat {
   Human
   Json
@@ -117,16 +131,16 @@ fn parse_fail_on(value : String) -> Result[FailOnLevel, String] {
 }
 
 ///|
-pub fn parse_args(args : Array[String]) -> Result[RunOptions, String] {
+pub fn parse_args(args : Array[String]) -> Result[RunOptions, CliError] {
   guard args.length() >= 2 else {
-    return Err(
-      "usage: papion run org/repo[/path]@ref [--format human|json] [--fail-on warn|fail|none] [--config path]",
-    )
+    return Err(ArgError("missing command and target"))
   }
-  guard args[0] == "run" else { return Err("unknown command: \"\{args[0]}\"") }
+  guard args[0] == "run" else {
+    return Err(ArgError("unknown command: \"\{args[0]}\""))
+  }
   let (owner, repo, path, git_ref) = match split_target(args[1]) {
     Ok(parts) => parts
-    Err(err) => return Err(err)
+    Err(err) => return Err(ArgError(err))
   }
   let mut format = Human
   let mut fail_on = Fail
@@ -137,32 +151,32 @@ pub fn parse_args(args : Array[String]) -> Result[RunOptions, String] {
     match flag {
       "--format" => {
         guard i + 1 < args.length() else {
-          return Err("missing value for --format")
+          return Err(ArgError("missing value for --format"))
         }
         format = match parse_format(args[i + 1]) {
           Ok(value) => value
-          Err(err) => return Err(err)
+          Err(err) => return Err(ArgError(err))
         }
         i += 2
       }
       "--fail-on" => {
         guard i + 1 < args.length() else {
-          return Err("missing value for --fail-on")
+          return Err(ArgError("missing value for --fail-on"))
         }
         fail_on = match parse_fail_on(args[i + 1]) {
           Ok(value) => value
-          Err(err) => return Err(err)
+          Err(err) => return Err(ArgError(err))
         }
         i += 2
       }
       "--config" => {
         guard i + 1 < args.length() else {
-          return Err("missing value for --config")
+          return Err(ArgError("missing value for --config"))
         }
         config = Some(args[i + 1])
         i += 2
       }
-      _ => return Err("unknown flag: \"\{flag}\"")
+      _ => return Err(ArgError("unknown flag: \"\{flag}\""))
     }
   }
   Ok({ owner, repo, path, git_ref, format, fail_on, config })

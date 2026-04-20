@@ -15,9 +15,13 @@ fn main {
       println(outcome.output)
       c_exit(outcome.exit_code)
     }
-    Err(err) => {
-      println(err)
+    Err(ArgError(msg)) => {
+      println(msg)
       println(usage())
+      c_exit(2)
+    }
+    Err(RuntimeError(msg)) => {
+      println(msg)
       c_exit(2)
     }
   }

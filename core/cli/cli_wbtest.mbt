@@ -86,13 +86,49 @@ test "parse_args fail_on none" {
 ///|
 test "parse_args error missing ref" {
   let result = parse_args(["run", "actions/checkout"])
-  assert_eq(result, Err("missing '@ref' in target: \"actions/checkout\""))
+  assert_eq(result, Err(ArgError("missing '@ref' in target: \"actions/checkout\"")))
 }
 
 ///|
 test "parse_args error unknown command" {
   let result = parse_args(["scan", "actions/checkout@v4"])
-  assert_eq(result, Err("unknown command: \"scan\""))
+  assert_eq(result, Err(ArgError("unknown command: \"scan\"")))
+}
+
+///|
+test "parse_args error no args" {
+  let result = parse_args([])
+  assert_eq(result, Err(ArgError("missing command and target")))
+}
+
+///|
+test "parse_args error command only" {
+  let result = parse_args(["run"])
+  assert_eq(result, Err(ArgError("missing command and target")))
+}
+
+///|
+test "parse_args error missing format value" {
+  let result = parse_args(["run", "actions/checkout@v4", "--format"])
+  assert_eq(result, Err(ArgError("missing value for --format")))
+}
+
+///|
+test "parse_args error missing fail-on value" {
+  let result = parse_args(["run", "actions/checkout@v4", "--fail-on"])
+  assert_eq(result, Err(ArgError("missing value for --fail-on")))
+}
+
+///|
+test "parse_args error missing config value" {
+  let result = parse_args(["run", "actions/checkout@v4", "--config"])
+  assert_eq(result, Err(ArgError("missing value for --config")))
+}
+
+///|
+test "parse_args error unknown flag" {
+  let result = parse_args(["run", "actions/checkout@v4", "--unknown"])
+  assert_eq(result, Err(ArgError("unknown flag: \"--unknown\"")))
 }
 
 ///|
