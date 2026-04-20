@@ -2,7 +2,15 @@
 pub(all) enum CliError {
   ArgError(String)
   RuntimeError(String)
-} derive(Debug, Eq, Show)
+} derive(Debug, Eq)
+
+///|
+pub impl Show for CliError with output(self, logger) {
+  match self {
+    ArgError(msg) => logger.write_string("ArgError(\{msg})")
+    RuntimeError(msg) => logger.write_string("RuntimeError(\{msg})")
+  }
+}
 
 ///|
 pub(all) enum OutputFormat {

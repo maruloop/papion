@@ -25,7 +25,8 @@ pub fn run(Array[String]) -> Result[RunOutcome, CliError]
 pub(all) enum CliError {
   ArgError(String)
   RuntimeError(String)
-} derive(Eq, Show, @debug.Debug)
+} derive(Eq, @debug.Debug)
+pub impl Show for CliError
 
 pub(all) enum FailOnLevel {
   Warn
