@@ -28,12 +28,6 @@ jobs:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - uses: hustcer/setup-moonbit@e9b0a3082767ae669bf7588992ae3ba9eac09baa
       - run: moon update
-      - name: Install native dependencies (Linux)
-        if: matrix.os == 'ubuntu-latest'
-        run: sudo apt-get update && sudo apt-get install -y libcurl4-openssl-dev libarchive-dev
-      - name: Install native dependencies (macOS)
-        if: matrix.os == 'macos-14'
-        run: brew install curl libarchive
       - name: Build native binary
         run: moon build --release --target native
       - name: Package
