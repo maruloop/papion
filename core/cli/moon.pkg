@@ -8,13 +8,7 @@ import {
 
 options(
   "is-main": true,
-  link: {
-    "native": {
-      "cc": "clang",
-      "cc-link-flags": "-lcurl -larchive",
-      "stub-cc": "clang",
-    },
-  },
+  link: { "native": { "cc-link-flags": "-lcurl -larchive" } },
   "native-stub": [ "cwrap.c" ],
   targets: {
     "archive_native.mbt": [ "native", "llvm" ],

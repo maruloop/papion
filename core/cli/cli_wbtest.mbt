@@ -86,7 +86,10 @@ test "parse_args fail_on none" {
 ///|
 test "parse_args error missing ref" {
   let result = parse_args(["run", "actions/checkout"])
-  assert_eq(result, Err(ArgError("missing '@ref' in target: \"actions/checkout\"")))
+  assert_eq(
+    result,
+    Err(ArgError("missing '@ref' in target: \"actions/checkout\"")),
+  )
 }
 
 ///|
