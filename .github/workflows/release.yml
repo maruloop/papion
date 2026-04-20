@@ -48,7 +48,7 @@ jobs:
       - uses: actions/upload-artifact@v4
         with:
           name: papion-${{ matrix.target }}
-          path: papion-${{ matrix.target }}.tar.gz
+          path: core/papion-${{ matrix.target }}.tar.gz
 
   release:
     needs: build
