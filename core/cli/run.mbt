@@ -11,7 +11,7 @@ pub fn exit_code_for(summary : @papion.Summary, fail_on : FailOnLevel) -> Int {
 pub(all) struct RunOutcome {
   exit_code : Int
   output : String
-} derive(Debug, Eq)
+} derive(Debug, Eq, Show)
 
 ///|
 pub fn run(args : Array[String]) -> Result[RunOutcome, CliError] {

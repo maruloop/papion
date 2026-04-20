@@ -135,6 +135,27 @@ test "parse_args error unknown flag" {
 }
 
 ///|
+test "run propagates fetch stub error as RuntimeError" {
+  let result = run(["run", "actions/checkout@v4"])
+  assert_eq(
+    result,
+    Err(RuntimeError("GitHub tarball fetch is not implemented in WS6")),
+  )
+}
+
+///|
+test "run propagates arg error as ArgError" {
+  let result = run(["run"])
+  assert_eq(result, Err(ArgError("missing command and target")))
+}
+
+///|
+test "run parse_args error on --config propagates before fetch" {
+  let result = run(["run", "actions/checkout@v4", "--config"])
+  assert_eq(result, Err(ArgError("missing value for --config")))
+}
+
+///|
 test "exit_code_for fail_on fail clean" {
   assert_eq(exit_code_for({ failures: 0, warnings: 0 }, Fail), 0)
 }
