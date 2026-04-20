@@ -2,14 +2,11 @@ import {
   "maruloop/papion/engine",
   "maruloop/papion/format",
   "maruloop/papion",
-  "moonbitlang/core/encoding/utf8",
   "moonbitlang/core/env",
 }
 
 options(
   "is-main": true,
-  link: { "native": { "cc-link-flags": "-lcurl -larchive" } },
-  "native-stub": [ "cwrap.c" ],
   targets: {
     "archive_native.mbt": [ "native", "llvm" ],
     "archive_wasm.mbt": [ "wasm", "wasm-gc", "js" ],
