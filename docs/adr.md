@@ -233,6 +233,15 @@ Adopt **Multi-target build using MoonBit**
 * Native backend → Docker CLI
 * JS/WASM backend → Cloudflare / browser
 
+### Historical decision (kept for traceability)
+
+Original direction before the CLI runtime change:
+
+* JS backend → Cloudflare / browser
+* WASM backend → Go CLI
+
+This historical direction is superseded for CLI runtime by Decision 18.
+
 ### Rationale
 
 * Keep CLI runtime simple via MoonBit native binaries
@@ -259,7 +268,8 @@ WASM is used as **optional portable runtime**, not mandatory for every host
 
 ### Relation to Decision 7
 
-This decision follows Decision 7 by clarifying runtime scope: CLI uses MoonBit native binaries, while WASM remains available as a portable target for browser/edge use.
+This decision follows Decision 7 by clarifying that WASM remains a portable runtime for browser/edge targets.
+After Decision 18, this still holds while CLI execution moves from Go+WASM to MoonBit native binaries.
 
 ---
 
@@ -446,6 +456,29 @@ Use **MoonBit YAML parser in core** via `moonbit-community/yaml` v0.0.4
 ### Relation to Decision 10
 
 Core remains pure (no host imports). Decision 10's "no host import" principle is preserved — the YAML parser is a vendored MoonBit library, not a host import.
+
+---
+
+## Decision 18: CLI runtime transition (Go+WASM → MoonBit native)
+
+### Context
+
+Decision 7 originally used Go CLI + WASM backend. This is retained above for historical traceability.
+
+### Decision
+
+For current architecture, transition CLI runtime to **MoonBit native binaries via Docker**, replacing Go+WASM as the default CLI execution path.
+
+### Rationale
+
+* Removes an extra runtime boundary in CLI execution
+* Simplifies CLI packaging and operational model
+* Aligns CLI runtime with current MoonBit-native direction
+
+### Consequence
+
+* Go+WASM remains historical context, not the active default
+* Browser and edge targets continue to use JS/WASM where appropriate
 
 ---
 
