@@ -40,7 +40,7 @@ jobs:
         run: |
           BIN="_build/native/release/build/cli/cli.exe"
           TARGET="${{ matrix.target }}"
-          OUT="../papion-${TARGET}.tar.gz"
+          OUT="papion-${TARGET}.tar.gz"
           mkdir -p dist
           cp "$BIN" dist/papion
           chmod +x dist/papion

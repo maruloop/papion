@@ -90,7 +90,7 @@ The package links native builds against:
 - `libcurl`
 - `libarchive`
 
-The TOML path is also exposed through the same C stub layer so the MoonBit package boundary stays stable while the implementation evolves.
+Config loading is a pure MoonBit stub in WS6; the C FFI boundary for TOML parsing is deferred to WS8.
 
 ## WS6 Scope
 
