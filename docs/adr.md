@@ -10,7 +10,7 @@ Draft (v0 design direction agreed)
 
 ### v1.0.0 — CLI + GitHub Actions
 
-* Docker CLI with MoonBit native core
+* MoonBit native binary CLI (Docker fallback)
 * GitHub Action integration
 * CI-generated static badges
 * Distributed scanning only
@@ -42,7 +42,7 @@ Draft (v0 design direction agreed)
 
 ```
 core/        # MoonBit core (parsing, rules, findings)   [v1+]
-cli/         # Docker CLI (MoonBit native binaries)       [v1+]
+cli/         # MoonBit native CLI + Docker fallback        [v1+]
 action/      # GitHub Action                              [v1+]
 web/         # Cloudflare static site + Worker            [v2+]
 server/      # Backend application                        [v3+]
@@ -230,7 +230,7 @@ Prefer **Archive download**
 
 Adopt **Multi-target build using MoonBit**
 
-* Native backend → Docker CLI
+* Native backend → MoonBit native binary (Docker CLI fallback)
 * JS/WASM backend → Cloudflare / browser
 
 ### Historical decision (kept for traceability)
@@ -467,7 +467,7 @@ Decision 7 originally used Go CLI + WASM backend. This is retained above for his
 
 ### Decision
 
-For current architecture, transition CLI runtime to **MoonBit native binaries via Docker**, replacing Go+WASM as the default CLI execution path.
+For current architecture, transition CLI runtime to **MoonBit native binaries**, with **Docker CLI as fallback**, replacing Go+WASM as the default CLI execution path.
 
 ### Rationale
 
@@ -490,7 +490,7 @@ Papion is:
 * With a **portable core engine (MoonBit)**
 * Executed via:
 
-  * CLI (MoonBit native via Docker)
+  * CLI (MoonBit native binary; Docker fallback)
   * Browser (JS/WASM)
   * Cloudflare Worker (JS)
 * With a **lightweight central index**
