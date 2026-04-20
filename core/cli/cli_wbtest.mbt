@@ -149,37 +149,73 @@ test "parse_args error invalid fail-on value" {
 ///|
 test "parse_args short flag -f for format" {
   let result = parse_args(["run", "actions/checkout@v4", "-f", "json"])
-  assert_eq(result, Ok({ owner: "actions", repo: "checkout", path: None, git_ref: "v4", format: Json, fail_on: Fail, config: None }))
+  assert_eq(
+    result,
+    Ok({
+      owner: "actions",
+      repo: "checkout",
+      path: None,
+      git_ref: "v4",
+      format: Json,
+      fail_on: Fail,
+      config: None,
+    }),
+  )
 }
 
 ///|
 test "parse_args short flag -F for fail-on" {
   let result = parse_args(["run", "actions/checkout@v4", "-F", "warn"])
-  assert_eq(result, Ok({ owner: "actions", repo: "checkout", path: None, git_ref: "v4", format: Human, fail_on: Warn, config: None }))
+  assert_eq(
+    result,
+    Ok({
+      owner: "actions",
+      repo: "checkout",
+      path: None,
+      git_ref: "v4",
+      format: Human,
+      fail_on: Warn,
+      config: None,
+    }),
+  )
 }
 
 ///|
 test "parse_args split_target error missing owner" {
   let result = parse_args(["run", "@v1"])
-  assert_eq(result, Err(ArgError("invalid target, expected org/repo[/path]@ref: \"@v1\"")))
+  assert_eq(
+    result,
+    Err(ArgError("invalid target, expected org/repo[/path]@ref: \"@v1\"")),
+  )
 }
 
 ///|
 test "parse_args split_target error empty owner" {
   let result = parse_args(["run", "/repo@v1"])
-  assert_eq(result, Err(ArgError("invalid target, expected org/repo[/path]@ref: \"/repo@v1\"")))
+  assert_eq(
+    result,
+    Err(ArgError("invalid target, expected org/repo[/path]@ref: \"/repo@v1\"")),
+  )
 }
 
 ///|
 test "parse_args split_target error empty repo" {
   let result = parse_args(["run", "org/@v1"])
-  assert_eq(result, Err(ArgError("invalid target, expected org/repo[/path]@ref: \"org/@v1\"")))
+  assert_eq(
+    result,
+    Err(ArgError("invalid target, expected org/repo[/path]@ref: \"org/@v1\"")),
+  )
 }
 
 ///|
 test "parse_args split_target error empty path" {
   let result = parse_args(["run", "org/repo/@v1"])
-  assert_eq(result, Err(ArgError("invalid target, expected org/repo[/path]@ref: \"org/repo/@v1\"")))
+  assert_eq(
+    result,
+    Err(
+      ArgError("invalid target, expected org/repo[/path]@ref: \"org/repo/@v1\""),
+    ),
+  )
 }
 
 ///|
