@@ -151,7 +151,7 @@ pub fn parse_args(args : Array[String]) -> Result[RunOptions, CliError] {
   while i < args.length() {
     let flag = args[i]
     match flag {
-      "--format" => {
+      "--format" | "-f" => {
         guard i + 1 < args.length() else {
           return Err(ArgError("missing value for --format"))
         }
@@ -161,7 +161,7 @@ pub fn parse_args(args : Array[String]) -> Result[RunOptions, CliError] {
         }
         i += 2
       }
-      "--fail-on" => {
+      "--fail-on" | "-F" => {
         guard i + 1 < args.length() else {
           return Err(ArgError("missing value for --fail-on"))
         }
