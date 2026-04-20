@@ -19,21 +19,14 @@ jobs:
         include:
           - os: ubuntu-latest
             target: linux-x64
-            apt: true
           - os: macos-14
             target: macos-arm64
-            apt: false
     defaults:
       run:
         working-directory: core
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - uses: hustcer/setup-moonbit@e9b0a3082767ae669bf7588992ae3ba9eac09baa
-      - if: matrix.apt
-        run: sudo apt-get install -y libcurl4-openssl-dev libarchive-dev
-      - if: "!matrix.apt"
-        run: brew install curl libarchive
-        working-directory: .
       - run: moon update
       - name: Build native binary
         run: moon build --release --target native

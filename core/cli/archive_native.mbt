@@ -12,6 +12,8 @@ pub fn extract_action_yml(
     None => @utf8.encode("")
   }
   let action_yml = extract_action_yml_ffi(tarball, path_bytes)
+  // WS6: zero-length return used as error sentinel; WS8 will use a
+  // Result-returning FFI signature to handle empty files correctly.
   if action_yml.length() == 0 {
     Err("tar.gz extraction is not implemented in WS6")
   } else {

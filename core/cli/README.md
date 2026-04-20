@@ -64,7 +64,7 @@ core/cli/
   github_wasm.mbt       # fetch_tarball stub
   archive_native.mbt    # extract_action_yml via C FFI
   archive_wasm.mbt      # extract_action_yml stub
-  config_native.mbt     # load_config via C FFI
+  config_native.mbt     # load_config stub (C FFI deferred to WS8)
   config_wasm.mbt       # load_config stub
   cwrap.c               # C glue stubs (papion_fetch_tarball, etc.)
   cli_wbtest.mbt        # whitebox unit tests
