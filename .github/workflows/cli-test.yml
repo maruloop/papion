@@ -22,7 +22,5 @@ jobs:
       - run: moon test --deny-warn
       - name: Build native binary
         run: moon build --target native
-        env:
-          MOON_CC: clang
       - name: Check generated interface is up to date
         run: moon info && git diff --exit-code
