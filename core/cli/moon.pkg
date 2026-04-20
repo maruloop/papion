@@ -11,8 +11,8 @@ options(
   link: {
     "native": {
       "cc": "clang",
-      "stub-cc": "clang",
       "cc-link-flags": "-lcurl -larchive",
+      "stub-cc": "clang",
     },
   },
   "native-stub": [ "cwrap.c" ],
