@@ -52,6 +52,11 @@ If an action matches both `allowed` and `disallowed`, **disallowed takes precede
 # Homebrew
 brew install maruloop/tap/papion
 
+# GitHub Releases (macOS, Linux, Windows)
+# Download the binary for your platform from:
+# https://github.com/maruloop/papion/releases/latest
+curl -fsSL https://github.com/maruloop/papion/releases/latest/download/papion-$(uname -s | tr '[:upper:]' '[:lower:]')-$(uname -m) -o papion && chmod +x papion
+
 # Docker
 docker run --rm ghcr.io/maruloop/papion run actions/checkout@v4
 
