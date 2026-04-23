@@ -8,20 +8,26 @@ Scan orchestrator. Wires parser, config, and rules into a single entry point.
 pub fn scan(
   target : @papion.ScanTarget,
   action_yml_yaml : String,
-  config_json : String,
+  policy : @papion.Policy,
 ) -> Result[@papion.ScanResult, String]
 ```
 
 - `target` — the action being scanned (`owner`, `repo`, `git_ref`)
 - `action_yml_yaml` — raw YAML content of `action.yml`
-- `config_json` — papion policy as JSON (empty string uses defaults)
+- `policy` — papion policy; `scan` normalizes `allowed`/`disallowed` to lowercase and rejects patterns longer than 256 characters before evaluation
 
-Returns `Ok(ScanResult)` with findings and summary, or `Err(message)` if the YAML or config is unparseable.
+Returns `Ok(ScanResult)` with findings and summary, or `Err(message)` if the YAML is unparseable.
 
 ## Behaviour
 
+Before rule evaluation, `scan` normalizes and validates the policy so both CLI callers and programmatic callers share the same invariants:
+
+- `policy.allowed` and `policy.disallowed` are lowercased before glob matching
+- every allowed/disallowed pattern must be at most 256 characters
+- invalid policies fail fast with `Err(...)` rather than silently producing mismatched findings
+
 1. Parse `action_yml_yaml` with `@parser.parse_action_yml`
-2. Parse `config_json` with `@config.parse_policy` (empty string → default policy)
+2. Normalize and validate `policy`
 3. Extract action refs from composite steps with `@parser.extract_refs`
 4. Evaluate each ref against the policy with `@rules.evaluate`
 5. Count failures and warnings for the summary
@@ -32,6 +38,5 @@ Non-composite actions (e.g. `using: node20`) produce zero findings from ref extr
 ## Error handling
 
 - Invalid YAML → `Err("...")`
-- Invalid config JSON → `Err("...")`
 - Empty action_yml_yaml → `Err("empty YAML document")`
-- Empty config_json → uses default policy (sha_pinning=true, no allowed/disallowed lists)
+- Invalid policy invariant (for example overlong pattern) → `Err("...")`

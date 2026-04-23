@@ -6,7 +6,7 @@ import {
 }
 
 // Values
-pub fn scan(@papion.ScanTarget, String, String) -> Result[@papion.ScanResult, String]
+pub fn scan(@papion.ScanTarget, String, @papion.Policy) -> Result[@papion.ScanResult, String]
 
 // Errors
 

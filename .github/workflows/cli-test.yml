@@ -19,7 +19,29 @@ jobs:
       - run: moon update
       - run: moon fmt --check
       - run: moon test --deny-warn
+      - run: moon test --target native --deny-warn
       - name: Build native binary
         run: moon build --target native
+      - name: Smoke test - no args exits 2
+        run: |
+          set +e
+          ./_build/native/debug/build/cli/cli.exe
+          [ $? -eq 2 ]
+      - name: Smoke test - invalid target exits 2
+        run: |
+          set +e
+          ./_build/native/debug/build/cli/cli.exe run bad
+          [ $? -eq 2 ]
+      - name: Smoke test - real action
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set +e
+          ./_build/native/debug/build/cli/cli.exe \
+            run actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 \
+            --format json
+          code=$?
+          set -e
+          [ $code -eq 0 ] || [ $code -eq 1 ]
       - name: Check generated interface is up to date
         run: moon info && git diff --exit-code

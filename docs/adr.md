@@ -482,11 +482,50 @@ For current architecture, transition CLI runtime to **MoonBit native binaries**,
 
 ### Consequence (expanded)
 
-* CLI host responsibilities (HTTP client, archive extraction, TOML loading) are implemented in MoonBit via C FFI (libcurl, libarchive, a TOML C library)
-* `path` in `owner/repo[/path]@ref` is resolved host-side: host extracts `<tarball-root>/<path>/action.yml` and passes raw YAML to core — `ScanTarget` stays as `{owner, repo, git_ref}`
+* CLI host responsibilities (HTTP client, archive extraction, TOML loading) are implemented in MoonBit via C FFI and pure MoonBit libraries
+* `path` in `owner/repo[/path]@ref` is resolved host-side: host fetches `<path>/action.yml` or `<path>/action.yaml` via the GitHub Contents API and passes raw YAML to core — `ScanTarget` stays as `{owner, repo, git_ref}`
 * Docker fallback: a pre-built image published to `ghcr.io/maruloop/papion` for platforms where native binary is unavailable
 * CI: `moon build --target native` added to CLI test workflow
 * Browser and edge targets (JS/WASM) are unaffected
+
+---
+
+## Decision 19: CLI host integrations and integration-test strategy
+
+### Options
+
+* Keep the WS6 native host layer stubbed and defer end-to-end validation
+* Implement native host features with C library dependencies (libcurl, libarchive) for HTTP and archive extraction
+* Fetch the entire repository tarball and extract action.yml from it
+* Fetch only the single `action.yml` / `action.yaml` file directly from the GitHub Contents API
+
+### Decision
+
+Adopt the fourth option — fetch only the single file via the GitHub Contents API:
+
+* `GET https://api.github.com/repos/{owner}/{repo}/contents/{path}?ref={git_ref}` returns JSON with a base64-encoded `content` field
+* Try `action.yml` first, fall back to `action.yaml`
+* Decode base64 in pure MoonBit — no tar extraction needed at all
+* Use `moonbitlang/async/http` for HTTPS — no `libcurl`, no `libarchive`, no `apt-get install`
+* `moonbitlang/async/tls` loads OpenSSL via `dlopen()` at runtime (typically available on GitHub-hosted runners and most desktop/server macOS/Linux environments, but not guaranteed in minimal or distroless images; no dev headers required)
+* `bobzhang/toml` handles CLI config parsing in MoonBit
+* CLI integration tests hit the real GitHub Contents API in CI (no fixture tarballs needed)
+
+### Rationale
+
+* Papion only needs a single file (`action.yml` or `action.yaml`) — fetching the whole tarball was wasteful
+* The GitHub Contents API is simpler, faster, and requires no archive extraction
+* `moonbitlang/async/http` + `dlopen()` TLS eliminates all C library build-time dependencies
+* Pure MoonBit base64 decode is trivial and already available in `moonbitlang/core/encoding`
+* Fewer moving parts: one HTTP GET replaces tarball download + decompression + tar parsing
+
+### Consequence
+
+* Native CLI builds require no external development headers — `moon build --target native` works out of the box
+* CI drops the `apt-get install libcurl4-openssl-dev libarchive-dev` step entirely
+* `fileio_native.mbt` provides `fopen`/`fread` file I/O for config loading via libc — always available, no extra headers
+* For browser WASM / edge JS targets, the JS host must supply the fetch implementation via the existing `github_wasm.mbt` / `archive_wasm.mbt` stub boundary
+* The GitHub Contents API requires a valid `ref` (branch, tag, or full SHA) — all are supported
 
 ---
 

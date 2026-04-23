@@ -11,7 +11,7 @@ test "scan unpinned ref produces sha-pinning failure" {
     #|  using: composite
     #|  steps:
     #|    - uses: actions/checkout@v4
-  let result = scan(target, yaml_str, "")
+  let result = scan(target, yaml_str, @papion.Policy::default())
   match result {
     Err(e) => fail("unexpected error: \{e}")
     Ok(r) => {
@@ -36,7 +36,7 @@ test "scan pinned ref produces zero findings" {
     #|  using: composite
     #|  steps:
     #|    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-  let result = scan(target, yaml_str, "")
+  let result = scan(target, yaml_str, @papion.Policy::default())
   match result {
     Err(e) => fail("unexpected error: \{e}")
     Ok(r) => {
@@ -60,9 +60,12 @@ test "scan disallowed action produces failure" {
     #|  using: composite
     #|  steps:
     #|    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-  let config_json =
-    #|{"sha_pinning":true,"allowed":[],"disallowed":["actions/checkout"]}
-  let result = scan(target, yaml_str, config_json)
+  let policy : @papion.Policy = {
+    sha_pinning: true,
+    allowed: [],
+    disallowed: ["actions/checkout"],
+  }
+  let result = scan(target, yaml_str, policy)
   match result {
     Err(e) => fail("unexpected error: \{e}")
     Ok(r) => {
@@ -86,9 +89,12 @@ test "scan allowed list restricts to listed actions" {
     #|  steps:
     #|    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
     #|    - uses: third-party/action@11bd71901bbe5b1630ceea73d27597364c9af683
-  let config_json =
-    #|{"sha_pinning":true,"allowed":["actions/*"],"disallowed":[]}
-  let result = scan(target, yaml_str, config_json)
+  let policy : @papion.Policy = {
+    sha_pinning: true,
+    allowed: ["actions/*"],
+    disallowed: [],
+  }
+  let result = scan(target, yaml_str, policy)
   match result {
     Err(e) => fail("unexpected error: \{e}")
     Ok(r) => {
@@ -113,7 +119,7 @@ test "scan node action produces zero findings" {
     #|name: Setup Node
     #|runs:
     #|  using: node20
-  let result = scan(target, yaml_str, "")
+  let result = scan(target, yaml_str, @papion.Policy::default())
   match result {
     Err(e) => fail("unexpected error: \{e}")
     Ok(r) => {
@@ -138,7 +144,7 @@ test "scan multiple unpinned refs aggregates findings" {
     #|  steps:
     #|    - uses: actions/checkout@v4
     #|    - uses: actions/setup-node@v4
-  let result = scan(target, yaml_str, "")
+  let result = scan(target, yaml_str, @papion.Policy::default())
   match result {
     Err(e) => fail("unexpected error: \{e}")
     Ok(r) => {
@@ -155,28 +161,10 @@ test "scan invalid YAML returns error" {
     repo: "checkout",
     git_ref: "v4",
   }
-  let result = scan(target, ":\t bad\t:\n\t", "")
+  let result = scan(target, ":\t bad\t:\n\t", @papion.Policy::default())
   match result {
     Err(_) => ()
     Ok(_) => fail("expected error for invalid YAML")
-  }
-}
-
-///|
-test "scan invalid config JSON returns error" {
-  let target : @papion.ScanTarget = {
-    owner: "actions",
-    repo: "checkout",
-    git_ref: "v4",
-  }
-  let yaml_str =
-    #|name: My Action
-    #|runs:
-    #|  using: node20
-  let result = scan(target, yaml_str, "not json")
-  match result {
-    Err(_) => ()
-    Ok(_) => fail("expected error for invalid config JSON")
   }
 }
 
@@ -191,9 +179,57 @@ test "scan result target matches input" {
     #|name: My Action
     #|runs:
     #|  using: node20
-  let result = scan(target, yaml_str, "")
+  let result = scan(target, yaml_str, @papion.Policy::default())
   match result {
     Err(e) => fail("unexpected error: \{e}")
     Ok(r) => assert_eq(r.target, target)
+  }
+}
+
+///|
+test "scan normalizes policy patterns before evaluation" {
+  let target : @papion.ScanTarget = {
+    owner: "actions",
+    repo: "checkout",
+    git_ref: "v4",
+  }
+  let yaml_str =
+    #|name: My Action
+    #|runs:
+    #|  using: composite
+    #|  steps:
+    #|    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+  let policy : @papion.Policy = {
+    sha_pinning: true,
+    allowed: ["Actions/*"],
+    disallowed: [],
+  }
+  let result = scan(target, yaml_str, policy)
+  match result {
+    Err(e) => fail("unexpected error: \{e}")
+    Ok(r) => assert_eq(r.findings, [])
+  }
+}
+
+///|
+test "scan rejects overlong policy patterns" {
+  let target : @papion.ScanTarget = {
+    owner: "actions",
+    repo: "checkout",
+    git_ref: "v4",
+  }
+  let long_pattern = String::make(@papion.max_policy_pattern_len + 1, 'a')
+  let yaml_str =
+    #|name: My Action
+    #|runs:
+    #|  using: node20
+  let policy : @papion.Policy = {
+    sha_pinning: true,
+    allowed: [long_pattern],
+    disallowed: [],
+  }
+  match scan(target, yaml_str, policy) {
+    Err(_) => ()
+    Ok(_) => fail("expected Err for overlong policy pattern")
   }
 }

@@ -7,6 +7,11 @@ import {
 }
 
 // Values
+pub fn cli_user_agent() -> String
+
+pub let max_policy_pattern_len : Int
+
+pub let version : String
 
 // Errors
 
@@ -55,6 +60,7 @@ pub(all) struct Policy {
   disallowed : Array[String]
 } derive(Eq, ToJson, @debug.Debug, @json.FromJson)
 pub fn Policy::default() -> Self
+pub fn Policy::normalized(Self) -> Result[Self, String]
 pub impl Show for Policy
 
 pub(all) enum RefKind {

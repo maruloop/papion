@@ -225,27 +225,70 @@ test "parse_args split_target error empty ref" {
 }
 
 ///|
-test "run propagates fetch stub error as RuntimeError" {
-  let result = run(["run", "actions/checkout@v4"])
-  assert_eq(
-    result,
-    Err(RuntimeError("GitHub tarball fetch is not implemented in WS6")),
-  )
-}
-
-///|
 test "run propagates arg error as ArgError" {
   let result = run(["run"])
   assert_eq(result, Err(ArgError("missing command and target")))
 }
 
 ///|
-test "run config stub error fires before fetch stub error" {
-  let result = run(["run", "actions/checkout@v4", "--config", "papion.toml"])
-  assert_eq(
-    result,
-    Err(RuntimeError("config loading is not implemented in WS6")),
+test "load_config none returns default policy" {
+  assert_eq(load_config(None), Ok(@papion.Policy::default()))
+}
+
+///|
+test "load_config parses TOML fixture into policy" {
+  let policy = match load_config(Some("cli/testdata/papion.toml")) {
+    Ok(policy) => policy
+    Err(err) => fail(err)
+  }
+  assert_eq(policy, {
+    sha_pinning: false,
+    allowed: ["actions/*", "github/*"],
+    disallowed: ["bad-org/unsafe"],
+  })
+}
+
+///|
+test "load_config normalizes TOML patterns via shared policy helper" {
+  let value = try? @toml.parse(
+    (
+      #|[policy]
+      #|allowed = ["Actions/*"]
+      #|disallowed = ["Bad-Org/Unsafe"]
+    ),
   )
+  let policy = match value {
+    Ok(value) =>
+      match parse_policy_toml(value) {
+        Ok(policy) => policy
+        Err(err) => fail(err)
+      }
+    Err(err) => fail(err.to_string())
+  }
+  assert_eq(policy.allowed, ["actions/*"])
+  assert_eq(policy.disallowed, ["bad-org/unsafe"])
+}
+
+///|
+test "github_contents_url encodes ref query parameter" {
+  let url = match
+    github_contents_url("maruloop", "papion", "release/a&b", "action.yml") {
+    Ok(url) => url
+    Err(err) => fail(err.1)
+  }
+  assert_eq(
+    url, "https://api.github.com/repos/maruloop/papion/contents/action.yml?ref=release%2Fa%26b",
+  )
+}
+
+///|
+test "run config error fires before fetch" {
+  match
+    run(["run", "actions/checkout@v4", "--config", "cli/testdata/missing.toml"]) {
+    Err(RuntimeError(_)) => ()
+    Ok(_) => fail("expected RuntimeError for missing config")
+    Err(ArgError(_)) => fail("expected RuntimeError for missing config")
+  }
 }
 
 ///|

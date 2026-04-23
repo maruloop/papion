@@ -2,7 +2,10 @@
   "name": "maruloop/papion",
   "version": "0.1.0",
   "deps": {
-    "moonbit-community/yaml": "0.0.4"
+    "bobzhang/toml": "0.2.0",
+    "moonbit-community/yaml": "0.0.4",
+    "moonbitlang/async": "0.18.0",
+    "tonyfettes/url": "0.3.1"
   },
   "readme": "README.mbt.md",
   "repository": "",

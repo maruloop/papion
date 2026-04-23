@@ -1,0 +1,4 @@
+[policy]
+sha_pinning = false
+allowed = ["Actions/*", "GitHub/*"]
+disallowed = ["Bad-Org/Unsafe"]

@@ -105,6 +105,37 @@ test "Policy defaults" {
 }
 
 ///|
+test "Policy normalized lowercases patterns" {
+  let policy : @papion.Policy = {
+    sha_pinning: true,
+    allowed: ["Actions/*"],
+    disallowed: ["Bad-Org/Unsafe"],
+  }
+  assert_eq(
+    policy.normalized(),
+    Ok({
+      sha_pinning: true,
+      allowed: ["actions/*"],
+      disallowed: ["bad-org/unsafe"],
+    }),
+  )
+}
+
+///|
+test "Policy normalized rejects overlong patterns" {
+  let long_pattern = String::make(@papion.max_policy_pattern_len + 1, 'a')
+  let policy : @papion.Policy = {
+    sha_pinning: true,
+    allowed: [long_pattern],
+    disallowed: [],
+  }
+  match policy.normalized() {
+    Err(_) => ()
+    Ok(_) => fail("expected Err for overlong policy pattern")
+  }
+}
+
+///|
 test "ActionYml json roundtrip - node action" {
   let a : @papion.ActionYml = {
     name: "Checkout",
