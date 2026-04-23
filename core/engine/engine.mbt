@@ -1,21 +1,22 @@
 ///|
 /// Scan an action against a policy.
 ///
-/// Parses action_yml_yaml (raw YAML) and config_json (JSON policy, empty = defaults),
-/// extracts all action refs from composite steps, evaluates each ref against the
-/// policy, and returns a ScanResult with aggregated findings and summary counts.
+/// Parses action_yml_yaml (raw YAML), extracts all action refs from composite
+/// steps, evaluates each ref against the provided policy, and returns a
+/// ScanResult with aggregated findings and summary counts.
+/// The policy is normalized and validated before evaluation so callers may
+/// pass either `parse_policy` output or a programmatically constructed Policy.
 pub fn scan(
   target : @papion.ScanTarget,
   action_yml_yaml : String,
-  config_json : String,
+  policy : @papion.Policy,
 ) -> Result[@papion.ScanResult, String] {
+  let policy = match policy.normalized() {
+    Ok(policy) => policy
+    Err(err) => return Err(err)
+  }
   let yml = match @parser.parse_action_yml(action_yml_yaml) {
     Ok(y) => y
-    Err(e) => return Err(e)
-  }
-  let effective_config = if config_json.is_empty() { "{}" } else { config_json }
-  let policy = match @config.parse_policy(effective_config) {
-    Ok(p) => p
     Err(e) => return Err(e)
   }
   let refs = @parser.extract_refs(yml)

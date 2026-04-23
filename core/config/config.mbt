@@ -4,7 +4,7 @@
 /// The host converts TOML to JSON before passing to this function.
 /// Missing fields use defaults: sha_pinning=true, allowed=[], disallowed=[].
 /// Returns Err if any pattern exceeds 256 characters.
-/// Patterns are normalized to lowercase during parsing.
+/// Patterns are normalized to lowercase before returning.
 pub fn parse_policy(json_str : String) -> Result[@papion.Policy, String] {
   try {
     let json = @json.parse(json_str)
@@ -25,46 +25,32 @@ pub fn parse_policy(json_str : String) -> Result[@papion.Policy, String] {
     let allowed = match obj.get("allowed") {
       None => []
       Some(Array(arr)) => {
-        let acc : Array[String] = Array::new()
+        let patterns : Array[String] = []
         for item in arr {
           match item {
-            String(s) => {
-              if s.length() > max_pattern_len {
-                return Err(
-                  "pattern too long in 'allowed': \{s.length()} chars (max \{max_pattern_len})",
-                )
-              }
-              acc.push(s.to_lower())
-            }
+            String(s) => patterns.push(s)
             _ => return Err("invalid entry in 'allowed': expected string")
           }
         }
-        acc
+        patterns
       }
       Some(_) => return Err("invalid 'allowed' field: expected array")
     }
     let disallowed = match obj.get("disallowed") {
       None => []
       Some(Array(arr)) => {
-        let acc : Array[String] = Array::new()
+        let patterns : Array[String] = []
         for item in arr {
           match item {
-            String(s) => {
-              if s.length() > max_pattern_len {
-                return Err(
-                  "pattern too long in 'disallowed': \{s.length()} chars (max \{max_pattern_len})",
-                )
-              }
-              acc.push(s.to_lower())
-            }
+            String(s) => patterns.push(s)
             _ => return Err("invalid entry in 'disallowed': expected string")
           }
         }
-        acc
+        patterns
       }
       Some(_) => return Err("invalid 'disallowed' field: expected array")
     }
-    Ok({ sha_pinning, allowed, disallowed })
+    @papion.Policy::{ sha_pinning, allowed, disallowed }.normalized()
   } catch {
     e => Err(e.to_string())
   }

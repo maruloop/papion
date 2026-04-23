@@ -28,16 +28,12 @@ pub fn run(args : Array[String]) -> Result[RunOutcome, CliError] {
     Ok(options) => options
     Err(err) => return Err(err)
   }
-  let config_json = match load_config(options.config) {
-    Ok(config_json) => config_json
+  let policy = match load_config(options.config) {
+    Ok(policy) => policy
     Err(err) => return Err(RuntimeError(err))
   }
-  let tarball = match
-    fetch_tarball(options.owner, options.repo, options.git_ref) {
-    Ok(tarball) => tarball
-    Err(err) => return Err(RuntimeError(err))
-  }
-  let action_yml = match extract_action_yml(tarball, options.path) {
+  let action_yml = match
+    fetch_action_yml(options.owner, options.repo, options.git_ref, options.path) {
     Ok(action_yml) => action_yml
     Err(err) => return Err(RuntimeError(err))
   }
@@ -45,7 +41,7 @@ pub fn run(args : Array[String]) -> Result[RunOutcome, CliError] {
     @engine.scan(
       { owner: options.owner, repo: options.repo, git_ref: options.git_ref },
       action_yml,
-      config_json,
+      policy,
     ) {
     Ok(result) => result
     Err(err) => return Err(RuntimeError(err))

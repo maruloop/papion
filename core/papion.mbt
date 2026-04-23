@@ -1,4 +1,32 @@
 ///|
+pub let version : String = "0.1.0"
+
+///|
+pub let max_policy_pattern_len : Int = 256
+
+///|
+pub fn cli_user_agent() -> String {
+  "papion/\{version} (+https://github.com/maruloop/papion)"
+}
+
+///|
+fn normalize_policy_patterns(
+  patterns : Array[String],
+  field_name : String,
+) -> Result[Array[String], String] {
+  let normalized : Array[String] = []
+  for pattern in patterns {
+    if pattern.length() > max_policy_pattern_len {
+      return Err(
+        "pattern too long in '\{field_name}': \{pattern.length()} chars (max \{max_policy_pattern_len})",
+      )
+    }
+    normalized.push(pattern.to_lower())
+  }
+  Ok(normalized)
+}
+
+///|
 pub(all) struct ActionRef {
   owner : String
   repo : String
@@ -99,6 +127,20 @@ pub impl Show for Policy with output(self, logger) {
 ///|
 pub fn Policy::default() -> Policy {
   { sha_pinning: true, allowed: [], disallowed: [] }
+}
+
+///|
+pub fn Policy::normalized(self : Policy) -> Result[Policy, String] {
+  let allowed = match normalize_policy_patterns(self.allowed, "allowed") {
+    Ok(patterns) => patterns
+    Err(err) => return Err(err)
+  }
+  let disallowed = match
+    normalize_policy_patterns(self.disallowed, "disallowed") {
+    Ok(patterns) => patterns
+    Err(err) => return Err(err)
+  }
+  Ok({ ..self, allowed, disallowed })
 }
 
 ///|
