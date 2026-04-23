@@ -19,6 +19,7 @@ jobs:
       - run: moon update
       - run: moon fmt --check
       - run: moon test --deny-warn
+      - run: moon test --target native --deny-warn
       - run: moon build --target wasm-gc
       - run: moon build --target js
       - name: Check generated interface is up to date
