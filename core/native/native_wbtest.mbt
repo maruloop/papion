@@ -80,18 +80,12 @@ test "github_contents_url encodes ref query parameter" {
 ///|
 test "github_contents_url encodes owner repo and path segments" {
   let url = match
-    github_contents_url(
-      "maru/loop",
-      "pa pion",
-      "main",
-      "sub dir/action?.yml",
-    ) {
+    github_contents_url("maru/loop", "pa pion", "main", "sub dir/action?.yml") {
     Ok(url) => url
     Err(err) => fail(err.1)
   }
   assert_eq(
-    url,
-    "https://api.github.com/repos/maru%2Floop/pa%20pion/contents/sub%20dir/action%3F.yml?ref=main",
+    url, "https://api.github.com/repos/maru%2Floop/pa%20pion/contents/sub%20dir/action%3F.yml?ref=main",
   )
 }
 
