@@ -39,6 +39,42 @@ fn github_token() -> String? {
 }
 
 ///|
+fn is_unreserved_path_byte(byte : Byte) -> Bool {
+  (byte >= b'A' && byte <= b'Z') ||
+  (byte >= b'a' && byte <= b'z') ||
+  (byte >= b'0' && byte <= b'9') ||
+  byte == b'-' ||
+  byte == b'.' ||
+  byte == b'_' ||
+  byte == b'~'
+}
+
+///|
+fn percent_encode_hex_digit(value : Byte) -> Char {
+  if value < 10 {
+    (value.to_int() + '0'.to_int()).unsafe_to_char()
+  } else {
+    (value.to_int() - 10 + 'A'.to_int()).unsafe_to_char()
+  }
+}
+
+///|
+fn percent_encode_path_component(component : String) -> String {
+  let bytes = @utf8.encode(component).to_array()
+  let builder = StringBuilder::new(size_hint=bytes.length() * 3)
+  for byte in bytes {
+    if is_unreserved_path_byte(byte) {
+      builder.write_char(byte.to_int().unsafe_to_char())
+    } else {
+      builder.write_char('%')
+      builder.write_char(percent_encode_hex_digit(byte / 16))
+      builder.write_char(percent_encode_hex_digit(byte % 16))
+    }
+  }
+  builder.to_string()
+}
+
+///|
 fn github_contents_url(
   owner : String,
   repo : String,
@@ -47,7 +83,14 @@ fn github_contents_url(
 ) -> Result[String, (Int, String)] {
   try {
     let url = @url.Url::parse("https://api.github.com")
-    url.set_pathname("/repos/\{owner}/\{repo}/contents/\{filename}")
+    let enc_owner = percent_encode_path_component(owner)
+    let enc_repo = percent_encode_path_component(repo)
+    let enc_filename = filename
+      .split("/")
+      .map(fn(segment) { percent_encode_path_component(segment.to_string()) })
+      .to_array()
+      .join("/")
+    url.set_pathname("/repos/\{enc_owner}/\{enc_repo}/contents/\{enc_filename}")
     let params = @url.UrlSearchParams::new()
     params.set("ref", git_ref)
     url.set_search_params(params)
@@ -55,6 +98,11 @@ fn github_contents_url(
   } catch {
     _ => Err((0, "failed to build GitHub contents URL for \{filename}"))
   }
+}
+
+///|
+priv suberror HttpError {
+  HttpError((Int, String))
 }
 
 ///|
@@ -79,24 +127,42 @@ fn fetch_contents(
     if github_token() is Some(token) {
       headers["Authorization"] = "Bearer \{token}"
     }
-    let request : Result[Unit, (Int, String)] = try {
-      let (response, body) = @http.get(url, headers~)
-      if response.code == 200 {
-        result = extract_content_field(body.text(), filename)
-      } else {
-        result = Err(
-          (
-            response.code,
-            "failed to fetch \{filename} from GitHub (\{response.code} \{response.reason})",
-          ),
-        )
-      }
-      Ok(())
+    let request : Result[Bytes, (Int, String)] = try {
+      let bytes = @async.retry(
+        ExponentialDelay(initial=1000, factor=2.0, maximum=10000),
+        max_retry=3,
+        fatal_error=fn(err) {
+          match err {
+            HttpError((code, _)) => code >= 400 && code < 500 && code != 429
+            _ => false
+          }
+        },
+        () => {
+          let pair = @async.with_timeout(30000, () => @http.get(url, headers~))
+          let (response, body) = pair
+          if response.code == 200 {
+            match extract_content_field(body.text(), filename) {
+              Ok(bytes) => bytes
+              Err(err) => raise HttpError(err)
+            }
+          } else {
+            raise HttpError(
+              (
+                response.code,
+                "failed to fetch \{filename} from GitHub (\{response.code} \{response.reason})",
+              ),
+            )
+          }
+        },
+      )
+      Ok(bytes)
     } catch {
+      HttpError(err) => Err(err)
       err => Err((0, "failed to fetch \{filename} from GitHub: \{err}"))
     }
-    if request is Err(err) {
-      result = Err(err)
+    match request {
+      Ok(bytes) => result = Ok(bytes)
+      Err(err) => result = Err(err)
     }
   })
   result
