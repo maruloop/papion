@@ -3,9 +3,9 @@ name: CLI Tests
 on:
   push:
     branches: [main]
-    paths: ['core/cli/**', '.github/workflows/cli-test.yml']
+    paths: ['core/cli/**', 'core/native/**', 'core/wasm/**', '.github/workflows/cli-test.yml']
   pull_request:
-    paths: ['core/cli/**', '.github/workflows/cli-test.yml']
+    paths: ['core/cli/**', 'core/native/**', 'core/wasm/**', '.github/workflows/cli-test.yml']
 
 jobs:
   test:
@@ -25,19 +25,19 @@ jobs:
       - name: Smoke test - no args exits 2
         run: |
           set +e
-          ./_build/native/debug/build/cli/cli.exe
+          ./_build/native/debug/build/native/native.exe
           [ $? -eq 2 ]
       - name: Smoke test - invalid target exits 2
         run: |
           set +e
-          ./_build/native/debug/build/cli/cli.exe run bad
+          ./_build/native/debug/build/native/native.exe run bad
           [ $? -eq 2 ]
       - name: Smoke test - real action
         env:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           set +e
-          ./_build/native/debug/build/cli/cli.exe \
+          ./_build/native/debug/build/native/native.exe \
             run actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 \
             --format json
           code=$?

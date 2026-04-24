@@ -9,13 +9,9 @@ import {
 // Values
 pub fn exit_code_for(@papion.Summary, FailOnLevel) -> Int
 
-pub fn fetch_action_yml(String, String, String, String?) -> Result[String, String]
-
-pub fn load_config(String?) -> Result[@papion.Policy, String]
-
 pub fn parse_args(Array[String]) -> Result[RunOptions, CliError]
 
-pub fn run(Array[String]) -> Result[RunOutcome, CliError]
+pub fn run_with_host(Array[String], (String?) -> Result[@papion.Policy, String], (String, String, String, String?) -> Result[String, String]) -> Result[RunOutcome, CliError]
 
 // Errors
 

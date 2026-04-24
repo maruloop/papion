@@ -32,7 +32,7 @@ jobs:
         run: moon build --release --target native
       - name: Package
         run: |
-          BIN="_build/native/release/build/cli/cli.exe"
+          BIN="_build/native/release/build/native/native.exe"
           TARGET="${{ matrix.target }}"
           OUT="papion-${TARGET}.tar.gz"
           mkdir -p dist

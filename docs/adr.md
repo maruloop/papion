@@ -506,7 +506,7 @@ Adopt the fourth option — fetch only the single file via the GitHub Contents A
 * `GET https://api.github.com/repos/{owner}/{repo}/contents/{path}?ref={git_ref}` returns JSON with a base64-encoded `content` field
 * Try `action.yml` first, fall back to `action.yaml`
 * Decode base64 in pure MoonBit — no tar extraction needed at all
-* Use `moonbitlang/async/http` for HTTPS — no `libcurl`, no `libarchive`, no `apt-get install`
+* Use `moonbitlang/async/http` for HTTPS — no `libarchive`, no extra build-time development headers, and only the runtime libraries required by the generated native binary
 * `moonbitlang/async/tls` loads OpenSSL via `dlopen()` at runtime (typically available on GitHub-hosted runners and most desktop/server macOS/Linux environments, but not guaranteed in minimal or distroless images; no dev headers required)
 * `bobzhang/toml` handles CLI config parsing in MoonBit
 * CLI integration tests hit the real GitHub Contents API in CI (no fixture tarballs needed)
@@ -523,9 +523,20 @@ Adopt the fourth option — fetch only the single file via the GitHub Contents A
 
 * Native CLI builds require no external development headers — `moon build --target native` works out of the box
 * CI drops the `apt-get install libcurl4-openssl-dev libarchive-dev` step entirely
-* `fileio_native.mbt` provides `fopen`/`fread` file I/O for config loading via libc — always available, no extra headers
-* For browser WASM / edge JS targets, the JS host must supply the fetch implementation via the existing `github_wasm.mbt` / `archive_wasm.mbt` stub boundary
+* `core/native/fileio.mbt` provides `fopen`/`fread` file I/O for config loading via libc — always available, no extra headers
+* For browser WASM / edge JS targets, the host-side fetch/config boundary now lives in `core/wasm/github.mbt` and `core/wasm/config.mbt`
 * The GitHub Contents API requires a valid `ref` (branch, tag, or full SHA) — all are supported
+* The CLI host layer is split into target-aware packages so target-specific dependencies are represented structurally instead of through keepalive references.
+
+### CLI package boundaries
+
+The CLI is packaged as:
+
+* `core/cli`: target-agnostic argument parsing, orchestration, formatting selection, and exit-code policy
+* `core/native`: native executable plus file I/O, env access, GitHub Contents fetch, and TOML config loading
+* `core/wasm`: WASM/browser-facing stubs or host bindings
+
+This lets MoonBit's package-level `unused_package` checks reflect real dependencies naturally and keeps target responsibilities easier to reason about.
 
 ---
 

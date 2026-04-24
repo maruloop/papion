@@ -62,9 +62,9 @@ docker run --rm ghcr.io/maruloop/papion run actions/checkout@v4
 
 # From source
 git clone https://github.com/maruloop/papion.git
-cd papion
+cd papion/core
 moon build --target native
-cp ./target/native/release/build/cli/cli papion
+cp ./_build/native/debug/build/native/native.exe ../papion
 ```
 
 ### Usage
