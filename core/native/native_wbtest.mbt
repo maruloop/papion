@@ -38,6 +38,34 @@ test "load_config normalizes TOML patterns via shared policy helper" {
 }
 
 ///|
+test "percent_encode_path_component: alphanumeric passthrough" {
+  assert_eq(percent_encode_path_component("actions"), "actions")
+}
+
+///|
+test "percent_encode_path_component: unreserved chars passthrough" {
+  assert_eq(
+    percent_encode_path_component("my.repo_name-v1~0"),
+    "my.repo_name-v1~0",
+  )
+}
+
+///|
+test "percent_encode_path_component: slash encoded" {
+  assert_eq(percent_encode_path_component("a/b"), "a%2Fb")
+}
+
+///|
+test "percent_encode_path_component: space encoded" {
+  assert_eq(percent_encode_path_component("hello world"), "hello%20world")
+}
+
+///|
+test "percent_encode_path_component: unicode encoded" {
+  assert_eq(percent_encode_path_component("café"), "caf%C3%A9")
+}
+
+///|
 test "github_contents_url encodes ref query parameter" {
   let url = match
     github_contents_url("maruloop", "papion", "release/a&b", "action.yml") {
@@ -46,6 +74,18 @@ test "github_contents_url encodes ref query parameter" {
   }
   assert_eq(
     url, "https://api.github.com/repos/maruloop/papion/contents/action.yml?ref=release%2Fa%26b",
+  )
+}
+
+///|
+test "github_contents_url encodes owner repo and path segments" {
+  let url = match
+    github_contents_url("maru/loop", "pa pion", "main", "sub dir/action?.yml") {
+    Ok(url) => url
+    Err(err) => fail(err.1)
+  }
+  assert_eq(
+    url, "https://api.github.com/repos/maru%2Floop/pa%20pion/contents/sub%20dir/action%3F.yml?ref=main",
   )
 }
 
