@@ -23,7 +23,11 @@ pub impl Show for RunOutcome with output(self, logger) {
 }
 
 ///|
-pub fn run(args : Array[String]) -> Result[RunOutcome, CliError] {
+pub fn run_with_host(
+  args : Array[String],
+  load_config : (String?) -> Result[@papion.Policy, String],
+  fetch_action_yml : (String, String, String, String?) -> Result[String, String],
+) -> Result[RunOutcome, CliError] {
   let options = match parse_args(args) {
     Ok(options) => options
     Err(err) => return Err(err)

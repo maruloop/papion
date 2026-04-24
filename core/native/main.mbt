@@ -15,14 +15,19 @@ fn main {
       println(outcome.output)
       c_exit(outcome.exit_code)
     }
-    Err(ArgError(msg)) => {
+    Err(@cli.ArgError(msg)) => {
       println(msg)
       println(usage())
       c_exit(2)
     }
-    Err(RuntimeError(msg)) => {
+    Err(@cli.RuntimeError(msg)) => {
       println(msg)
       c_exit(2)
     }
   }
+}
+
+///|
+fn run(args : Array[String]) -> Result[@cli.RunOutcome, @cli.CliError] {
+  @cli.run_with_host(args, load_config, fetch_action_yml)
 }
