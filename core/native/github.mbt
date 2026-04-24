@@ -129,11 +129,12 @@ fn fetch_contents(
     }
     let request : Result[Bytes, (Int, String)] = try {
       let bytes = @async.retry(
-        ExponentialDelay(initial=1000, factor=2.0, maximum=10000),
+        @async.ExponentialDelay(initial=1000, factor=2.0, maximum=10000),
         max_retry=3,
         fatal_error=fn(err) {
           match err {
-            HttpError((code, _)) => code >= 400 && code < 500 && code != 429
+            HttpError((code, _)) =>
+              code == 0 || (code >= 400 && code < 500 && code != 429)
             _ => false
           }
         },
