@@ -90,12 +90,90 @@ test "github_contents_url encodes owner repo and path segments" {
 }
 
 ///|
+test "github_matching_refs_url encodes heads path components" {
+  let url = match
+    github_matching_refs_url("maru/loop", "pa pion", "heads", "release/v1") {
+    Ok(url) => url
+    Err(err) => fail(err.1)
+  }
+  assert_eq(
+    url, "https://api.github.com/repos/maru%2Floop/pa%20pion/git/matching-refs/heads/release/v1?per_page=100",
+  )
+}
+
+///|
+test "github_matching_refs_url encodes tags path components" {
+  let url = match
+    github_matching_refs_url("maruloop", "papion", "tags", "v1.0.0/rc 1") {
+    Ok(url) => url
+    Err(err) => fail(err.1)
+  }
+  assert_eq(
+    url, "https://api.github.com/repos/maruloop/papion/git/matching-refs/tags/v1.0.0/rc%201?per_page=100",
+  )
+}
+
+///|
 test "github_repo_url encodes owner and repo path segments" {
   let url = match github_repo_url("maru/loop", "pa pion") {
     Ok(url) => url
     Err(err) => fail(err.1)
   }
   assert_eq(url, "https://api.github.com/repos/maru%2Floop/pa%20pion")
+}
+
+///|
+test "extract_matching_refs_field returns stripped refs" {
+  assert_eq(
+    extract_matching_refs_field(
+      (
+        #|[
+        #|  {"ref":"refs/heads/release","node_id":"1"},
+        #|  {"ref":"refs/heads/release/v1","node_id":"2"}
+        #|]
+      ),
+      "octocat",
+      "hello-world",
+      "heads",
+    ),
+    Ok(["release", "release/v1"]),
+  )
+}
+
+///|
+test "extract_matching_refs_field returns empty array" {
+  assert_eq(
+    extract_matching_refs_field("[]", "octocat", "hello-world", "tags"),
+    Ok([]),
+  )
+}
+
+///|
+test "extract_matching_refs_field errors when ref field missing" {
+  assert_eq(
+    extract_matching_refs_field(
+      "[{\"node_id\":\"1\"}]", "octocat", "hello-world", "heads",
+    ),
+    Err(
+      (
+        0, "GitHub matching refs response for octocat/hello-world did not contain a ref field",
+      ),
+    ),
+  )
+}
+
+///|
+test "extract_matching_refs_field errors when ref field is not string" {
+  assert_eq(
+    extract_matching_refs_field(
+      "[{\"ref\":123}]", "octocat", "hello-world", "heads",
+    ),
+    Err(
+      (
+        0, "GitHub matching refs response for octocat/hello-world did not contain a string ref field",
+      ),
+    ),
+  )
 }
 
 ///|
@@ -137,24 +215,57 @@ test "extract_default_branch_field errors when default_branch is not string" {
 }
 
 ///|
-test "tree_ref_fallbacks shifts path segments into ref" {
-  assert_eq(tree_ref_fallbacks("feature", Some("foo/subdir")), [
-    ("feature/foo", Some("subdir")),
-    ("feature/foo/subdir", None),
-  ])
+test "select_best_matching_ref returns exact ref with no remaining path" {
+  assert_eq(select_best_matching_ref(["v4"], "v4", None), Ok(("v4", None)))
 }
 
 ///|
-test "tree_ref_fallbacks handles single path segment" {
-  assert_eq(tree_ref_fallbacks("release", Some("v1")), [("release/v1", None)])
+test "select_best_matching_ref picks longest matching ref" {
+  assert_eq(
+    select_best_matching_ref(
+      ["release", "release/v1"],
+      "release",
+      Some("v1/action"),
+    ),
+    Ok(("release/v1", Some("action"))),
+  )
 }
 
 ///|
-test "tree_ref_fallbacks trims slashes and skips empty segments" {
-  assert_eq(tree_ref_fallbacks("release", Some("/v1//subdir/")), [
-    ("release/v1", Some("subdir")),
-    ("release/v1/subdir", None),
-  ])
+test "select_best_matching_ref errors when no candidate matches" {
+  assert_eq(
+    select_best_matching_ref(["release/v2"], "release", Some("v1/action")),
+    Err("no matching Git refs found"),
+  )
+}
+
+///|
+test "select_best_matching_ref errors when candidates empty" {
+  assert_eq(
+    select_best_matching_ref([], "release", Some("v1/action")),
+    Err("no matching Git refs found"),
+  )
+}
+
+///|
+test "select_best_matching_ref normalizes leading slash path" {
+  assert_eq(
+    select_best_matching_ref(["release/v1"], "release", Some("/v1/action")),
+    Ok(("release/v1", Some("action"))),
+  )
+}
+
+///|
+test "select_best_matching_ref normalizes double slash path" {
+  assert_eq(
+    select_best_matching_ref(["release/v1"], "release", Some("v1//action")),
+    Ok(("release/v1", Some("action"))),
+  )
+}
+
+///|
+test "select_best_matching_ref normalizes trailing slash path to none" {
+  assert_eq(select_best_matching_ref(["v4"], "v4", Some("/")), Ok(("v4", None)))
 }
 
 ///|
