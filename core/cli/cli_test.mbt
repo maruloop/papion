@@ -7,11 +7,25 @@ test "parse_args run owner repo ref" {
       owner: "actions",
       repo: "checkout",
       path: None,
-      git_ref: "v4",
+      git_ref: Some("v4"),
+      allow_ref_fallback: false,
       format: Human,
       fail_on: Fail,
       config: None,
     }),
+  )
+}
+
+///|
+test "percent_decode_url_path_segment decodes percent-escaped segment" {
+  assert_eq(percent_decode_url_path_segment("release%2Fv1"), Ok("release/v1"))
+}
+
+///|
+test "percent_decode_url_path_segment rejects invalid escape" {
+  assert_eq(
+    percent_decode_url_path_segment("release%"),
+    Err("invalid GitHub URL: invalid percent-encoding"),
   )
 }
 
@@ -24,7 +38,8 @@ test "parse_args run with path" {
       owner: "maruloop",
       repo: "papion",
       path: Some("action"),
-      git_ref: "v1",
+      git_ref: Some("v1"),
+      allow_ref_fallback: false,
       format: Human,
       fail_on: Fail,
       config: None,
@@ -41,7 +56,8 @@ test "parse_args json format" {
       owner: "actions",
       repo: "checkout",
       path: None,
-      git_ref: "v4",
+      git_ref: Some("v4"),
+      allow_ref_fallback: false,
       format: Json,
       fail_on: Fail,
       config: None,
@@ -58,7 +74,8 @@ test "parse_args fail_on warn" {
       owner: "actions",
       repo: "checkout",
       path: None,
-      git_ref: "v4",
+      git_ref: Some("v4"),
+      allow_ref_fallback: false,
       format: Human,
       fail_on: Warn,
       config: None,
@@ -75,7 +92,8 @@ test "parse_args fail_on none" {
       owner: "actions",
       repo: "checkout",
       path: None,
-      git_ref: "v4",
+      git_ref: Some("v4"),
+      allow_ref_fallback: false,
       format: Human,
       fail_on: NoneLevel,
       config: None,
@@ -92,7 +110,8 @@ test "parse_args short flag -f for format" {
       owner: "actions",
       repo: "checkout",
       path: None,
-      git_ref: "v4",
+      git_ref: Some("v4"),
+      allow_ref_fallback: false,
       format: Json,
       fail_on: Fail,
       config: None,
@@ -109,7 +128,8 @@ test "parse_args short flag -F for fail-on" {
       owner: "actions",
       repo: "checkout",
       path: None,
-      git_ref: "v4",
+      git_ref: Some("v4"),
+      allow_ref_fallback: false,
       format: Human,
       fail_on: Warn,
       config: None,
@@ -130,11 +150,116 @@ test "parse_args error command only" {
 }
 
 ///|
-test "parse_args error missing ref" {
+test "parse_args run owner repo without ref" {
   let result = parse_args(["run", "actions/checkout"])
   assert_eq(
     result,
-    Err(ArgError("missing '@ref' in target: \"actions/checkout\"")),
+    Ok({
+      owner: "actions",
+      repo: "checkout",
+      path: None,
+      git_ref: None,
+      allow_ref_fallback: false,
+      format: Human,
+      fail_on: Fail,
+      config: None,
+    }),
+  )
+}
+
+///|
+test "parse_args run github url without ref" {
+  let result = parse_args(["run", "https://github.com/actions/checkout"])
+  assert_eq(
+    result,
+    Ok({
+      owner: "actions",
+      repo: "checkout",
+      path: None,
+      git_ref: None,
+      allow_ref_fallback: false,
+      format: Human,
+      fail_on: Fail,
+      config: None,
+    }),
+  )
+}
+
+///|
+test "parse_args run github url ignores query and fragment" {
+  let result = parse_args([
+    "run", "https://github.com/actions/checkout?tab=readme#top",
+  ])
+  assert_eq(
+    result,
+    Ok({
+      owner: "actions",
+      repo: "checkout",
+      path: None,
+      git_ref: None,
+      allow_ref_fallback: false,
+      format: Human,
+      fail_on: Fail,
+      config: None,
+    }),
+  )
+}
+
+///|
+test "parse_args run github url strips trailing dot git" {
+  let result = parse_args(["run", "https://github.com/actions/checkout.git"])
+  assert_eq(
+    result,
+    Ok({
+      owner: "actions",
+      repo: "checkout",
+      path: None,
+      git_ref: None,
+      allow_ref_fallback: false,
+      format: Human,
+      fail_on: Fail,
+      config: None,
+    }),
+  )
+}
+
+///|
+test "parse_args run github tree url with ref and path" {
+  let result = parse_args([
+    "run", "https://github.com/actions/checkout/tree/v6.0.2/action",
+  ])
+  assert_eq(
+    result,
+    Ok({
+      owner: "actions",
+      repo: "checkout",
+      path: Some("action"),
+      git_ref: Some("v6.0.2"),
+      allow_ref_fallback: true,
+      format: Human,
+      fail_on: Fail,
+      config: None,
+    }),
+  )
+}
+
+///|
+test "parse_args run github tree url decodes percent-escaped ref and path" {
+  let result = parse_args([
+    "run", "https://github.com/actions/checkout/tree/release%2Fv1/sub%20dir",
+  ])
+  assert_eq(
+    result,
+    Ok({
+      owner: "actions",
+      repo: "checkout",
+      path: Some("sub dir"),
+      git_ref: Some("release/v1"),
+      allow_ref_fallback: true,
+      format: Human,
+      fail_on: Fail,
+      config: None,
+    }),
   )
 }
 
@@ -183,45 +308,46 @@ test "parse_args error invalid fail-on value" {
 ///|
 test "parse_args split_target error missing owner" {
   let result = parse_args(["run", "@v1"])
-  assert_eq(
-    result,
-    Err(ArgError("invalid target, expected org/repo[/path]@ref: \"@v1\"")),
-  )
+  assert_eq(result, Err(ArgError("invalid target: expected owner/repo")))
 }
 
 ///|
 test "parse_args split_target error empty owner" {
   let result = parse_args(["run", "/repo@v1"])
-  assert_eq(
-    result,
-    Err(ArgError("invalid target, expected org/repo[/path]@ref: \"/repo@v1\"")),
-  )
+  assert_eq(result, Err(ArgError("owner is empty")))
 }
 
 ///|
 test "parse_args split_target error empty repo" {
   let result = parse_args(["run", "org/@v1"])
-  assert_eq(
-    result,
-    Err(ArgError("invalid target, expected org/repo[/path]@ref: \"org/@v1\"")),
-  )
+  assert_eq(result, Err(ArgError("repo is empty")))
 }
 
 ///|
 test "parse_args split_target error empty path" {
   let result = parse_args(["run", "org/repo/@v1"])
-  assert_eq(
-    result,
-    Err(
-      ArgError("invalid target, expected org/repo[/path]@ref: \"org/repo/@v1\""),
-    ),
-  )
+  assert_eq(result, Err(ArgError("path is empty")))
 }
 
 ///|
 test "parse_args split_target error empty ref" {
   let result = parse_args(["run", "org/repo@"])
-  assert_eq(result, Err(ArgError("missing '@ref' in target: \"org/repo@\"")))
+  assert_eq(result, Err(ArgError("missing ref after '@'")))
+}
+
+///|
+test "parse_args github blob url is rejected" {
+  let result = parse_args([
+    "run", "https://github.com/actions/checkout/blob/main/action.yml",
+  ])
+  assert_eq(
+    result,
+    Err(
+      ArgError(
+        "blob URLs are not supported; use tree URLs or owner/repo[/path]@ref format",
+      ),
+    ),
+  )
 }
 
 ///|
@@ -234,14 +360,84 @@ test "run_with_host propagates arg error before host calls" {
       load_config_called = true
       Ok(@papion.Policy::default())
     },
-    fn(_owner, _repo, _git_ref, _path) {
+    fn(_owner, _repo, _git_ref, _path, _allow_ref_fallback) {
       fetch_called = true
-      Ok("")
+      Ok(("", "unused"))
     },
   )
   assert_eq(result, Err(ArgError("missing command and target")))
   assert_eq(load_config_called, false)
   assert_eq(fetch_called, false)
+}
+
+///|
+test "run_with_host uses resolved git ref from host fetch" {
+  let mut captured_owner = ""
+  let mut captured_repo = ""
+  let mut captured_git_ref = None
+  let mut captured_path = None
+  let mut captured_allow_ref_fallback = false
+  let result = run_with_host(
+    ["run", "actions/checkout@v4", "--format", "json"],
+    fn(_config_path) { Ok(@papion.Policy::default()) },
+    fn(owner, repo, git_ref, path, allow_ref_fallback) {
+      captured_owner = owner
+      captured_repo = repo
+      captured_git_ref = git_ref
+      captured_path = path
+      captured_allow_ref_fallback = allow_ref_fallback
+      Ok(
+        (
+          (
+            #|name: Setup Node
+            #|runs:
+            #|  using: node20
+          ),
+          "release/v1",
+        ),
+      )
+    },
+  )
+  match result {
+    Ok(outcome) => {
+      assert_eq(captured_owner, "actions")
+      assert_eq(captured_repo, "checkout")
+      assert_eq(captured_git_ref, Some("v4"))
+      assert_eq(captured_path, None)
+      assert_eq(captured_allow_ref_fallback, false)
+      assert_true(
+        outcome.output.contains("\"target\":\"actions/checkout@release/v1\""),
+      )
+      assert_true(outcome.output.contains("\"ref\":\"release/v1\""))
+    }
+    Err(err) => fail(err.to_string())
+  }
+}
+
+///|
+test "run_with_host passes allow_ref_fallback for github tree urls" {
+  let mut captured_allow_ref_fallback = false
+  let result = run_with_host(
+    ["run", "https://github.com/actions/checkout/tree/release/v1/action"],
+    fn(_config_path) { Ok(@papion.Policy::default()) },
+    fn(_owner, _repo, _git_ref, _path, allow_ref_fallback) {
+      captured_allow_ref_fallback = allow_ref_fallback
+      Ok(
+        (
+          (
+            #|name: Setup Node
+            #|runs:
+            #|  using: node20
+          ),
+          "release/v1",
+        ),
+      )
+    },
+  )
+  match result {
+    Ok(_) => assert_eq(captured_allow_ref_fallback, true)
+    Err(err) => fail(err.to_string())
+  }
 }
 
 ///|

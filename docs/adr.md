@@ -505,6 +505,7 @@ Adopt the fourth option — fetch only the single file via the GitHub Contents A
 
 * `GET https://api.github.com/repos/{owner}/{repo}/contents/{path}?ref={git_ref}` returns JSON with a base64-encoded `content` field
 * Try `action.yml` first, fall back to `action.yaml`
+* For ambiguous GitHub `/tree/<ref>/<path>` URLs in the native CLI, try at most two ref/path fallback rewrites before returning the original 404
 * Decode base64 in pure MoonBit — no tar extraction needed at all
 * Use `moonbitlang/async/http` for HTTPS — no `libarchive`, no extra build-time development headers, and only the runtime libraries required by the generated native binary
 * `moonbitlang/async/tls` loads OpenSSL via `dlopen()` at runtime (typically available on GitHub-hosted runners and most desktop/server macOS/Linux environments, but not guaranteed in minimal or distroless images; no dev headers required)
@@ -518,6 +519,8 @@ Adopt the fourth option — fetch only the single file via the GitHub Contents A
 * `moonbitlang/async/http` + `dlopen()` TLS eliminates all C library build-time dependencies
 * Pure MoonBit base64 decode is trivial and already available in `moonbitlang/core/encoding`
 * Fewer moving parts: one HTTP GET replaces tarball download + decompression + tar parsing
+* Capping ambiguous tree-ref fallback rewrites at `2` bounds worst-case native fetch traffic to 6 total GitHub Contents requests (`action.yml` + `action.yaml` for the initial parse, then for up to two fallback candidates)
+* The cap of `2` still covers the practical slash-containing ref shapes we expect for now; deeper refs are a deliberate follow-up tradeoff rather than unbounded retry behavior
 
 ### Consequence
 
@@ -526,6 +529,7 @@ Adopt the fourth option — fetch only the single file via the GitHub Contents A
 * `core/native/fileio.mbt` provides `fopen`/`fread` file I/O for config loading via libc — always available, no extra headers
 * For browser WASM / edge JS targets, the host-side fetch/config boundary now lives in `core/wasm/github.mbt` and `core/wasm/config.mbt`
 * The GitHub Contents API requires a valid `ref` (branch, tag, or full SHA) — all are supported
+* Very deep slash-containing refs in pasted GitHub tree URLs may still fail native fallback resolution today; widening the cap remains an explicit future adjustment if real usage justifies the extra requests
 * The CLI host layer is split into target-aware packages so target-specific dependencies are represented structurally instead of through keepalive references.
 
 ### CLI package boundaries

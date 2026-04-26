@@ -39,30 +39,30 @@ test "load_config normalizes TOML patterns via shared policy helper" {
 
 ///|
 test "percent_encode_path_component: alphanumeric passthrough" {
-  assert_eq(percent_encode_path_component("actions"), "actions")
+  assert_eq(@cli.percent_encode_path_component("actions"), "actions")
 }
 
 ///|
 test "percent_encode_path_component: unreserved chars passthrough" {
   assert_eq(
-    percent_encode_path_component("my.repo_name-v1~0"),
+    @cli.percent_encode_path_component("my.repo_name-v1~0"),
     "my.repo_name-v1~0",
   )
 }
 
 ///|
 test "percent_encode_path_component: slash encoded" {
-  assert_eq(percent_encode_path_component("a/b"), "a%2Fb")
+  assert_eq(@cli.percent_encode_path_component("a/b"), "a%2Fb")
 }
 
 ///|
 test "percent_encode_path_component: space encoded" {
-  assert_eq(percent_encode_path_component("hello world"), "hello%20world")
+  assert_eq(@cli.percent_encode_path_component("hello world"), "hello%20world")
 }
 
 ///|
 test "percent_encode_path_component: unicode encoded" {
-  assert_eq(percent_encode_path_component("café"), "caf%C3%A9")
+  assert_eq(@cli.percent_encode_path_component("café"), "caf%C3%A9")
 }
 
 ///|
@@ -90,12 +90,80 @@ test "github_contents_url encodes owner repo and path segments" {
 }
 
 ///|
+test "github_repo_url encodes owner and repo path segments" {
+  let url = match github_repo_url("maru/loop", "pa pion") {
+    Ok(url) => url
+    Err(err) => fail(err.1)
+  }
+  assert_eq(url, "https://api.github.com/repos/maru%2Floop/pa%20pion")
+}
+
+///|
+test "extract_default_branch_field returns branch when default_branch is string" {
+  assert_eq(
+    extract_default_branch_field(
+      "{\"default_branch\":\"main\"}", "octocat", "hello-world",
+    ),
+    Ok("main"),
+  )
+}
+
+///|
+test "extract_default_branch_field errors when default_branch missing" {
+  assert_eq(
+    extract_default_branch_field(
+      "{\"name\":\"hello-world\"}", "octocat", "hello-world",
+    ),
+    Err(
+      (
+        0, "GitHub repository response for octocat/hello-world did not contain a default_branch field",
+      ),
+    ),
+  )
+}
+
+///|
+test "extract_default_branch_field errors when default_branch is not string" {
+  assert_eq(
+    extract_default_branch_field(
+      "{\"default_branch\":123}", "octocat", "hello-world",
+    ),
+    Err(
+      (
+        0, "GitHub repository response for octocat/hello-world did not contain a string default_branch field",
+      ),
+    ),
+  )
+}
+
+///|
+test "tree_ref_fallbacks shifts path segments into ref" {
+  assert_eq(tree_ref_fallbacks("feature", Some("foo/subdir")), [
+    ("feature/foo", Some("subdir")),
+    ("feature/foo/subdir", None),
+  ])
+}
+
+///|
+test "tree_ref_fallbacks handles single path segment" {
+  assert_eq(tree_ref_fallbacks("release", Some("v1")), [("release/v1", None)])
+}
+
+///|
+test "tree_ref_fallbacks trims slashes and skips empty segments" {
+  assert_eq(tree_ref_fallbacks("release", Some("/v1//subdir/")), [
+    ("release/v1", Some("subdir")),
+    ("release/v1/subdir", None),
+  ])
+}
+
+///|
 test "run config error fires before fetch" {
   let mut fetch_called = false
   let result = @cli.run_with_host(
     ["run", "actions/checkout@v4", "--config", "cli/testdata/missing.toml"],
     load_config,
-    fn(_owner, _repo, _git_ref, _path) {
+    fn(_owner, _repo, _git_ref, _path, _allow_ref_fallback) {
       fetch_called = true
       Err("fetch_action_yml should not be called before config loading")
     },
@@ -118,9 +186,9 @@ test "run parse_args error on --config propagates before fetch" {
       load_config_called = true
       Ok(@papion.Policy::default())
     },
-    fn(_owner, _repo, _git_ref, _path) {
+    fn(_owner, _repo, _git_ref, _path, _allow_ref_fallback) {
       fetch_called = true
-      Ok("")
+      Ok(("", "unused"))
     },
   )
   assert_eq(result, Err(@cli.ArgError("missing value for --config")))

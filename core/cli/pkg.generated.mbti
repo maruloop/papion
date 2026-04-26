@@ -11,7 +11,11 @@ pub fn exit_code_for(@papion.Summary, FailOnLevel) -> Int
 
 pub fn parse_args(Array[String]) -> Result[RunOptions, CliError]
 
-pub fn run_with_host(Array[String], (String?) -> Result[@papion.Policy, String], (String, String, String, String?) -> Result[String, String]) -> Result[RunOutcome, CliError]
+pub fn percent_decode_url_path_segment(String) -> Result[String, String]
+
+pub fn percent_encode_path_component(String) -> String
+
+pub fn run_with_host(Array[String], (String?) -> Result[@papion.Policy, String], (String, String, String?, String?, Bool) -> Result[(String, String), String]) -> Result[RunOutcome, CliError]
 
 // Errors
 
@@ -39,7 +43,8 @@ pub(all) struct RunOptions {
   owner : String
   repo : String
   path : String?
-  git_ref : String
+  git_ref : String?
+  allow_ref_fallback : Bool
   format : OutputFormat
   fail_on : FailOnLevel
   config : String?

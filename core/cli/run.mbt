@@ -26,7 +26,10 @@ pub impl Show for RunOutcome with output(self, logger) {
 pub fn run_with_host(
   args : Array[String],
   load_config : (String?) -> Result[@papion.Policy, String],
-  fetch_action_yml : (String, String, String, String?) -> Result[String, String],
+  fetch_action_yml : (String, String, String?, String?, Bool) -> Result[
+    (String, String),
+    String,
+  ],
 ) -> Result[RunOutcome, CliError] {
   let options = match parse_args(args) {
     Ok(options) => options
@@ -36,14 +39,20 @@ pub fn run_with_host(
     Ok(policy) => policy
     Err(err) => return Err(RuntimeError(err))
   }
-  let action_yml = match
-    fetch_action_yml(options.owner, options.repo, options.git_ref, options.path) {
-    Ok(action_yml) => action_yml
+  let (action_yml, resolved_git_ref) = match
+    fetch_action_yml(
+      options.owner,
+      options.repo,
+      options.git_ref,
+      options.path,
+      options.allow_ref_fallback,
+    ) {
+    Ok(result) => result
     Err(err) => return Err(RuntimeError(err))
   }
   let result = match
     @engine.scan(
-      { owner: options.owner, repo: options.repo, git_ref: options.git_ref },
+      { owner: options.owner, repo: options.repo, git_ref: resolved_git_ref },
       action_yml,
       policy,
     ) {
