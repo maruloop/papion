@@ -203,6 +203,9 @@ fn github_matching_refs_url(
     url.set_pathname(
       "/repos/\{enc_owner}/\{enc_repo}/git/matching-refs/\{enc_ref_type}/\{enc_prefix}",
     )
+    let params = @url.UrlSearchParams::new()
+    params.set("per_page", "100")
+    url.set_search_params(params)
     Ok(url.to_string())
   } catch {
     _ =>
@@ -438,9 +441,16 @@ fn select_best_matching_ref(
     Some(path_value) if !path_value.is_empty() => "\{ref_prefix}/\{path_value}"
     _ => ref_prefix
   }
+  let normalized_full_path = full_path
+    .split("/")
+    .filter(fn(segment) { !segment.to_string().is_empty() })
+    .map(fn(segment) { segment.to_string() })
+    .to_array()
+    .join("/")
   let mut best_ref : String? = None
   for candidate_ref in candidates {
-    if full_path == candidate_ref || full_path.has_prefix(candidate_ref + "/") {
+    if normalized_full_path == candidate_ref ||
+      normalized_full_path.has_prefix(candidate_ref + "/") {
       match best_ref {
         Some(current) if current.length() >= candidate_ref.length() => ()
         _ => best_ref = Some(candidate_ref)
@@ -451,10 +461,10 @@ fn select_best_matching_ref(
     Some(ref_name) => ref_name
     None => return Err("no matching Git refs found")
   }
-  let remaining = if full_path.length() == resolved_ref.length() {
+  let remaining = if normalized_full_path.length() == resolved_ref.length() {
     None
   } else {
-    let suffix = full_path[resolved_ref.length() + 1:].to_string()
+    let suffix = normalized_full_path[resolved_ref.length() + 1:].to_string()
     if suffix.is_empty() {
       None
     } else {

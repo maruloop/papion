@@ -97,7 +97,7 @@ test "github_matching_refs_url encodes heads path components" {
     Err(err) => fail(err.1)
   }
   assert_eq(
-    url, "https://api.github.com/repos/maru%2Floop/pa%20pion/git/matching-refs/heads/release/v1",
+    url, "https://api.github.com/repos/maru%2Floop/pa%20pion/git/matching-refs/heads/release/v1?per_page=100",
   )
 }
 
@@ -109,7 +109,7 @@ test "github_matching_refs_url encodes tags path components" {
     Err(err) => fail(err.1)
   }
   assert_eq(
-    url, "https://api.github.com/repos/maruloop/papion/git/matching-refs/tags/v1.0.0/rc%201",
+    url, "https://api.github.com/repos/maruloop/papion/git/matching-refs/tags/v1.0.0/rc%201?per_page=100",
   )
 }
 
@@ -245,6 +245,27 @@ test "select_best_matching_ref errors when candidates empty" {
     select_best_matching_ref([], "release", Some("v1/action")),
     Err("no matching Git refs found"),
   )
+}
+
+///|
+test "select_best_matching_ref normalizes leading slash path" {
+  assert_eq(
+    select_best_matching_ref(["release/v1"], "release", Some("/v1/action")),
+    Ok(("release/v1", Some("action"))),
+  )
+}
+
+///|
+test "select_best_matching_ref normalizes double slash path" {
+  assert_eq(
+    select_best_matching_ref(["release/v1"], "release", Some("v1//action")),
+    Ok(("release/v1", Some("action"))),
+  )
+}
+
+///|
+test "select_best_matching_ref normalizes trailing slash path to none" {
+  assert_eq(select_best_matching_ref(["v4"], "v4", Some("/")), Ok(("v4", None)))
 }
 
 ///|
