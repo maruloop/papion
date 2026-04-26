@@ -101,8 +101,9 @@ fn finding_to_json(f : @papion.Finding) -> Json {
 ///|
 /// Format a ScanResult as JSON.
 ///
-/// Target is serialized as "owner/repo@ref" string.
+/// Target is serialized as "owner/repo@ref".
 /// Level values are lowercase ("warn"/"fail").
+/// The top-level `ref` field always contains the resolved target ref.
 /// Optional finding fields (context, suggestion) are omitted when absent.
 pub fn format_json(result : @papion.ScanResult) -> String {
   let root : Map[String, Json] = {

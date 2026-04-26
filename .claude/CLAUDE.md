@@ -12,6 +12,18 @@
 
 5. **Implement** — Write the minimal code to make tests pass, then refactor.
 
+## Layer responsibility boundaries
+
+The project has three layers (see ADR Decision 9). Each layer's types should only contain what that layer owns.
+
+- **Core** (`papion`, `engine`, `format`, `parser`, `rules`) — accepts only resolved, validated data. Types express invariants, not ambiguity. If scanning requires a ref, `ScanTarget.git_ref` is `String`, not `String?`.
+- **CLI** (`cli`) — parses user input, selects format/policy, orchestrates via injected host functions. Input-facing types like `RunOptions` may carry optionality (e.g. `git_ref: String?`) because user input is inherently ambiguous.
+- **Host** (`native`, `wasm`) — resolves ambiguity before constructing core types. Missing refs, tree URL probing, API calls, file I/O, and env vars are host responsibilities. The host produces clean, resolved values for the core.
+
+When a type pushes host-level concerns into the core (e.g. making a required field optional because the host hasn't resolved it yet), fix the boundary — don't preserve a leaky contract.
+
+Avoid bundling unrelated interface refactors into a bug fix or feature. If a broader change is needed, discuss first or file a follow-up issue.
+
 ## MoonBit code navigation
 
 Use `moon ide` for symbol lookup — do not grep or read files blindly.
