@@ -67,6 +67,69 @@ fn extract_default_branch_field(
 }
 
 ///|
+fn extract_matching_refs_field(
+  body : String,
+  owner : String,
+  repo : String,
+  ref_type : String,
+) -> Result[Array[String], (Int, String)] {
+  let json = try? @json.parse(body)
+  let json = match json {
+    Ok(json) => json
+    Err(err) =>
+      return Err(
+        (
+          0,
+          "failed to parse GitHub matching refs response for \{owner}/\{repo}: \{err}",
+        ),
+      )
+  }
+  let expected_prefix = "refs/\{ref_type}/"
+  match json {
+    Array(arr) => {
+      let refs : Array[String] = []
+      for item in arr {
+        match item {
+          { "ref": String(ref_name), .. } => {
+            if !ref_name.has_prefix(expected_prefix) {
+              return Err(
+                (
+                  0,
+                  "GitHub matching refs response for \{owner}/\{repo} contained ref outside refs/\{ref_type}/: \{ref_name}",
+                ),
+              )
+            }
+            refs.push(ref_name[expected_prefix.length():].to_string())
+          }
+          { "ref": _, .. } =>
+            return Err(
+              (
+                0,
+                "GitHub matching refs response for \{owner}/\{repo} did not contain a string ref field",
+              ),
+            )
+          _ =>
+            return Err(
+              (
+                0,
+                "GitHub matching refs response for \{owner}/\{repo} did not contain a ref field",
+              ),
+            )
+        }
+      }
+      Ok(refs)
+    }
+    _ =>
+      Err(
+        (
+          0,
+          "GitHub matching refs response for \{owner}/\{repo} was not an array",
+        ),
+      )
+  }
+}
+
+///|
 fn github_token() -> String? {
   match @env.get_env_var("GITHUB_TOKEN") {
     Some("") => None
@@ -115,6 +178,35 @@ fn github_repo_url(
     Ok(url.to_string())
   } catch {
     _ => Err((0, "failed to build GitHub repository URL for \{owner}/\{repo}"))
+  }
+}
+
+///|
+fn github_matching_refs_url(
+  owner : String,
+  repo : String,
+  ref_type : String,
+  prefix : String,
+) -> Result[String, (Int, String)] {
+  try {
+    let url = @url.Url::parse("https://api.github.com")
+    let enc_owner = @cli.percent_encode_path_component(owner)
+    let enc_repo = @cli.percent_encode_path_component(repo)
+    let enc_ref_type = @cli.percent_encode_path_component(ref_type)
+    let enc_prefix = prefix
+      .split("/")
+      .map(fn(segment) {
+        @cli.percent_encode_path_component(segment.to_string())
+      })
+      .to_array()
+      .join("/")
+    url.set_pathname(
+      "/repos/\{enc_owner}/\{enc_repo}/git/matching-refs/\{enc_ref_type}/\{enc_prefix}",
+    )
+    Ok(url.to_string())
+  } catch {
+    _ =>
+      Err((0, "failed to build GitHub matching refs URL for \{owner}/\{repo}"))
   }
 }
 
@@ -256,6 +348,72 @@ fn fetch_default_branch(
 }
 
 ///|
+fn fetch_matching_refs(
+  owner : String,
+  repo : String,
+  ref_type : String,
+  prefix : String,
+) -> Result[Array[String], (Int, String)] {
+  let url = match github_matching_refs_url(owner, repo, ref_type, prefix) {
+    Ok(url) => url
+    Err(err) => return Err(err)
+  }
+  let mut result : Result[Array[String], (Int, String)] = Err(
+    (0, "request was not executed"),
+  )
+  @async.run_async_main(() => {
+    let headers = {
+      "User-Agent": @papion.cli_user_agent(),
+      "Accept": "application/vnd.github+json",
+    }
+    if github_token() is Some(token) {
+      headers["Authorization"] = "Bearer \{token}"
+    }
+    let request : Result[Array[String], (Int, String)] = try {
+      let refs = @async.retry(
+        @async.ExponentialDelay(initial=1000, factor=2.0, maximum=10000),
+        max_retry=3,
+        fatal_error=fn(err) {
+          match err {
+            HttpError((code, _)) =>
+              code == 0 || (code >= 400 && code < 500 && code != 429)
+            _ => false
+          }
+        },
+        () => {
+          let pair = @async.with_timeout(30000, () => @http.get(url, headers~))
+          let (response, body) = pair
+          if response.code == 200 {
+            match
+              extract_matching_refs_field(body.text(), owner, repo, ref_type) {
+              Ok(refs) => refs
+              Err(err) => raise HttpError(err)
+            }
+          } else {
+            raise HttpError(
+              (
+                response.code,
+                "failed to fetch matching refs for \{owner}/\{repo} (\{response.code} \{response.reason})",
+              ),
+            )
+          }
+        },
+      )
+      Ok(refs)
+    } catch {
+      HttpError(err) => Err(err)
+      err =>
+        Err((0, "failed to fetch matching refs for \{owner}/\{repo}: \{err}"))
+    }
+    match request {
+      Ok(refs) => result = Ok(refs)
+      Err(err) => result = Err(err)
+    }
+  })
+  result
+}
+
+///|
 fn normalize_action_path(path : String?) -> String {
   match path {
     None => ""
@@ -271,42 +429,70 @@ fn normalize_action_path(path : String?) -> String {
 }
 
 ///|
-fn tree_ref_fallbacks(
-  git_ref : String,
+fn resolve_matching_ref(
+  owner : String,
+  repo : String,
+  ref_prefix : String,
   path : String?,
-) -> Array[(String, String?)] {
-  let fallbacks : Array[(String, String?)] = []
-  let path_value = match path {
-    Some(path_value) => path_value
-    None => return fallbacks
+) -> Result[(String, String?), (Int, String)] {
+  let head_refs = match fetch_matching_refs(owner, repo, "heads", ref_prefix) {
+    Ok(refs) => refs
+    Err(_) => []
   }
-  let trimmed_path = path_value.trim(chars="/")
-  if trimmed_path.is_empty() {
-    return fallbacks
+  let tag_refs = if head_refs.is_empty() {
+    match fetch_matching_refs(owner, repo, "tags", ref_prefix) {
+      Ok(refs) => refs
+      Err(err) => {
+        if head_refs.is_empty() {
+          return Err(err)
+        }
+        []
+      }
+    }
+  } else {
+    []
   }
-  let segments : Array[String] = []
-  for segment in trimmed_path.split("/") {
-    let segment = segment.to_string()
-    if !segment.is_empty() {
-      segments.push(segment)
+  let candidates : Array[String] = []
+  for ref_name in head_refs {
+    candidates.push(ref_name)
+  }
+  for ref_name in tag_refs {
+    candidates.push(ref_name)
+  }
+  let full_path = match path {
+    Some(path_value) if !path_value.is_empty() => "\{ref_prefix}/\{path_value}"
+    _ => ref_prefix
+  }
+  let mut best_ref : String? = None
+  for candidate_ref in candidates {
+    if full_path == candidate_ref || full_path.has_prefix(candidate_ref + "/") {
+      match best_ref {
+        Some(current) if current.length() >= candidate_ref.length() => ()
+        _ => best_ref = Some(candidate_ref)
+      }
     }
   }
-  if segments.is_empty() {
-    return fallbacks
+  let resolved_ref = match best_ref {
+    Some(ref_name) => ref_name
+    None =>
+      return Err(
+        (
+          404,
+          "no matching Git refs found for \{owner}/\{repo} with prefix \{ref_prefix}",
+        ),
+      )
   }
-  let mut candidate_ref = git_ref
-  let mut i = 0
-  while i < segments.length() {
-    candidate_ref = candidate_ref + "/" + segments[i]
-    let remaining_path = if i + 1 < segments.length() {
-      Some(segments[i + 1:].join("/"))
-    } else {
+  let remaining = if full_path.length() == resolved_ref.length() {
+    None
+  } else {
+    let suffix = full_path[resolved_ref.length() + 1:].to_string()
+    if suffix.is_empty() {
       None
+    } else {
+      Some(suffix)
     }
-    fallbacks.push((candidate_ref, remaining_path))
-    i += 1
   }
-  fallbacks
+  Ok((resolved_ref, remaining))
 }
 
 ///|
@@ -336,25 +522,17 @@ fn fetch_action_yml_with_fallback(
   match try_fetch_action_yml(owner, repo, git_ref, path) {
     Ok(bytes) => Ok((bytes, git_ref))
     Err((404, message)) => {
-      if !allow_ref_fallback {
+      if !allow_ref_fallback || path is None {
         return Err((404, message))
       }
-      let fallbacks = tree_ref_fallbacks(git_ref, path)
-      // Cap fallback attempts to bound worst-case GitHub API requests.
-      let fallback_limit = if fallbacks.length() < 2 {
-        fallbacks.length()
-      } else {
-        2
+      match resolve_matching_ref(owner, repo, git_ref, path) {
+        Ok((resolved_ref, resolved_path)) =>
+          match try_fetch_action_yml(owner, repo, resolved_ref, resolved_path) {
+            Ok(bytes) => Ok((bytes, resolved_ref))
+            Err(err) => Err(err)
+          }
+        Err(_) => Err((404, message))
       }
-      for i = 0; i < fallback_limit; i = i + 1 {
-        let (fallback_ref, fallback_path) = fallbacks[i]
-        match try_fetch_action_yml(owner, repo, fallback_ref, fallback_path) {
-          Ok(bytes) => return Ok((bytes, fallback_ref))
-          Err((404, _)) => ()
-          Err(err) => return Err(err)
-        }
-      }
-      Err((404, message))
     }
     Err(err) => Err(err)
   }
