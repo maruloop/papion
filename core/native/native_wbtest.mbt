@@ -215,6 +215,39 @@ test "extract_default_branch_field errors when default_branch is not string" {
 }
 
 ///|
+test "select_best_matching_ref returns exact ref with no remaining path" {
+  assert_eq(select_best_matching_ref(["v4"], "v4", None), Ok(("v4", None)))
+}
+
+///|
+test "select_best_matching_ref picks longest matching ref" {
+  assert_eq(
+    select_best_matching_ref(
+      ["release", "release/v1"],
+      "release",
+      Some("v1/action"),
+    ),
+    Ok(("release/v1", Some("action"))),
+  )
+}
+
+///|
+test "select_best_matching_ref errors when no candidate matches" {
+  assert_eq(
+    select_best_matching_ref(["release/v2"], "release", Some("v1/action")),
+    Err("no matching Git refs found"),
+  )
+}
+
+///|
+test "select_best_matching_ref errors when candidates empty" {
+  assert_eq(
+    select_best_matching_ref([], "release", Some("v1/action")),
+    Err("no matching Git refs found"),
+  )
+}
+
+///|
 test "run config error fires before fetch" {
   let mut fetch_called = false
   let result = @cli.run_with_host(

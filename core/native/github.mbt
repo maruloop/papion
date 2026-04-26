@@ -429,36 +429,11 @@ fn normalize_action_path(path : String?) -> String {
 }
 
 ///|
-fn resolve_matching_ref(
-  owner : String,
-  repo : String,
+fn select_best_matching_ref(
+  candidates : Array[String],
   ref_prefix : String,
   path : String?,
-) -> Result[(String, String?), (Int, String)] {
-  let head_refs = match fetch_matching_refs(owner, repo, "heads", ref_prefix) {
-    Ok(refs) => refs
-    Err(_) => []
-  }
-  let tag_refs = if head_refs.is_empty() {
-    match fetch_matching_refs(owner, repo, "tags", ref_prefix) {
-      Ok(refs) => refs
-      Err(err) => {
-        if head_refs.is_empty() {
-          return Err(err)
-        }
-        []
-      }
-    }
-  } else {
-    []
-  }
-  let candidates : Array[String] = []
-  for ref_name in head_refs {
-    candidates.push(ref_name)
-  }
-  for ref_name in tag_refs {
-    candidates.push(ref_name)
-  }
+) -> Result[(String, String?), String] {
   let full_path = match path {
     Some(path_value) if !path_value.is_empty() => "\{ref_prefix}/\{path_value}"
     _ => ref_prefix
@@ -474,13 +449,7 @@ fn resolve_matching_ref(
   }
   let resolved_ref = match best_ref {
     Some(ref_name) => ref_name
-    None =>
-      return Err(
-        (
-          404,
-          "no matching Git refs found for \{owner}/\{repo} with prefix \{ref_prefix}",
-        ),
-      )
+    None => return Err("no matching Git refs found")
   }
   let remaining = if full_path.length() == resolved_ref.length() {
     None
@@ -493,6 +462,42 @@ fn resolve_matching_ref(
     }
   }
   Ok((resolved_ref, remaining))
+}
+
+///|
+fn resolve_matching_ref(
+  owner : String,
+  repo : String,
+  ref_prefix : String,
+  path : String?,
+) -> Result[(String, String?), (Int, String)] {
+  let head_refs = match fetch_matching_refs(owner, repo, "heads", ref_prefix) {
+    Ok(refs) => refs
+    Err((404, _)) => []
+    Err(err) => return Err(err)
+  }
+  let tag_refs = match fetch_matching_refs(owner, repo, "tags", ref_prefix) {
+    Ok(refs) => refs
+    Err((404, _)) => []
+    Err(err) => return Err(err)
+  }
+  let candidates : Array[String] = []
+  for ref_name in head_refs {
+    candidates.push(ref_name)
+  }
+  for ref_name in tag_refs {
+    candidates.push(ref_name)
+  }
+  match select_best_matching_ref(candidates, ref_prefix, path) {
+    Ok(result) => Ok(result)
+    Err(_) =>
+      return Err(
+        (
+          404,
+          "no matching Git refs found for \{owner}/\{repo} with prefix \{ref_prefix}",
+        ),
+      )
+  }
 }
 
 ///|
@@ -531,7 +536,8 @@ fn fetch_action_yml_with_fallback(
             Ok(bytes) => Ok((bytes, resolved_ref))
             Err(err) => Err(err)
           }
-        Err(_) => Err((404, message))
+        Err((404, _)) => Err((404, message))
+        Err(err) => Err(err)
       }
     }
     Err(err) => Err(err)
