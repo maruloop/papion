@@ -77,7 +77,7 @@ pub fn scan(
           if visited.get(ref_key) is None {
             visited[ref_key] = true
             if depth < @papion.max_scan_depth &&
-              node_count < @papion.max_scan_nodes {
+              queue.length() < @papion.max_scan_nodes {
               match fetch(ref_.owner, ref_.repo, ref_.git_ref, ref_.path) {
                 Ok(yaml) => {
                   let child_chain = chain.copy()
