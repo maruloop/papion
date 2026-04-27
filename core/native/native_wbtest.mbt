@@ -130,7 +130,7 @@ test "github_release_by_tag_url encodes owner repo and tag path segments" {
     Err(err) => fail(err.1)
   }
   assert_eq(
-    url, "https://api.github.com/repos/maru%2Floop/pa%20pion/releases/tags/v1.0.0/rc%201",
+    url, "https://api.github.com/repos/maru%2Floop/pa%20pion/releases/tags/v1.0.0%2Frc%201",
   )
 }
 

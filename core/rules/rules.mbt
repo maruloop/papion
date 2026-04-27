@@ -52,7 +52,9 @@ pub fn check_sha_pinning(
       target: format_target(action_ref),
       context: None,
       message: "action ref is not pinned to a SHA or immutable release",
-      suggestion: None,
+      suggestion: Some(
+        "pin to a full commit SHA (e.g. @abc123...) or an immutable release tag",
+      ),
     },
   ]
 }

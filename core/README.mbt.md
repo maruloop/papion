@@ -144,5 +144,6 @@ Summary {
 
 ```sh
 moon build --target native   # Native CLI binary
-moon build --target js       # JS for browser / Cloudflare
+moon build --target js       # JS for browser / Cloudflare Workers
+moon build --target wasm-gc  # WASM (GC) for browser embedding
 ```

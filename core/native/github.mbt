@@ -223,13 +223,7 @@ fn github_release_by_tag_url(
     let url = @url.Url::parse("https://api.github.com")
     let enc_owner = @cli.percent_encode_path_component(owner)
     let enc_repo = @cli.percent_encode_path_component(repo)
-    let enc_tag = tag
-      .split("/")
-      .map(fn(segment) {
-        @cli.percent_encode_path_component(segment.to_string())
-      })
-      .to_array()
-      .join("/")
+    let enc_tag = @cli.percent_encode_path_component(tag)
     url.set_pathname("/repos/\{enc_owner}/\{enc_repo}/releases/tags/\{enc_tag}")
     Ok(url.to_string())
   } catch {
