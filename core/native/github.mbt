@@ -796,9 +796,11 @@ pub fn resolve_ref_kind_via_api(
   repo : String,
   git_ref : String,
 ) -> @papion.RefKind {
-  match fetch_commit_exists(owner, repo, git_ref) {
-    Ok(true) => return Sha
-    _ => ()
+  if @rules.classify_ref(git_ref) == Sha {
+    match fetch_commit_exists(owner, repo, git_ref) {
+      Ok(true) => return Sha
+      _ => ()
+    }
   }
   match fetch_release_by_tag(owner, repo, git_ref) {
     Ok(true) => ImmutableRelease
