@@ -6,7 +6,7 @@ import {
 }
 
 // Values
-pub fn scan(@papion.ScanTarget, String, @papion.Policy) -> Result[@papion.ScanResult, String]
+pub fn scan(@papion.ScanTarget, String, @papion.Policy, resolve_ref_kind? : (String, String, String) -> @papion.RefKind, fetch_action_yml? : ((String, String, String, String?) -> Result[String, String])?) -> Result[@papion.ScanResult, String]
 
 // Errors
 

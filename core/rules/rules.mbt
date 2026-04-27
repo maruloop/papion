@@ -35,13 +35,15 @@ pub fn classify_ref(git_ref : String) -> @papion.RefKind {
 /// rule is disabled or the ref is already pinned.
 pub fn check_sha_pinning(
   action_ref : @papion.ActionRef,
+  ref_kind : @papion.RefKind,
   policy : @papion.Policy,
 ) -> Array[@papion.Finding] {
   if !policy.sha_pinning {
     return []
   }
-  if classify_ref(action_ref.git_ref) == Sha {
-    return []
+  match ref_kind {
+    Sha | ImmutableRelease => return []
+    _ => ()
   }
   [
     {
@@ -49,8 +51,10 @@ pub fn check_sha_pinning(
       rule: "sha-pinning",
       target: format_target(action_ref),
       context: None,
-      message: "action ref is not pinned to a SHA — use a 40-character hex commit SHA instead of a tag or branch name",
-      suggestion: None,
+      message: "action ref is not pinned to a SHA or immutable release",
+      suggestion: Some(
+        "pin to a full commit SHA (e.g. @abc123...) or an immutable release tag",
+      ),
     },
   ]
 }
@@ -111,10 +115,11 @@ pub fn check_disallowed(
 /// All findings are collected — rules are independent.
 pub fn evaluate(
   action_ref : @papion.ActionRef,
+  ref_kind : @papion.RefKind,
   policy : @papion.Policy,
 ) -> Array[@papion.Finding] {
   let findings : Array[@papion.Finding] = []
-  findings.append(check_sha_pinning(action_ref, policy))
+  findings.append(check_sha_pinning(action_ref, ref_kind, policy))
   findings.append(check_allowed(action_ref, policy))
   findings.append(check_disallowed(action_ref, policy))
   findings

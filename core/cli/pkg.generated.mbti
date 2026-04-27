@@ -15,7 +15,7 @@ pub fn percent_decode_url_path_segment(String) -> Result[String, String]
 
 pub fn percent_encode_path_component(String) -> String
 
-pub fn run_with_host(Array[String], (String?) -> Result[@papion.Policy, String], (String, String, String?, String?, Bool) -> Result[(String, String), String]) -> Result[RunOutcome, CliError]
+pub fn run_with_host(Array[String], (String?) -> Result[@papion.Policy, String], (String, String, String?, String?, Bool) -> Result[(String, String), String], resolve_ref_kind? : (String, String, String) -> @papion.RefKind) -> Result[RunOutcome, CliError]
 
 // Errors
 

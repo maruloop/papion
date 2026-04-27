@@ -1,17 +1,20 @@
 # Papion Core
 
-Pure MoonBit engine for scanning GitHub Actions. No I/O, no host imports — all data exchange happens via JSON strings at the WASM boundary.
+Pure MoonBit engine for scanning GitHub Actions. Core logic is portable and environment-agnostic. Host-specific I/O (GitHub API, file system) is injected via callbacks.
 
 ## Packages
 
 | Package | Purpose |
 |---------|---------|
 | `papion` (root) | Core data types shared by all packages |
-| `papion/parser` | Parse action.yml JSON into core types |
+| `papion/parser` | Parse action.yml YAML into core types |
 | `papion/config` | Parse policy configuration JSON, glob matching for allowed/disallowed lists |
-| `papion/rules` | Evaluate policy rules against action references (**this PR**) |
-| `papion/format` | Format scan results as human-readable or JSON output (planned: WS7) |
-| `papion/engine` | Orchestrate a full scan (WASM entry point) (planned: WS5) |
+| `papion/rules` | Evaluate policy rules against action references |
+| `papion/format` | Format scan results as human-readable or JSON output |
+| `papion/engine` | Orchestrate a full scan |
+| `papion/cli` | Target-agnostic argument parsing, orchestration, formatting selection |
+| `papion/native` | Native CLI executable, GitHub API integration, file I/O |
+| `papion/wasm` | WASM/browser-facing stubs and host bindings |
 
 ## Data Model
 
@@ -33,7 +36,7 @@ ActionRef {
 Classifies the type of ref.
 
 ```
-RefKind = Sha | Tag | Branch
+RefKind = Sha | Tag | Branch | ImmutableRelease
 ```
 
 ### ActionYml
@@ -140,6 +143,7 @@ Summary {
 ## Build Targets
 
 ```sh
-moon build --target wasm-gc    # WASM for Go CLI
-moon build --target js         # JS for browser / Cloudflare
+moon build --target native   # Native CLI binary
+moon build --target js       # JS for browser / Cloudflare Workers
+moon build --target wasm-gc  # WASM (GC) for browser embedding
 ```

@@ -29,5 +29,10 @@ fn main {
 
 ///|
 fn run(args : Array[String]) -> Result[@cli.RunOutcome, @cli.CliError] {
-  @cli.run_with_host(args, load_config, fetch_action_yml)
+  @cli.run_with_host(
+    args,
+    load_config,
+    fetch_action_yml,
+    resolve_ref_kind=resolve_ref_kind_via_api,
+  )
 }

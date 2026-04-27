@@ -532,6 +532,36 @@ Adopt the fourth option — fetch only the single file via the GitHub Contents A
 * Very deep slash-containing refs in pasted GitHub tree URLs may still fail native fallback resolution today; widening the cap remains an explicit future adjustment if real usage justifies the extra requests
 * The CLI host layer is split into target-aware packages so target-specific dependencies are represented structurally instead of through keepalive references.
 
+### Ref-kind resolution boundary
+
+Papion now treats ref-kind resolution as a host responsibility rather than a pure rules concern.
+
+The decision is:
+
+* `core/rules` receives `RefKind` as input data and stays pure
+* `core/engine.scan` accepts an injected `resolve_ref_kind` callback with a pure `classify_ref` fallback
+* native hosts may use GitHub API calls to refine that classification before evaluation
+
+This keeps the core contract honest:
+
+* pure and WASM environments can still classify refs structurally with no I/O
+* native hosts can verify whether a 40-character hex string actually exists as a commit SHA
+* native hosts can treat immutable GitHub releases as equivalent to SHA pins for policy evaluation
+
+### Immutable releases as SHA-equivalent pins
+
+Papion's `sha-pinning` rule now accepts either:
+
+* a verified commit SHA
+* an immutable GitHub release tag
+
+On native targets, the host checks:
+
+* `git/commits/{sha}` to verify that SHA-like refs really exist
+* `releases/tags/{tag}` and its `immutable` field to recognize immutable releases
+
+If either API check fails, the host fails closed and reports the ref to the pure rules layer as `Branch`, so Papion never grants a pass based on an unverifiable ref.
+
 ### CLI package boundaries
 
 The CLI is packaged as:
@@ -541,6 +571,46 @@ The CLI is packaged as:
 * `core/wasm`: WASM/browser-facing stubs or host bindings
 
 This lets MoonBit's package-level `unused_package` checks reflect real dependencies naturally and keeps target responsibilities easier to reason about.
+
+---
+
+## Decision 20: Recursive transitive scanning strategy
+
+### Context
+
+Composite GitHub Actions can depend on other composite actions via `uses:` steps. A security scanner that only inspects the root `action.yml` misses transitive dependencies, which may contain unpinned refs or disallowed actions.
+
+### Options
+
+1. Add a separate `scan_recursive` function alongside `scan`
+2. Extend `scan` with an optional `fetch_action_yml~` callback; recursive mode is enabled automatically when the host provides it
+3. Add a `--recursive` CLI flag and have the CLI opt into recursion
+
+### Decision
+
+Adopt option 2: extend the existing `scan` function with an optional `fetch_action_yml~` labeled parameter.
+
+* When `fetch_action_yml~` is `None` (default, e.g. WASM without host fetch), `scan` processes only the root action — identical to prior behaviour.
+* When `fetch_action_yml~` is `Some(fetch)` (native CLI), `scan` performs BFS traversal of all transitive composite-action dependencies automatically — no separate function, no CLI flag.
+* The native `run_with_host` always passes a `fetch_action_yml` adapter that strips `allow_ref_fallback` (always `false` for transitive deps — the ref comes directly from the `uses:` field, not from user input).
+
+Option 1 was rejected because it duplicates the parse-extract-evaluate pipeline and creates two entry points with diverging behaviour. Option 3 was rejected because transitive scanning is the whole point of the tool — an opt-out model suits an advanced escape hatch, but opt-in creates friction and risks the common case being under-secured.
+
+### BFS traversal safeguards
+
+* Visited set keyed by `owner/repo[/path]@ref` — prevents re-fetching cycles
+* `max_scan_depth = 10` — maximum depth before a branch is abandoned
+* `max_scan_nodes = 100` — maximum total nodes processed; no new children are enqueued past this limit
+* Root parse failures → `Err`; transitive parse failures → node silently skipped
+* Fetch errors → node silently skipped (best-effort)
+
+### Dependency chain context
+
+Transitive findings carry a `context` field with the full dependency chain from the scanned root, e.g. `"org/action-b@v1 > org/action-c@v1"`. Root findings have `context = None`. This gives users the complete path to understand where a transitive issue originated.
+
+### resolve_ref_kind integration
+
+The same `resolve_ref_kind` callback (introduced in Decision 19) applies to every ref encountered during traversal, including transitive ones. Transitive dependencies receive the same SHA verification and immutable-release checks as direct dependencies.
 
 ---
 
