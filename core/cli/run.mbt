@@ -50,11 +50,18 @@ pub fn run_with_host(
     Ok(result) => result
     Err(err) => return Err(RuntimeError(err))
   }
+  let sub_fetch : (String, String, String, String?) -> Result[
+    (String, String),
+    String,
+  ] = fn(owner, repo, git_ref, path) {
+    fetch_action_yml(owner, repo, Some(git_ref), path, false)
+  }
   let result = match
-    @engine.scan(
+    @engine.scan_deep(
       { owner: options.owner, repo: options.repo, git_ref: resolved_git_ref },
       action_yml,
       policy,
+      sub_fetch,
     ) {
     Ok(result) => result
     Err(err) => return Err(RuntimeError(err))
