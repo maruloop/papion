@@ -240,7 +240,11 @@ test "scan skips ref kind resolver when sha_pinning is false" {
     #|  steps:
     #|    - uses: actions/checkout@v4
   let mut calls = 0
-  let policy : @papion.Policy = { sha_pinning: false, allowed: [], disallowed: [] }
+  let policy : @papion.Policy = {
+    sha_pinning: false,
+    allowed: [],
+    disallowed: [],
+  }
   let result = scan(target, yaml_str, policy, resolve_ref_kind=fn(_, _, _) {
     calls = calls + 1
     ImmutableRelease
