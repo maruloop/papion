@@ -67,6 +67,38 @@ fn extract_default_branch_field(
 }
 
 ///|
+fn extract_release_immutable_field(
+  body : String,
+  owner : String,
+  repo : String,
+  tag : String,
+) -> Result[Bool, (Int, String)] {
+  let json = try? @json.parse(body)
+  let json = match json {
+    Ok(json) => json
+    Err(err) =>
+      return Err(
+        (
+          0,
+          "failed to parse GitHub release response for \{owner}/\{repo}@\{tag}: \{err}",
+        ),
+      )
+  }
+  match json {
+    { "immutable": true, .. } => Ok(true)
+    { "immutable": false, .. } => Ok(false)
+    { "immutable": _, .. } =>
+      Err(
+        (
+          0,
+          "GitHub release response for \{owner}/\{repo}@\{tag} did not contain a boolean immutable field",
+        ),
+      )
+    _ => Ok(false)
+  }
+}
+
+///|
 fn extract_matching_refs_field(
   body : String,
   owner : String,
@@ -178,6 +210,50 @@ fn github_repo_url(
     Ok(url.to_string())
   } catch {
     _ => Err((0, "failed to build GitHub repository URL for \{owner}/\{repo}"))
+  }
+}
+
+///|
+fn github_release_by_tag_url(
+  owner : String,
+  repo : String,
+  tag : String,
+) -> Result[String, (Int, String)] {
+  try {
+    let url = @url.Url::parse("https://api.github.com")
+    let enc_owner = @cli.percent_encode_path_component(owner)
+    let enc_repo = @cli.percent_encode_path_component(repo)
+    let enc_tag = tag
+      .split("/")
+      .map(fn(segment) {
+        @cli.percent_encode_path_component(segment.to_string())
+      })
+      .to_array()
+      .join("/")
+    url.set_pathname("/repos/\{enc_owner}/\{enc_repo}/releases/tags/\{enc_tag}")
+    Ok(url.to_string())
+  } catch {
+    _ =>
+      Err((0, "failed to build GitHub release URL for \{owner}/\{repo}@\{tag}"))
+  }
+}
+
+///|
+fn github_commit_url(
+  owner : String,
+  repo : String,
+  sha : String,
+) -> Result[String, (Int, String)] {
+  try {
+    let url = @url.Url::parse("https://api.github.com")
+    let enc_owner = @cli.percent_encode_path_component(owner)
+    let enc_repo = @cli.percent_encode_path_component(repo)
+    let enc_sha = @cli.percent_encode_path_component(sha)
+    url.set_pathname("/repos/\{enc_owner}/\{enc_repo}/git/commits/\{enc_sha}")
+    Ok(url.to_string())
+  } catch {
+    _ =>
+      Err((0, "failed to build GitHub commit URL for \{owner}/\{repo}@\{sha}"))
   }
 }
 
@@ -344,6 +420,142 @@ fn fetch_default_branch(
     }
     match request {
       Ok(branch) => result = Ok(branch)
+      Err(err) => result = Err(err)
+    }
+  })
+  result
+}
+
+///|
+fn fetch_release_by_tag(
+  owner : String,
+  repo : String,
+  tag : String,
+) -> Result[Bool, (Int, String)] {
+  let url = match github_release_by_tag_url(owner, repo, tag) {
+    Ok(url) => url
+    Err(err) => return Err(err)
+  }
+  let mut result : Result[Bool, (Int, String)] = Err(
+    (0, "request was not executed"),
+  )
+  @async.run_async_main(() => {
+    let headers = {
+      "User-Agent": @papion.cli_user_agent(),
+      "Accept": "application/vnd.github+json",
+    }
+    if github_token() is Some(token) {
+      headers["Authorization"] = "Bearer \{token}"
+    }
+    let request : Result[Bool, (Int, String)] = try {
+      let immutable = @async.retry(
+        @async.ExponentialDelay(initial=1000, factor=2.0, maximum=10000),
+        max_retry=3,
+        fatal_error=fn(err) {
+          match err {
+            HttpError((code, _)) =>
+              code == 0 || (code >= 400 && code < 500 && code != 429)
+            _ => false
+          }
+        },
+        () => {
+          let pair = @async.with_timeout(30000, () => @http.get(url, headers~))
+          let (response, body) = pair
+          match response.code {
+            200 =>
+              match
+                extract_release_immutable_field(body.text(), owner, repo, tag) {
+                Ok(immutable) => immutable
+                Err(err) => raise HttpError(err)
+              }
+            404 => false
+            _ =>
+              raise HttpError(
+                (
+                  response.code,
+                  "failed to fetch release metadata for \{owner}/\{repo}@\{tag} (\{response.code} \{response.reason})",
+                ),
+              )
+          }
+        },
+      )
+      Ok(immutable)
+    } catch {
+      HttpError(err) => Err(err)
+      err =>
+        Err(
+          (
+            0,
+            "failed to fetch release metadata for \{owner}/\{repo}@\{tag}: \{err}",
+          ),
+        )
+    }
+    match request {
+      Ok(immutable) => result = Ok(immutable)
+      Err(err) => result = Err(err)
+    }
+  })
+  result
+}
+
+///|
+fn fetch_commit_exists(
+  owner : String,
+  repo : String,
+  sha : String,
+) -> Result[Bool, (Int, String)] {
+  let url = match github_commit_url(owner, repo, sha) {
+    Ok(url) => url
+    Err(err) => return Err(err)
+  }
+  let mut result : Result[Bool, (Int, String)] = Err(
+    (0, "request was not executed"),
+  )
+  @async.run_async_main(() => {
+    let headers = {
+      "User-Agent": @papion.cli_user_agent(),
+      "Accept": "application/vnd.github+json",
+    }
+    if github_token() is Some(token) {
+      headers["Authorization"] = "Bearer \{token}"
+    }
+    let request : Result[Bool, (Int, String)] = try {
+      let exists = @async.retry(
+        @async.ExponentialDelay(initial=1000, factor=2.0, maximum=10000),
+        max_retry=3,
+        fatal_error=fn(err) {
+          match err {
+            HttpError((code, _)) =>
+              code == 0 || (code >= 400 && code < 500 && code != 429)
+            _ => false
+          }
+        },
+        () => {
+          let pair = @async.with_timeout(30000, () => @http.get(url, headers~))
+          let (response, _) = pair
+          match response.code {
+            200 => true
+            404 => false
+            _ =>
+              raise HttpError(
+                (
+                  response.code,
+                  "failed to verify commit SHA for \{owner}/\{repo}@\{sha} (\{response.code} \{response.reason})",
+                ),
+              )
+          }
+        },
+      )
+      Ok(exists)
+    } catch {
+      HttpError(err) => Err(err)
+      err =>
+        Err(
+          (0, "failed to verify commit SHA for \{owner}/\{repo}@\{sha}: \{err}"),
+        )
+    }
+    match request {
+      Ok(exists) => result = Ok(exists)
       Err(err) => result = Err(err)
     }
   })
@@ -581,5 +793,23 @@ pub fn fetch_action_yml(
   match action_yml {
     Ok(action_yml) => Ok((action_yml, resolved_git_ref))
     Err(_) => Err("GitHub action file is not valid UTF-8")
+  }
+}
+
+///|
+pub fn resolve_ref_kind_via_api(
+  owner : String,
+  repo : String,
+  git_ref : String,
+) -> @papion.RefKind {
+  if @rules.classify_ref(git_ref) == Sha {
+    match fetch_commit_exists(owner, repo, git_ref) {
+      Ok(true) => return Sha
+      _ => return Branch
+    }
+  }
+  match fetch_release_by_tag(owner, repo, git_ref) {
+    Ok(true) => ImmutableRelease
+    _ => Branch
   }
 }

@@ -67,6 +67,7 @@ pub(all) enum RefKind {
   Sha
   Tag
   Branch
+  ImmutableRelease
 } derive(Eq, ToJson, @debug.Debug, @json.FromJson)
 pub impl Show for RefKind
 

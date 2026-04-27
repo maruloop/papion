@@ -2,6 +2,7 @@ import {
   "maruloop/papion/engine",
   "maruloop/papion/format",
   "maruloop/papion",
+  "maruloop/papion/rules",
   "moonbitlang/core/buffer",
   "moonbitlang/core/encoding/utf8",
 }

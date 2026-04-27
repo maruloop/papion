@@ -29,15 +29,19 @@ test "RefKind json roundtrip" {
   let sha : @papion.RefKind = Sha
   let tag : @papion.RefKind = Tag
   let branch : @papion.RefKind = Branch
+  let immutable_release : @papion.RefKind = ImmutableRelease
   let s_json = @json.parse(sha.to_json().stringify())
   let t_json = @json.parse(tag.to_json().stringify())
   let b_json = @json.parse(branch.to_json().stringify())
+  let i_json = @json.parse(immutable_release.to_json().stringify())
   let s_back : @papion.RefKind = @json.from_json(s_json)
   let t_back : @papion.RefKind = @json.from_json(t_json)
   let b_back : @papion.RefKind = @json.from_json(b_json)
+  let i_back : @papion.RefKind = @json.from_json(i_json)
   assert_eq(sha, s_back)
   assert_eq(tag, t_back)
   assert_eq(branch, b_back)
+  assert_eq(immutable_release, i_back)
 }
 
 ///|

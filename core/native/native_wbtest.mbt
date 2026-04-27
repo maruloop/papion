@@ -123,6 +123,29 @@ test "github_repo_url encodes owner and repo path segments" {
 }
 
 ///|
+test "github_release_by_tag_url encodes owner repo and tag path segments" {
+  let url = match
+    github_release_by_tag_url("maru/loop", "pa pion", "v1.0.0/rc 1") {
+    Ok(url) => url
+    Err(err) => fail(err.1)
+  }
+  assert_eq(
+    url, "https://api.github.com/repos/maru%2Floop/pa%20pion/releases/tags/v1.0.0/rc%201",
+  )
+}
+
+///|
+test "github_commit_url encodes owner repo and sha path segments" {
+  let url = match github_commit_url("maru/loop", "pa pion", "abc/123") {
+    Ok(url) => url
+    Err(err) => fail(err.1)
+  }
+  assert_eq(
+    url, "https://api.github.com/repos/maru%2Floop/pa%20pion/git/commits/abc%2F123",
+  )
+}
+
+///|
 test "extract_matching_refs_field returns stripped refs" {
   assert_eq(
     extract_matching_refs_field(
@@ -209,6 +232,62 @@ test "extract_default_branch_field errors when default_branch is not string" {
     Err(
       (
         0, "GitHub repository response for octocat/hello-world did not contain a string default_branch field",
+      ),
+    ),
+  )
+}
+
+///|
+test "extract_release_immutable_field returns true when immutable is true" {
+  assert_eq(
+    extract_release_immutable_field(
+      "{\"immutable\":true}", "octocat", "hello-world", "v1",
+    ),
+    Ok(true),
+  )
+}
+
+///|
+test "extract_release_immutable_field returns false when immutable is false" {
+  assert_eq(
+    extract_release_immutable_field(
+      "{\"immutable\":false}", "octocat", "hello-world", "v1",
+    ),
+    Ok(false),
+  )
+}
+
+///|
+test "extract_release_immutable_field returns false when immutable missing" {
+  assert_eq(
+    extract_release_immutable_field(
+      "{\"tag_name\":\"v1\"}", "octocat", "hello-world", "v1",
+    ),
+    Ok(false),
+  )
+}
+
+///|
+test "extract_release_immutable_field errors when immutable is not bool" {
+  assert_eq(
+    extract_release_immutable_field(
+      "{\"immutable\":123}", "octocat", "hello-world", "v1",
+    ),
+    Err(
+      (
+        0, "GitHub release response for octocat/hello-world@v1 did not contain a boolean immutable field",
+      ),
+    ),
+  )
+}
+
+///|
+test "extract_release_immutable_field errors on parse failure" {
+  assert_eq(
+    extract_release_immutable_field("{", "octocat", "hello-world", "v1"),
+    Err(
+      (
+        0, "failed to parse GitHub release response for octocat/hello-world@v1: Unexpected end of file",
       ),
     ),
   )

@@ -187,6 +187,46 @@ test "scan result target matches input" {
 }
 
 ///|
+test "scan uses injected ref kind resolver" {
+  let target : @papion.ScanTarget = {
+    owner: "actions",
+    repo: "checkout",
+    git_ref: "v4",
+  }
+  let yaml_str =
+    #|name: My Action
+    #|runs:
+    #|  using: composite
+    #|  steps:
+    #|    - uses: actions/checkout@v4
+  let mut calls = 0
+  let mut resolved_owner = ""
+  let mut resolved_repo = ""
+  let mut resolved_git_ref = ""
+  let result = scan(target, yaml_str, @papion.Policy::default(), resolve_ref_kind=fn(
+    owner,
+    repo,
+    git_ref,
+  ) {
+    calls = calls + 1
+    resolved_owner = owner
+    resolved_repo = repo
+    resolved_git_ref = git_ref
+    ImmutableRelease
+  })
+  match result {
+    Err(e) => fail("unexpected error: \{e}")
+    Ok(r) => {
+      assert_eq(calls, 1)
+      assert_eq(resolved_owner, "actions")
+      assert_eq(resolved_repo, "checkout")
+      assert_eq(resolved_git_ref, "v4")
+      assert_eq(r.findings, [])
+    }
+  }
+}
+
+///|
 test "scan normalizes policy patterns before evaluation" {
   let target : @papion.ScanTarget = {
     owner: "actions",
