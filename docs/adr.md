@@ -574,6 +574,46 @@ This lets MoonBit's package-level `unused_package` checks reflect real dependenc
 
 ---
 
+## Decision 20: Recursive transitive scanning strategy
+
+### Context
+
+Composite GitHub Actions can depend on other composite actions via `uses:` steps. A security scanner that only inspects the root `action.yml` misses transitive dependencies, which may contain unpinned refs or disallowed actions.
+
+### Options
+
+1. Add a separate `scan_recursive` function alongside `scan`
+2. Extend `scan` with an optional `fetch_action_yml~` callback; recursive mode is enabled automatically when the host provides it
+3. Add a `--recursive` CLI flag and have the CLI opt into recursion
+
+### Decision
+
+Adopt option 2: extend the existing `scan` function with an optional `fetch_action_yml~` labeled parameter.
+
+* When `fetch_action_yml~` is `None` (default, e.g. WASM without host fetch), `scan` processes only the root action — identical to prior behaviour.
+* When `fetch_action_yml~` is `Some(fetch)` (native CLI), `scan` performs BFS traversal of all transitive composite-action dependencies automatically — no separate function, no CLI flag.
+* The native `run_with_host` always passes a `fetch_action_yml` adapter that strips `allow_ref_fallback` (always `false` for transitive deps — the ref comes directly from the `uses:` field, not from user input).
+
+Option 1 was rejected because it duplicates the parse-extract-evaluate pipeline and creates two entry points with diverging behaviour. Option 3 was rejected because transitive scanning is the whole point of the tool — an opt-out model suits an advanced escape hatch, but opt-in creates friction and risks the common case being under-secured.
+
+### BFS traversal safeguards
+
+* Visited set keyed by `owner/repo[/path]@ref` — prevents re-fetching cycles
+* `max_scan_depth = 10` — maximum depth before a branch is abandoned
+* `max_scan_nodes = 100` — maximum total nodes processed; no new children are enqueued past this limit
+* Root parse failures → `Err`; transitive parse failures → node silently skipped
+* Fetch errors → node silently skipped (best-effort)
+
+### Dependency chain context
+
+Transitive findings carry a `context` field with the full dependency chain from the scanned root, e.g. `"org/action-b@v1 > org/action-c@v1"`. Root findings have `context = None`. This gives users the complete path to understand where a transitive issue originated.
+
+### resolve_ref_kind integration
+
+The same `resolve_ref_kind` callback (introduced in Decision 19) applies to every ref encountered during traversal, including transitive ones. Transitive dependencies receive the same SHA verification and immutable-release checks as direct dependencies.
+
+---
+
 ## Final Architecture Summary
 
 Papion is:

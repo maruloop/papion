@@ -57,12 +57,22 @@ pub fn run_with_host(
     Ok(result) => result
     Err(err) => return Err(RuntimeError(err))
   }
+  let engine_fetch : ((String, String, String, String?) -> Result[
+    String,
+    String,
+  ])? = Some(fn(owner, repo, git_ref, path) {
+    match fetch_action_yml(owner, repo, Some(git_ref), path, false) {
+      Ok((yaml, _)) => Ok(yaml)
+      Err(err) => Err(err)
+    }
+  })
   let result = match
     @engine.scan(
       { owner: options.owner, repo: options.repo, git_ref: resolved_git_ref },
       action_yml,
       policy,
       resolve_ref_kind~,
+      fetch_action_yml=engine_fetch,
     ) {
     Ok(result) => result
     Err(err) => return Err(RuntimeError(err))
