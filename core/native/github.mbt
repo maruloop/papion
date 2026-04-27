@@ -791,19 +791,32 @@ pub fn fetch_action_yml(
 }
 
 ///|
+fn resolve_ref_kind_impl(
+  git_ref : String,
+  commit_exists : (String, String, String) -> Result[Bool, (Int, String)],
+  release_immutable : (String, String, String) -> Result[Bool, (Int, String)],
+  owner : String,
+  repo : String,
+) -> @papion.RefKind {
+  if @rules.classify_ref(git_ref) == Sha {
+    match commit_exists(owner, repo, git_ref) {
+      Ok(true) => return Sha
+      _ => ()
+    }
+  }
+  match release_immutable(owner, repo, git_ref) {
+    Ok(true) => ImmutableRelease
+    _ => Branch
+  }
+}
+
+///|
 pub fn resolve_ref_kind_via_api(
   owner : String,
   repo : String,
   git_ref : String,
 ) -> @papion.RefKind {
-  if @rules.classify_ref(git_ref) == Sha {
-    match fetch_commit_exists(owner, repo, git_ref) {
-      Ok(true) => return Sha
-      _ => ()
-    }
-  }
-  match fetch_release_by_tag(owner, repo, git_ref) {
-    Ok(true) => ImmutableRelease
-    _ => Branch
-  }
+  resolve_ref_kind_impl(
+    git_ref, fetch_commit_exists, fetch_release_by_tag, owner, repo,
+  )
 }

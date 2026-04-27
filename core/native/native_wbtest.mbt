@@ -385,3 +385,115 @@ test "run parse_args error on --config propagates before fetch" {
   assert_eq(load_config_called, false)
   assert_eq(fetch_called, false)
 }
+
+// Helpers for resolve_ref_kind_impl tests
+
+///|
+fn commit_ok(
+  exists : Bool,
+) -> (String, String, String) -> Result[Bool, (Int, String)] {
+  fn(_owner, _repo, _ref) { Ok(exists) }
+}
+
+///|
+fn commit_err() -> (String, String, String) -> Result[Bool, (Int, String)] {
+  fn(_owner, _repo, _ref) { Err((500, "api error")) }
+}
+
+///|
+fn release_ok(
+  immutable : Bool,
+) -> (String, String, String) -> Result[Bool, (Int, String)] {
+  fn(_owner, _repo, _ref) { Ok(immutable) }
+}
+
+///|
+fn release_err() -> (String, String, String) -> Result[Bool, (Int, String)] {
+  fn(_owner, _repo, _ref) { Err((500, "api error")) }
+}
+
+///|
+fn must_not_call() -> (String, String, String) -> Result[Bool, (Int, String)] {
+  fn(_owner, _repo, _ref) { panic() }
+}
+
+// SHA-shaped ref (40 hex chars)
+
+///|
+let sha_ref : String = "a" + String::make(39, 'b')
+
+///|
+test "resolve_ref_kind_impl: sha-shaped + commit exists => Sha" {
+  assert_eq(
+    resolve_ref_kind_impl(sha_ref, commit_ok(true), must_not_call(), "o", "r"),
+    Sha,
+  )
+}
+
+///|
+test "resolve_ref_kind_impl: sha-shaped + commit missing + immutable release => ImmutableRelease" {
+  assert_eq(
+    resolve_ref_kind_impl(sha_ref, commit_ok(false), release_ok(true), "o", "r"),
+    ImmutableRelease,
+  )
+}
+
+///|
+test "resolve_ref_kind_impl: sha-shaped + commit missing + mutable release => Branch" {
+  assert_eq(
+    resolve_ref_kind_impl(
+      sha_ref,
+      commit_ok(false),
+      release_ok(false),
+      "o",
+      "r",
+    ),
+    Branch,
+  )
+}
+
+///|
+test "resolve_ref_kind_impl: sha-shaped + commit error + immutable release => ImmutableRelease" {
+  assert_eq(
+    resolve_ref_kind_impl(sha_ref, commit_err(), release_ok(true), "o", "r"),
+    ImmutableRelease,
+  )
+}
+
+///|
+test "resolve_ref_kind_impl: sha-shaped + commit error + release error => Branch" {
+  assert_eq(
+    resolve_ref_kind_impl(sha_ref, commit_err(), release_err(), "o", "r"),
+    Branch,
+  )
+}
+
+///|
+test "resolve_ref_kind_impl: non-sha ref + immutable release => ImmutableRelease" {
+  assert_eq(
+    resolve_ref_kind_impl("v1.5.0", must_not_call(), release_ok(true), "o", "r"),
+    ImmutableRelease,
+  )
+}
+
+///|
+test "resolve_ref_kind_impl: non-sha ref + mutable release => Branch" {
+  assert_eq(
+    resolve_ref_kind_impl(
+      "v1.5.0",
+      must_not_call(),
+      release_ok(false),
+      "o",
+      "r",
+    ),
+    Branch,
+  )
+}
+
+///|
+test "resolve_ref_kind_impl: non-sha ref + release error => Branch" {
+  assert_eq(
+    resolve_ref_kind_impl("main", must_not_call(), release_err(), "o", "r"),
+    Branch,
+  )
+}
