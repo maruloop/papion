@@ -54,7 +54,7 @@ fn scan_refs_recursive(
     findings.append(@rules.evaluate(ref_, policy))
     let key = action_ref_key(ref_)
     if seen.get(key) is None {
-      seen.set(key, ())
+      seen[key] = ()
       match fetch_action_yml(ref_.owner, ref_.repo, ref_.git_ref, ref_.path) {
         Ok((sub_yml, _)) => {
           let sub_refs = match @parser.parse_action_yml(sub_yml) {
@@ -98,16 +98,15 @@ pub fn scan_deep(
   }
   let refs = @parser.extract_refs(yml)
   let findings : Array[@papion.Finding] = []
-  let seen : Map[String, Unit] = Map::new()
-  seen.set(
+  let seen : Map[String, Unit] = {}
+  seen[
     action_ref_key({
       owner: target.owner,
       repo: target.repo,
       git_ref: target.git_ref,
       path: None,
     }),
-    (),
-  )
+  ] = ()
   scan_refs_recursive(refs, policy, fetch_action_yml, seen, findings)
   let failures = findings.iter().filter(fn(f) { f.level == Fail }).count()
   let warnings = findings.iter().filter(fn(f) { f.level == Warn }).count()
