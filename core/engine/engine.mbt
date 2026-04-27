@@ -22,6 +22,9 @@ fn action_ref_key(ref_ : @papion.ActionRef) -> String {
 /// re-fetching cycles. Traversal is bounded by `max_scan_depth` and
 /// `max_scan_nodes`. Fetch errors and unparseable transitive YAMLs are silently
 /// skipped; only root parse failures propagate as `Err`.
+///
+/// `resolve_ref_kind` is only called when `policy.sha_pinning` is true,
+/// avoiding unnecessary I/O (e.g. GitHub API calls) when SHA pinning is disabled.
 pub fn scan(
   target : @papion.ScanTarget,
   action_yml_yaml : String,
@@ -60,7 +63,11 @@ pub fn scan(
     }
     let refs = @parser.extract_refs(yml)
     for ref_ in refs {
-      let ref_kind = resolve_ref_kind(ref_.owner, ref_.repo, ref_.git_ref)
+      let ref_kind = if policy.sha_pinning {
+        resolve_ref_kind(ref_.owner, ref_.repo, ref_.git_ref)
+      } else {
+        Branch
+      }
       let findings = @rules.evaluate(ref_, ref_kind, policy)
       let context = if chain.is_empty() {
         None

@@ -227,6 +227,31 @@ test "scan uses injected ref kind resolver" {
 }
 
 ///|
+test "scan skips ref kind resolver when sha_pinning is false" {
+  let target : @papion.ScanTarget = {
+    owner: "actions",
+    repo: "checkout",
+    git_ref: "v4",
+  }
+  let yaml_str =
+    #|name: My Action
+    #|runs:
+    #|  using: composite
+    #|  steps:
+    #|    - uses: actions/checkout@v4
+  let mut calls = 0
+  let policy : @papion.Policy = { sha_pinning: false, allowed: [], disallowed: [] }
+  let result = scan(target, yaml_str, policy, resolve_ref_kind=fn(_, _, _) {
+    calls = calls + 1
+    ImmutableRelease
+  })
+  match result {
+    Err(e) => fail("unexpected error: \{e}")
+    Ok(_) => assert_eq(calls, 0)
+  }
+}
+
+///|
 test "scan normalizes policy patterns before evaluation" {
   let target : @papion.ScanTarget = {
     owner: "actions",
