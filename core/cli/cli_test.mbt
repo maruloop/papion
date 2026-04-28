@@ -441,6 +441,49 @@ test "run_with_host passes allow_ref_fallback for github tree urls" {
 }
 
 ///|
+test "run_with_host passes custom ref kind resolver into engine" {
+  let mut resolver_called = false
+  let mut resolved_owner = ""
+  let mut resolved_repo = ""
+  let mut resolved_git_ref = ""
+  let result = run_with_host(
+    ["run", "actions/checkout@v4", "--format", "json"],
+    fn(_config_path) { Ok(@papion.Policy::default()) },
+    fn(_owner, _repo, _git_ref, _path, _allow_ref_fallback) {
+      Ok(
+        (
+          (
+            #|name: Composite
+            #|runs:
+            #|  using: composite
+            #|  steps:
+            #|    - uses: actions/checkout@v4
+          ),
+          "v4",
+        ),
+      )
+    },
+    resolve_ref_kind=fn(owner, repo, git_ref) {
+      resolver_called = true
+      resolved_owner = owner
+      resolved_repo = repo
+      resolved_git_ref = git_ref
+      @papion.RefKind::ImmutableRelease
+    },
+  )
+  match result {
+    Ok(outcome) => {
+      assert_eq(resolver_called, true)
+      assert_eq(resolved_owner, "actions")
+      assert_eq(resolved_repo, "checkout")
+      assert_eq(resolved_git_ref, "v4")
+      assert_true(outcome.output.contains("\"findings\":[]"))
+    }
+    Err(err) => fail(err.to_string())
+  }
+}
+
+///|
 test "exit_code_for fail_on fail clean" {
   assert_eq(exit_code_for({ failures: 0, warnings: 0 }, Fail), 0)
 }

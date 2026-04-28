@@ -10,6 +10,13 @@ pub fn scan(
   target : @papion.ScanTarget,
   action_yml_yaml : String,
   policy : @papion.Policy,
+  resolve_ref_kind? : (String, String, String) -> @papion.RefKind = fn(
+    _owner,
+    _repo,
+    git_ref,
+  ) {
+    @rules.classify_ref(git_ref)
+  },
 ) -> Result[@papion.ScanResult, String] {
   let policy = match policy.normalized() {
     Ok(policy) => policy
@@ -22,7 +29,8 @@ pub fn scan(
   let refs = @parser.extract_refs(yml)
   let findings : Array[@papion.Finding] = []
   for ref_ in refs {
-    findings.append(@rules.evaluate(ref_, policy))
+    let ref_kind = resolve_ref_kind(ref_.owner, ref_.repo, ref_.git_ref)
+    findings.append(@rules.evaluate(ref_, ref_kind, policy))
   }
   let failures = findings.iter().filter(fn(f) { f.level == Fail }).count()
   let warnings = findings.iter().filter(fn(f) { f.level == Warn }).count()

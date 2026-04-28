@@ -10,11 +10,11 @@ pub fn check_allowed(@papion.ActionRef, @papion.Policy) -> Array[@papion.Finding
 
 pub fn check_disallowed(@papion.ActionRef, @papion.Policy) -> Array[@papion.Finding]
 
-pub fn check_sha_pinning(@papion.ActionRef, @papion.Policy) -> Array[@papion.Finding]
+pub fn check_sha_pinning(@papion.ActionRef, @papion.RefKind, @papion.Policy) -> Array[@papion.Finding]
 
 pub fn classify_ref(String) -> @papion.RefKind
 
-pub fn evaluate(@papion.ActionRef, @papion.Policy) -> Array[@papion.Finding]
+pub fn evaluate(@papion.ActionRef, @papion.RefKind, @papion.Policy) -> Array[@papion.Finding]
 
 // Errors
 
