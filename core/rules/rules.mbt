@@ -30,9 +30,9 @@ pub fn classify_ref(git_ref : String) -> @papion.RefKind {
 ///|
 /// Check the SHA-pinning rule against an action reference.
 ///
-/// Produces a Fail finding when sha_pinning is enabled and the ref is not a
-/// 40-character hex SHA (case-insensitive). Returns an empty array when the
-/// rule is disabled or the ref is already pinned.
+/// Produces a Fail finding when sha_pinning is enabled and the ref is neither
+/// a verified commit SHA nor an immutable release. Returns an empty array when
+/// the rule is disabled or the ref is already pinned.
 pub fn check_sha_pinning(
   action_ref : @papion.ActionRef,
   ref_kind : @papion.RefKind,
