@@ -123,6 +123,29 @@ test "github_repo_url encodes owner and repo path segments" {
 }
 
 ///|
+test "github_release_by_tag_url encodes owner repo and tag path segments" {
+  let url = match
+    github_release_by_tag_url("maru/loop", "pa pion", "v1.0.0/rc 1") {
+    Ok(url) => url
+    Err(err) => fail(err.1)
+  }
+  assert_eq(
+    url, "https://api.github.com/repos/maru%2Floop/pa%20pion/releases/tags/v1.0.0%2Frc%201",
+  )
+}
+
+///|
+test "github_commit_url encodes owner repo and sha path segments" {
+  let url = match github_commit_url("maru/loop", "pa pion", "abc/123") {
+    Ok(url) => url
+    Err(err) => fail(err.1)
+  }
+  assert_eq(
+    url, "https://api.github.com/repos/maru%2Floop/pa%20pion/git/commits/abc%2F123",
+  )
+}
+
+///|
 test "extract_matching_refs_field returns stripped refs" {
   assert_eq(
     extract_matching_refs_field(
@@ -209,6 +232,62 @@ test "extract_default_branch_field errors when default_branch is not string" {
     Err(
       (
         0, "GitHub repository response for octocat/hello-world did not contain a string default_branch field",
+      ),
+    ),
+  )
+}
+
+///|
+test "extract_release_immutable_field returns true when immutable is true" {
+  assert_eq(
+    extract_release_immutable_field(
+      "{\"immutable\":true}", "octocat", "hello-world", "v1",
+    ),
+    Ok(true),
+  )
+}
+
+///|
+test "extract_release_immutable_field returns false when immutable is false" {
+  assert_eq(
+    extract_release_immutable_field(
+      "{\"immutable\":false}", "octocat", "hello-world", "v1",
+    ),
+    Ok(false),
+  )
+}
+
+///|
+test "extract_release_immutable_field returns false when immutable missing" {
+  assert_eq(
+    extract_release_immutable_field(
+      "{\"tag_name\":\"v1\"}", "octocat", "hello-world", "v1",
+    ),
+    Ok(false),
+  )
+}
+
+///|
+test "extract_release_immutable_field errors when immutable is not bool" {
+  assert_eq(
+    extract_release_immutable_field(
+      "{\"immutable\":123}", "octocat", "hello-world", "v1",
+    ),
+    Err(
+      (
+        0, "GitHub release response for octocat/hello-world@v1 did not contain a boolean immutable field",
+      ),
+    ),
+  )
+}
+
+///|
+test "extract_release_immutable_field errors on parse failure" {
+  assert_eq(
+    extract_release_immutable_field("{", "octocat", "hello-world", "v1"),
+    Err(
+      (
+        0, "failed to parse GitHub release response for octocat/hello-world@v1: Unexpected end of file",
       ),
     ),
   )
@@ -305,4 +384,116 @@ test "run parse_args error on --config propagates before fetch" {
   assert_eq(result, Err(@cli.ArgError("missing value for --config")))
   assert_eq(load_config_called, false)
   assert_eq(fetch_called, false)
+}
+
+// Helpers for resolve_ref_kind_impl tests
+
+///|
+fn commit_ok(
+  exists : Bool,
+) -> (String, String, String) -> Result[Bool, (Int, String)] {
+  fn(_owner, _repo, _ref) { Ok(exists) }
+}
+
+///|
+fn commit_err() -> (String, String, String) -> Result[Bool, (Int, String)] {
+  fn(_owner, _repo, _ref) { Err((500, "api error")) }
+}
+
+///|
+fn release_ok(
+  immutable : Bool,
+) -> (String, String, String) -> Result[Bool, (Int, String)] {
+  fn(_owner, _repo, _ref) { Ok(immutable) }
+}
+
+///|
+fn release_err() -> (String, String, String) -> Result[Bool, (Int, String)] {
+  fn(_owner, _repo, _ref) { Err((500, "api error")) }
+}
+
+///|
+fn must_not_call() -> (String, String, String) -> Result[Bool, (Int, String)] {
+  fn(_owner, _repo, _ref) { panic() }
+}
+
+// SHA-shaped ref (40 hex chars)
+
+///|
+let sha_ref : String = "a" + String::make(39, 'b')
+
+///|
+test "resolve_ref_kind_impl: sha-shaped + commit exists => Sha" {
+  assert_eq(
+    resolve_ref_kind_impl(sha_ref, commit_ok(true), must_not_call(), "o", "r"),
+    Sha,
+  )
+}
+
+///|
+test "resolve_ref_kind_impl: sha-shaped + commit missing + immutable release => ImmutableRelease" {
+  assert_eq(
+    resolve_ref_kind_impl(sha_ref, commit_ok(false), release_ok(true), "o", "r"),
+    ImmutableRelease,
+  )
+}
+
+///|
+test "resolve_ref_kind_impl: sha-shaped + commit missing + mutable release => Branch" {
+  assert_eq(
+    resolve_ref_kind_impl(
+      sha_ref,
+      commit_ok(false),
+      release_ok(false),
+      "o",
+      "r",
+    ),
+    Branch,
+  )
+}
+
+///|
+test "resolve_ref_kind_impl: sha-shaped + commit error + immutable release => ImmutableRelease" {
+  assert_eq(
+    resolve_ref_kind_impl(sha_ref, commit_err(), release_ok(true), "o", "r"),
+    ImmutableRelease,
+  )
+}
+
+///|
+test "resolve_ref_kind_impl: sha-shaped + commit error + release error => Branch" {
+  assert_eq(
+    resolve_ref_kind_impl(sha_ref, commit_err(), release_err(), "o", "r"),
+    Branch,
+  )
+}
+
+///|
+test "resolve_ref_kind_impl: non-sha ref + immutable release => ImmutableRelease" {
+  assert_eq(
+    resolve_ref_kind_impl("v1.5.0", must_not_call(), release_ok(true), "o", "r"),
+    ImmutableRelease,
+  )
+}
+
+///|
+test "resolve_ref_kind_impl: non-sha ref + mutable release => Branch" {
+  assert_eq(
+    resolve_ref_kind_impl(
+      "v1.5.0",
+      must_not_call(),
+      release_ok(false),
+      "o",
+      "r",
+    ),
+    Branch,
+  )
+}
+
+///|
+test "resolve_ref_kind_impl: non-sha ref + release error => Branch" {
+  assert_eq(
+    resolve_ref_kind_impl("main", must_not_call(), release_err(), "o", "r"),
+    Branch,
+  )
 }

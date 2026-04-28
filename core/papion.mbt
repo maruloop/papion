@@ -44,6 +44,7 @@ pub(all) enum RefKind {
   Sha
   Tag
   Branch
+  ImmutableRelease
 } derive(Debug, Eq, ToJson, FromJson)
 
 ///|

@@ -30,6 +30,13 @@ pub fn run_with_host(
     (String, String),
     String,
   ],
+  resolve_ref_kind? : (String, String, String) -> @papion.RefKind = fn(
+    _owner,
+    _repo,
+    git_ref,
+  ) {
+    @rules.classify_ref(git_ref)
+  },
 ) -> Result[RunOutcome, CliError] {
   let options = match parse_args(args) {
     Ok(options) => options
@@ -55,6 +62,7 @@ pub fn run_with_host(
       { owner: options.owner, repo: options.repo, git_ref: resolved_git_ref },
       action_yml,
       policy,
+      resolve_ref_kind~,
     ) {
     Ok(result) => result
     Err(err) => return Err(RuntimeError(err))

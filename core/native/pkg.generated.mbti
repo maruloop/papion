@@ -10,6 +10,8 @@ pub fn fetch_action_yml(String, String, String?, String?, Bool) -> Result[(Strin
 
 pub fn load_config(String?) -> Result[@papion.Policy, String]
 
+pub fn resolve_ref_kind_via_api(String, String, String) -> @papion.RefKind
+
 // Errors
 
 // Types and methods
