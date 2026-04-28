@@ -1,6 +1,7 @@
 import {
   "maruloop/papion/cli",
   "maruloop/papion",
+  "maruloop/papion/rules",
   "moonbitlang/async",
   "moonbitlang/async/http",
   "moonbitlang/core/buffer",

@@ -560,7 +560,7 @@ On native targets, the host checks:
 * `git/commits/{sha}` to verify that SHA-like refs really exist
 * `releases/tags/{tag}` and its `immutable` field to recognize immutable releases
 
-If either API check fails, the host fails closed and reports the ref to the pure rules layer as `Branch`, so Papion never grants a pass based on an unverifiable ref.
+The host checks in sequence: if the SHA lookup succeeds the ref is confirmed as `Sha`; if the release lookup succeeds it is confirmed as `ImmutableRelease`. Only if neither check confirms the ref does the host fall back to `Branch`, so Papion never grants a pass based on an unverifiable ref.
 
 ### CLI package boundaries
 
