@@ -229,10 +229,7 @@ test "format_json finding with all fields" {
           assert_eq(arr.length(), 1)
           assert_eq(get_str(arr[0], "level"), Some("warn"))
           assert_eq(get_str(arr[0], "rule"), Some("sha-pinning"))
-          assert_eq(
-            get_str(arr[0], "target"),
-            Some("actions/checkout@v4"),
-          )
+          assert_eq(get_str(arr[0], "target"), Some("actions/checkout@v4"))
           assert_eq(get_str(arr[0], "context"), Some("step context"))
           assert_eq(get_str(arr[0], "message"), Some("not pinned"))
           assert_eq(get_str(arr[0], "suggestion"), Some("pin to sha"))

@@ -54,10 +54,7 @@ test "parse_action_ref with deep path" {
 ///|
 test "parse_action_ref error missing @" {
   let result = parse_action_ref("actions/checkout")
-  assert_eq(
-    result,
-    Err("missing '@' in uses string: \"actions/checkout\""),
-  )
+  assert_eq(result, Err("missing '@' in uses string: \"actions/checkout\""))
 }
 
 ///|
@@ -162,10 +159,7 @@ test "parse_action_yml multi-document YAML rejected" {
     #|runs:
     #|  using: node20
   let result = parse_action_yml(yaml_str)
-  assert_eq(
-    result,
-    Err("expected exactly one YAML document in action.yml"),
-  )
+  assert_eq(result, Err("expected exactly one YAML document in action.yml"))
 }
 
 ///|

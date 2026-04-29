@@ -18,10 +18,7 @@ test "parse_args run owner repo ref" {
 
 ///|
 test "percent_decode_url_path_segment decodes percent-escaped segment" {
-  assert_eq(
-    percent_decode_url_path_segment("release%2Fv1"),
-    Ok("release/v1"),
-  )
+  assert_eq(percent_decode_url_path_segment("release%2Fv1"), Ok("release/v1"))
 }
 
 ///|

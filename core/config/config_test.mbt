@@ -16,10 +16,7 @@ test "parse_policy full config" {
 ///|
 test "parse_policy defaults on empty object" {
   let result = parse_policy("{}")
-  assert_eq(
-    result,
-    Ok({ sha_pinning: true, allowed: [], disallowed: [] }),
-  )
+  assert_eq(result, Ok({ sha_pinning: true, allowed: [], disallowed: [] }))
 }
 
 ///|
@@ -154,10 +151,7 @@ test "parse_policy nested policy key empty object uses defaults" {
   let json_str =
     #|{"policy":{}}
   let result = parse_policy(json_str)
-  assert_eq(
-    result,
-    Ok({ sha_pinning: true, allowed: [], disallowed: [] }),
-  )
+  assert_eq(result, Ok({ sha_pinning: true, allowed: [], disallowed: [] }))
 }
 
 ///|

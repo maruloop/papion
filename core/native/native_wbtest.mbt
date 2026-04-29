@@ -57,10 +57,7 @@ test "percent_encode_path_component: slash encoded" {
 
 ///|
 test "percent_encode_path_component: space encoded" {
-  assert_eq(
-    @cli.percent_encode_path_component("hello world"),
-    "hello%20world",
-  )
+  assert_eq(@cli.percent_encode_path_component("hello world"), "hello%20world")
 }
 
 ///|
