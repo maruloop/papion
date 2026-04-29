@@ -9,7 +9,6 @@ import {
   "moonbitlang/core/encoding/base64",
   "moonbitlang/core/encoding/utf8",
   "moonbitlang/core/json",
-  "moonbitlang/core/test",
   "tonyfettes/url",
   "bobzhang/toml",
 }

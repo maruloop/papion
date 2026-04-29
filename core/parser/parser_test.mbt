@@ -1,7 +1,7 @@
 ///|
 test "parse_action_ref basic owner/repo@ref" {
   let result = parse_action_ref("actions/checkout@v4")
-  @test.assert_eq(
+  assert_eq(
     result,
     Ok({ owner: "actions", repo: "checkout", git_ref: "v4", path: None }),
   )
@@ -12,7 +12,7 @@ test "parse_action_ref with sha" {
   let result = parse_action_ref(
     "actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683",
   )
-  @test.assert_eq(
+  assert_eq(
     result,
     Ok({
       owner: "actions",
@@ -26,7 +26,7 @@ test "parse_action_ref with sha" {
 ///|
 test "parse_action_ref with path" {
   let result = parse_action_ref("maruloop/papion/action@v1")
-  @test.assert_eq(
+  assert_eq(
     result,
     Ok({
       owner: "maruloop",
@@ -40,7 +40,7 @@ test "parse_action_ref with path" {
 ///|
 test "parse_action_ref with deep path" {
   let result = parse_action_ref("org/repo/some/deep/path@v2")
-  @test.assert_eq(
+  assert_eq(
     result,
     Ok({
       owner: "org",
@@ -54,7 +54,7 @@ test "parse_action_ref with deep path" {
 ///|
 test "parse_action_ref error missing @" {
   let result = parse_action_ref("actions/checkout")
-  @test.assert_eq(
+  assert_eq(
     result,
     Err("missing '@' in uses string: \"actions/checkout\""),
   )
@@ -63,25 +63,25 @@ test "parse_action_ref error missing @" {
 ///|
 test "parse_action_ref error empty owner" {
   let result = parse_action_ref("/repo@v4")
-  @test.assert_eq(result, Err("empty owner in uses string: \"/repo@v4\""))
+  assert_eq(result, Err("empty owner in uses string: \"/repo@v4\""))
 }
 
 ///|
 test "parse_action_ref error empty repo" {
   let result = parse_action_ref("owner/@v4")
-  @test.assert_eq(result, Err("empty repo in uses string: \"owner/@v4\""))
+  assert_eq(result, Err("empty repo in uses string: \"owner/@v4\""))
 }
 
 ///|
 test "parse_action_ref error empty ref" {
   let result = parse_action_ref("owner/repo@")
-  @test.assert_eq(result, Err("empty ref in uses string: \"owner/repo@\""))
+  assert_eq(result, Err("empty ref in uses string: \"owner/repo@\""))
 }
 
 ///|
 test "parse_action_ref error relative path" {
   let result = parse_action_ref("./some/local/action")
-  @test.assert_eq(
+  assert_eq(
     result,
     Err("relative path action not supported: \"./some/local/action\""),
   )
@@ -90,7 +90,7 @@ test "parse_action_ref error relative path" {
 ///|
 test "parse_action_ref error empty path" {
   let result = parse_action_ref("owner/repo/@ref")
-  @test.assert_eq(result, Err("empty path in uses string: \"owner/repo/@ref\""))
+  assert_eq(result, Err("empty path in uses string: \"owner/repo/@ref\""))
 }
 
 ///|
@@ -100,7 +100,7 @@ test "parse_action_yml minimal node action" {
     #|runs:
     #|  using: node20
   let result = parse_action_yml(yaml_str)
-  @test.assert_eq(
+  assert_eq(
     result,
     Ok({
       name: "Setup Node",
@@ -122,7 +122,7 @@ test "parse_action_yml composite action with steps" {
     #|      name: checkout
     #|    - run: echo hello
   let result = parse_action_yml(yaml_str)
-  @test.assert_eq(
+  assert_eq(
     result,
     Ok({
       name: "My Action",
@@ -162,7 +162,7 @@ test "parse_action_yml multi-document YAML rejected" {
     #|runs:
     #|  using: node20
   let result = parse_action_yml(yaml_str)
-  @test.assert_eq(
+  assert_eq(
     result,
     Err("expected exactly one YAML document in action.yml"),
   )
@@ -177,7 +177,7 @@ test "parse_action_yml invalid description type" {
     #|runs:
     #|  using: node20
   let result = parse_action_yml(yaml_str)
-  @test.assert_eq(result, Err("invalid 'description' field: expected string"))
+  assert_eq(result, Err("invalid 'description' field: expected string"))
 }
 
 ///|
@@ -188,7 +188,7 @@ test "parse_action_yml invalid steps type" {
     #|  using: composite
     #|  steps: bad
   let result = parse_action_yml(yaml_str)
-  @test.assert_eq(result, Err("invalid 'steps' field: expected array"))
+  assert_eq(result, Err("invalid 'steps' field: expected array"))
 }
 
 ///|
@@ -200,7 +200,7 @@ test "parse_action_yml null uses in step rejected" {
     #|  steps:
     #|    - uses: ~
   let result = parse_action_yml(yaml_str)
-  @test.assert_eq(result, Err("invalid 'uses' field in step: expected string"))
+  assert_eq(result, Err("invalid 'uses' field in step: expected string"))
 }
 
 ///|
@@ -213,7 +213,7 @@ test "parse_action_yml invalid uses type in step" {
     #|    - uses:
     #|        nested: object
   let result = parse_action_yml(yaml_str)
-  @test.assert_eq(result, Err("invalid 'uses' field in step: expected string"))
+  assert_eq(result, Err("invalid 'uses' field in step: expected string"))
 }
 
 ///|
@@ -227,7 +227,7 @@ test "parse_action_yml yaml boolean name coercion" {
     #|  using: node20
   let result = parse_action_yml(yaml_str)
   match result {
-    Ok(yml) => @test.assert_eq(yml.name, "true")
+    Ok(yml) => assert_eq(yml.name, "true")
     Err(e) => fail("expected Ok but got Err: \{e}")
   }
 }
@@ -241,7 +241,7 @@ test "parse_action_yml yaml integer description coercion" {
     #|  using: node20
   let result = parse_action_yml(yaml_str)
   match result {
-    Ok(yml) => @test.assert_eq(yml.description, Some("42"))
+    Ok(yml) => assert_eq(yml.description, Some("42"))
     Err(e) => fail("expected Ok but got Err: \{e}")
   }
 }
@@ -261,14 +261,14 @@ test "extract_refs from composite action" {
     },
   }
   let refs = extract_refs(yml)
-  @test.assert_eq(refs.length(), 2)
-  @test.assert_eq(refs[0], {
+  assert_eq(refs.length(), 2)
+  assert_eq(refs[0], {
     owner: "actions",
     repo: "checkout",
     git_ref: "v4",
     path: None,
   })
-  @test.assert_eq(refs[1], {
+  assert_eq(refs[1], {
     owner: "actions",
     repo: "setup-node",
     git_ref: "v4",
@@ -291,8 +291,8 @@ test "extract_refs skips relative path steps" {
     },
   }
   let refs = extract_refs(yml)
-  @test.assert_eq(refs.length(), 1)
-  @test.assert_eq(refs[0], {
+  assert_eq(refs.length(), 1)
+  assert_eq(refs[0], {
     owner: "actions",
     repo: "checkout",
     git_ref: "v4",
@@ -308,5 +308,5 @@ test "extract_refs from node action returns empty" {
     runs: { runner: "node20", steps: None },
   }
   let refs = extract_refs(yml)
-  @test.assert_eq(refs, [])
+  assert_eq(refs, [])
 }
