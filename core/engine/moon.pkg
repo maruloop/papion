@@ -2,4 +2,5 @@ import {
   "maruloop/papion",
   "maruloop/papion/parser",
   "maruloop/papion/rules",
+  "moonbitlang/core/test",
 }

@@ -31,10 +31,10 @@ test "scan unpinned ref produces sha-pinning failure" {
   match result {
     Err(e) => fail("unexpected error: \{e}")
     Ok(r) => {
-      assert_eq(r.summary.failures, 1)
-      assert_eq(r.summary.warnings, 0)
-      assert_eq(r.findings.length(), 1)
-      assert_eq(r.findings[0].rule, "sha-pinning")
+      @test.assert_eq(r.summary.failures, 1)
+      @test.assert_eq(r.summary.warnings, 0)
+      @test.assert_eq(r.findings.length(), 1)
+      @test.assert_eq(r.findings[0].rule, "sha-pinning")
     }
   }
 }
@@ -62,9 +62,9 @@ test "scan pinned ref produces zero findings" {
   match result {
     Err(e) => fail("unexpected error: \{e}")
     Ok(r) => {
-      assert_eq(r.summary.failures, 0)
-      assert_eq(r.summary.warnings, 0)
-      assert_eq(r.findings, [])
+      @test.assert_eq(r.summary.failures, 0)
+      @test.assert_eq(r.summary.warnings, 0)
+      @test.assert_eq(r.findings, [])
     }
   }
 }
@@ -92,8 +92,8 @@ test "scan disallowed action produces failure" {
   match result {
     Err(e) => fail("unexpected error: \{e}")
     Ok(r) => {
-      assert_eq(r.summary.failures, 1)
-      assert_eq(r.findings[0].rule, "disallowed-list")
+      @test.assert_eq(r.summary.failures, 1)
+      @test.assert_eq(r.findings[0].rule, "disallowed-list")
     }
   }
 }
@@ -122,9 +122,9 @@ test "scan allowed list restricts to listed actions" {
   match result {
     Err(e) => fail("unexpected error: \{e}")
     Ok(r) => {
-      assert_eq(r.summary.failures, 1)
-      assert_eq(r.findings[0].rule, "allowed-list")
-      assert_eq(
+      @test.assert_eq(r.summary.failures, 1)
+      @test.assert_eq(r.findings[0].rule, "allowed-list")
+      @test.assert_eq(
         r.findings[0].target,
         "third-party/action@11bd71901bbe5b1630ceea73d27597364c9af683",
       )
@@ -153,9 +153,9 @@ test "scan node action produces zero findings" {
   match result {
     Err(e) => fail("unexpected error: \{e}")
     Ok(r) => {
-      assert_eq(r.summary.failures, 0)
-      assert_eq(r.summary.warnings, 0)
-      assert_eq(r.findings, [])
+      @test.assert_eq(r.summary.failures, 0)
+      @test.assert_eq(r.summary.warnings, 0)
+      @test.assert_eq(r.findings, [])
     }
   }
 }
@@ -184,8 +184,8 @@ test "scan multiple unpinned refs aggregates findings" {
   match result {
     Err(e) => fail("unexpected error: \{e}")
     Ok(r) => {
-      assert_eq(r.summary.failures, 2)
-      assert_eq(r.findings.length(), 2)
+      @test.assert_eq(r.summary.failures, 2)
+      @test.assert_eq(r.findings.length(), 2)
     }
   }
 }
@@ -230,7 +230,7 @@ test "scan result target matches input" {
   )
   match result {
     Err(e) => fail("unexpected error: \{e}")
-    Ok(r) => assert_eq(r.target, target)
+    Ok(r) => @test.assert_eq(r.target, target)
   }
 }
 
@@ -268,11 +268,11 @@ test "scan uses injected ref kind resolver" {
   match result {
     Err(e) => fail("unexpected error: \{e}")
     Ok(r) => {
-      assert_eq(calls, 1)
-      assert_eq(resolved_owner, "actions")
-      assert_eq(resolved_repo, "checkout")
-      assert_eq(resolved_git_ref, "v4")
-      assert_eq(r.findings, [])
+      @test.assert_eq(calls, 1)
+      @test.assert_eq(resolved_owner, "actions")
+      @test.assert_eq(resolved_repo, "checkout")
+      @test.assert_eq(resolved_git_ref, "v4")
+      @test.assert_eq(r.findings, [])
     }
   }
 }
@@ -299,7 +299,7 @@ test "scan normalizes policy patterns before evaluation" {
   let result = scan(target, yaml_str, policy, unreachable_fetch)
   match result {
     Err(e) => fail("unexpected error: \{e}")
-    Ok(r) => assert_eq(r.findings, [])
+    Ok(r) => @test.assert_eq(r.findings, [])
   }
 }
 
@@ -376,12 +376,12 @@ test "scan reports direct and transitive findings" {
   match result {
     Err(e) => fail("unexpected error: \{e}")
     Ok(r) => {
-      assert_eq(r.summary.failures, 2)
-      assert_eq(r.findings.length(), 2)
-      assert_eq(r.findings[0].target, "org/action-b@v1")
-      assert_eq(r.findings[0].context, None)
-      assert_eq(r.findings[1].target, "org/action-c@v1")
-      assert_eq(r.findings[1].context, Some("via org/action-b@v1"))
+      @test.assert_eq(r.summary.failures, 2)
+      @test.assert_eq(r.findings.length(), 2)
+      @test.assert_eq(r.findings[0].target, "org/action-b@v1")
+      @test.assert_eq(r.findings[0].context, None)
+      @test.assert_eq(r.findings[1].target, "org/action-c@v1")
+      @test.assert_eq(r.findings[1].context, Some("via org/action-b@v1"))
     }
   }
 }
@@ -441,10 +441,10 @@ test "scan scans shared transitive dependency exactly once" {
     Ok(r) => {
       // B, C (from A) and D (from B and from C) each produce unpinned findings
       // D is referenced twice (by B and by C) so appears in findings twice
-      assert_eq(r.summary.failures, 4)
-      assert_eq(r.findings.length(), 4)
+      @test.assert_eq(r.summary.failures, 4)
+      @test.assert_eq(r.findings.length(), 4)
       // D's YAML is only fetched once despite being referenced twice
-      assert_eq(fetch_count, 3)
+      @test.assert_eq(fetch_count, 3)
     }
   }
 }
@@ -475,12 +475,12 @@ test "scan terminates on simple cycle A -> B -> A" {
     Err(e) => fail("unexpected error: \{e}")
     Ok(r) => {
       // B (from A) and A (from B via cycle) are both unpinned
-      assert_eq(r.summary.failures, 2)
-      assert_eq(r.findings.length(), 2)
-      assert_eq(r.findings[0].target, "org/action-b@v1")
-      assert_eq(r.findings[0].context, None)
-      assert_eq(r.findings[1].target, "org/action-a@v1")
-      assert_eq(r.findings[1].context, Some("via org/action-b@v1"))
+      @test.assert_eq(r.summary.failures, 2)
+      @test.assert_eq(r.findings.length(), 2)
+      @test.assert_eq(r.findings[0].target, "org/action-b@v1")
+      @test.assert_eq(r.findings[0].context, None)
+      @test.assert_eq(r.findings[1].target, "org/action-a@v1")
+      @test.assert_eq(r.findings[1].context, Some("via org/action-b@v1"))
     }
   }
 }
@@ -520,10 +520,10 @@ test "scan terminates on longer cycle A -> B -> C -> A" {
     Err(e) => fail("unexpected error: \{e}")
     Ok(r) => {
       // B (from A), C (from B), A (from C) — all unpinned
-      assert_eq(r.summary.failures, 3)
-      assert_eq(r.findings.length(), 3)
-      assert_eq(r.findings[2].target, "org/action-a@v1")
-      assert_eq(r.findings[2].context, Some("via org/action-c@v1"))
+      @test.assert_eq(r.summary.failures, 3)
+      @test.assert_eq(r.findings.length(), 3)
+      @test.assert_eq(r.findings[2].target, "org/action-a@v1")
+      @test.assert_eq(r.findings[2].context, Some("via org/action-c@v1"))
     }
   }
 }
@@ -567,10 +567,10 @@ test "scan stops at max_scan_depth" {
     Ok(r) => {
       // fetch is called for action-1 through action-max (max calls total);
       // action-(max+1) is evaluated (finding) but never fetched
-      assert_eq(fetch_count, max)
+      @test.assert_eq(fetch_count, max)
       // Every node in the chain produces an unpinned finding, including
       // action-(max+1) which was evaluated but not fetched
-      assert_eq(r.summary.failures, max + 1)
+      @test.assert_eq(r.summary.failures, max + 1)
     }
   }
 }
@@ -638,9 +638,9 @@ test "scan stops at max_scan_nodes for wide fan-out" {
     Err(e) => fail("unexpected error: \{e}")
     Ok(r) => {
       // All child_count refs produce unpinned findings regardless of node cap
-      assert_eq(r.findings.length(), child_count)
+      @test.assert_eq(r.findings.length(), child_count)
       // Fetch attempts are capped: only max - 1 children fit in the budget
-      assert_eq(fetch_count, max - 1)
+      @test.assert_eq(fetch_count, max - 1)
     }
   }
 }
@@ -675,9 +675,9 @@ test "scan stops failed fetch attempts at max_scan_nodes for wide fan-out" {
   match result {
     Err(e) => fail("unexpected error: \{e}")
     Ok(r) => {
-      assert_eq(r.findings.length(), child_count)
+      @test.assert_eq(r.findings.length(), child_count)
       // Failed fetches still consume the traversal budget.
-      assert_eq(fetch_count, max - 1)
+      @test.assert_eq(fetch_count, max - 1)
     }
   }
 }
@@ -716,9 +716,9 @@ test "scan case-insensitive dedup prevents repeated fetch" {
     Err(e) => fail("unexpected error: \{e}")
     Ok(r) => {
       // Both refs produce findings (policy evaluation always runs)
-      assert_eq(r.findings.length(), 2)
+      @test.assert_eq(r.findings.length(), 2)
       // But action-b is fetched only once despite different casing
-      assert_eq(fetch_count, 1)
+      @test.assert_eq(fetch_count, 1)
     }
   }
 }
@@ -752,9 +752,9 @@ test "scan normalizes root key for mixed-case root cycle" {
     Err(e) => fail("unexpected error: \{e}")
     Ok(r) => {
       // The self-reference is still evaluated once.
-      assert_eq(r.findings.length(), 1)
+      @test.assert_eq(r.findings.length(), 1)
       // But the root action is not re-fetched when casing differs.
-      assert_eq(fetch_count, 0)
+      @test.assert_eq(fetch_count, 0)
     }
   }
 }
@@ -803,8 +803,8 @@ test "scan skips resolver when sha_pinning disabled" {
   match result {
     Err(e) => fail("unexpected error: \{e}")
     Ok(r) => {
-      assert_eq(resolve_calls, 0)
-      assert_eq(r.findings, [])
+      @test.assert_eq(resolve_calls, 0)
+      @test.assert_eq(r.findings, [])
     }
   }
 }
@@ -841,10 +841,10 @@ test "scan root path participates in visited-key identity" {
   match result {
     Err(e) => fail("unexpected error: \{e}")
     Ok(r) => {
-      assert_eq(r.findings.length(), 1)
+      @test.assert_eq(r.findings.length(), 1)
       // The root path keeps owner/repo@ref distinct from owner/repo/path@ref,
       // so the repo-root action is still fetched once.
-      assert_eq(fetch_count, 1)
+      @test.assert_eq(fetch_count, 1)
     }
   }
 }
@@ -883,8 +883,8 @@ test "scan normalizes action paths in traversal keys" {
   match result {
     Err(e) => fail("unexpected error: \{e}")
     Ok(r) => {
-      assert_eq(r.findings.length(), 1)
-      assert_eq(fetch_count, 0)
+      @test.assert_eq(r.findings.length(), 1)
+      @test.assert_eq(fetch_count, 0)
     }
   }
 }
@@ -921,8 +921,8 @@ test "scan normalizes action paths in transitive context" {
   match result {
     Err(e) => fail("unexpected error: \{e}")
     Ok(r) => {
-      assert_eq(r.findings.length(), 2)
-      assert_eq(r.findings[1].context, Some("via org/action-b/subdir@v1"))
+      @test.assert_eq(r.findings.length(), 2)
+      @test.assert_eq(r.findings[1].context, Some("via org/action-b/subdir@v1"))
     }
   }
 }

@@ -38,7 +38,7 @@ test "format_human zero findings" {
     findings: [],
     summary: { failures: 0, warnings: 0 },
   }
-  assert_eq(format_human(result), "No findings")
+  @test.assert_eq(format_human(result), "No findings")
 }
 
 ///|
@@ -51,7 +51,7 @@ test "format_human single warning" {
     summary: { failures: 0, warnings: 1 },
   }
   let output = format_human(result)
-  assert_eq(
+  @test.assert_eq(
     output, "  WARN  actions/checkout@v4\n        action ref is not pinned to a SHA\n\n1 finding  (0 failures, 1 warning)",
   )
 }
@@ -66,7 +66,7 @@ test "format_human single failure" {
     summary: { failures: 1, warnings: 0 },
   }
   let output = format_human(result)
-  assert_eq(
+  @test.assert_eq(
     output, "  FAIL  actions/checkout@v4\n        action is not in the allowed list\n\n1 finding  (1 failure, 0 warnings)",
   )
 }
@@ -87,7 +87,7 @@ test "format_human with context" {
     summary: { failures: 1, warnings: 0 },
   }
   let output = format_human(result)
-  assert_eq(
+  @test.assert_eq(
     output, "  FAIL  actions/github-script@v7 (composite step \"setup\")\n        Not pinned to a SHA.\n\n1 finding  (1 failure, 0 warnings)",
   )
 }
@@ -110,7 +110,7 @@ test "format_human with suggestion" {
     summary: { failures: 0, warnings: 1 },
   }
   let output = format_human(result)
-  assert_eq(
+  @test.assert_eq(
     output, "  WARN  actions/checkout@v4\n        Referenced by tag, not pinned to a SHA.\n        Tip: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683\n\n1 finding  (0 failures, 1 warning)",
   )
 }
@@ -128,7 +128,7 @@ test "format_human multiple findings" {
     summary: { failures: 1, warnings: 1 },
   }
   let output = format_human(result)
-  assert_eq(
+  @test.assert_eq(
     output, "  WARN  actions/checkout@v4\n        Referenced by tag, not pinned to a SHA.\n\n  FAIL  actions/github-script@v7\n        Not pinned to a SHA.\n\n2 findings  (1 failure, 1 warning)",
   )
 }
@@ -182,12 +182,12 @@ test "format_json zero findings" {
   }
   let output = format_json(result)
   let parsed = @json.parse(output)
-  assert_eq(get_str(parsed, "target"), Some("actions/checkout@v4"))
-  assert_eq(get_str(parsed, "ref"), Some("v4"))
+  @test.assert_eq(get_str(parsed, "target"), Some("actions/checkout@v4"))
+  @test.assert_eq(get_str(parsed, "ref"), Some("v4"))
   match parsed {
     Object(obj) =>
       match obj.get("findings") {
-        Some(Array(arr)) => assert_eq(arr.length(), 0)
+        Some(Array(arr)) => @test.assert_eq(arr.length(), 0)
         _ => fail("expected findings array")
       }
     _ => fail("expected JSON object")
@@ -196,8 +196,8 @@ test "format_json zero findings" {
     Object(obj) =>
       match obj.get("summary") {
         Some(s) => {
-          assert_eq(get_num(s, "failures"), Some(0.0))
-          assert_eq(get_num(s, "warnings"), Some(0.0))
+          @test.assert_eq(get_num(s, "failures"), Some(0.0))
+          @test.assert_eq(get_num(s, "warnings"), Some(0.0))
         }
         _ => fail("expected summary")
       }
@@ -226,13 +226,16 @@ test "format_json finding with all fields" {
     Object(obj) =>
       match obj.get("findings") {
         Some(Array(arr)) => {
-          assert_eq(arr.length(), 1)
-          assert_eq(get_str(arr[0], "level"), Some("warn"))
-          assert_eq(get_str(arr[0], "rule"), Some("sha-pinning"))
-          assert_eq(get_str(arr[0], "target"), Some("actions/checkout@v4"))
-          assert_eq(get_str(arr[0], "context"), Some("step context"))
-          assert_eq(get_str(arr[0], "message"), Some("not pinned"))
-          assert_eq(get_str(arr[0], "suggestion"), Some("pin to sha"))
+          @test.assert_eq(arr.length(), 1)
+          @test.assert_eq(get_str(arr[0], "level"), Some("warn"))
+          @test.assert_eq(get_str(arr[0], "rule"), Some("sha-pinning"))
+          @test.assert_eq(
+            get_str(arr[0], "target"),
+            Some("actions/checkout@v4"),
+          )
+          @test.assert_eq(get_str(arr[0], "context"), Some("step context"))
+          @test.assert_eq(get_str(arr[0], "message"), Some("not pinned"))
+          @test.assert_eq(get_str(arr[0], "suggestion"), Some("pin to sha"))
         }
         _ => fail("expected findings array")
       }
@@ -263,7 +266,7 @@ test "format_json finding omits absent optional fields" {
         Some(Array(arr)) =>
           match arr[0] {
             Object(finding_obj) => {
-              assert_eq(get_str(arr[0], "level"), Some("fail"))
+              @test.assert_eq(get_str(arr[0], "level"), Some("fail"))
               match finding_obj.get("context") {
                 None => ()
                 Some(_) => fail("expected no context field")

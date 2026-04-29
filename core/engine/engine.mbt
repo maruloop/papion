@@ -11,7 +11,7 @@ fn normalize_key_path(path : String?) -> String? {
   match path {
     None => None
     Some(p) => {
-      let trimmed = p.trim(chars="/").to_string()
+      let trimmed = p.trim(chars="/").to_owned()
       if trimmed.is_empty() {
         None
       } else {

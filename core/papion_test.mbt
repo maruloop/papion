@@ -8,7 +8,7 @@ test "ActionRef json roundtrip" {
   }
   let json = @json.parse(r.to_json().stringify())
   let back : @papion.ActionRef = @json.from_json(json)
-  assert_eq(r, back)
+  @test.assert_eq(r, back)
 }
 
 ///|
@@ -21,7 +21,7 @@ test "ActionRef with path" {
   }
   let json = @json.parse(r.to_json().stringify())
   let back : @papion.ActionRef = @json.from_json(json)
-  assert_eq(r, back)
+  @test.assert_eq(r, back)
 }
 
 ///|
@@ -38,10 +38,10 @@ test "RefKind json roundtrip" {
   let t_back : @papion.RefKind = @json.from_json(t_json)
   let b_back : @papion.RefKind = @json.from_json(b_json)
   let i_back : @papion.RefKind = @json.from_json(i_json)
-  assert_eq(sha, s_back)
-  assert_eq(tag, t_back)
-  assert_eq(branch, b_back)
-  assert_eq(immutable_release, i_back)
+  @test.assert_eq(sha, s_back)
+  @test.assert_eq(tag, t_back)
+  @test.assert_eq(branch, b_back)
+  @test.assert_eq(immutable_release, i_back)
 }
 
 ///|
@@ -52,8 +52,8 @@ test "FindingLevel json roundtrip" {
   let f_json = @json.parse(fail_.to_json().stringify())
   let w_back : @papion.FindingLevel = @json.from_json(w_json)
   let f_back : @papion.FindingLevel = @json.from_json(f_json)
-  assert_eq(warn, w_back)
-  assert_eq(fail_, f_back)
+  @test.assert_eq(warn, w_back)
+  @test.assert_eq(fail_, f_back)
 }
 
 ///|
@@ -70,7 +70,7 @@ test "Finding json roundtrip" {
   }
   let json = @json.parse(f.to_json().stringify())
   let back : @papion.Finding = @json.from_json(json)
-  assert_eq(f, back)
+  @test.assert_eq(f, back)
 }
 
 ///|
@@ -85,7 +85,7 @@ test "Finding with context" {
   }
   let json = @json.parse(f.to_json().stringify())
   let back : @papion.Finding = @json.from_json(json)
-  assert_eq(f, back)
+  @test.assert_eq(f, back)
 }
 
 ///|
@@ -97,15 +97,15 @@ test "Policy json roundtrip" {
   }
   let json = @json.parse(p.to_json().stringify())
   let back : @papion.Policy = @json.from_json(json)
-  assert_eq(p, back)
+  @test.assert_eq(p, back)
 }
 
 ///|
 test "Policy defaults" {
   let p = @papion.Policy::default()
-  assert_eq(p.sha_pinning, true)
-  assert_eq(p.allowed, ([] : Array[String]))
-  assert_eq(p.disallowed, ([] : Array[String]))
+  @test.assert_eq(p.sha_pinning, true)
+  @test.assert_eq(p.allowed, ([] : Array[String]))
+  @test.assert_eq(p.disallowed, ([] : Array[String]))
 }
 
 ///|
@@ -115,7 +115,7 @@ test "Policy normalized lowercases patterns" {
     allowed: ["Actions/*"],
     disallowed: ["Bad-Org/Unsafe"],
   }
-  assert_eq(
+  @test.assert_eq(
     policy.normalized(),
     Ok({
       sha_pinning: true,
@@ -148,7 +148,7 @@ test "ActionYml json roundtrip - node action" {
   }
   let json = @json.parse(a.to_json().stringify())
   let back : @papion.ActionYml = @json.from_json(json)
-  assert_eq(a, back)
+  @test.assert_eq(a, back)
 }
 
 ///|
@@ -170,7 +170,7 @@ test "ActionYml json roundtrip - composite action" {
   }
   let json = @json.parse(a.to_json().stringify())
   let back : @papion.ActionYml = @json.from_json(json)
-  assert_eq(a, back)
+  @test.assert_eq(a, back)
 }
 
 ///|
@@ -183,7 +183,7 @@ test "ScanTarget json roundtrip" {
   }
   let json = @json.parse(t.to_json().stringify())
   let back : @papion.ScanTarget = @json.from_json(json)
-  assert_eq(t, back)
+  @test.assert_eq(t, back)
 }
 
 ///|
@@ -191,7 +191,7 @@ test "Summary json roundtrip" {
   let s : @papion.Summary = { failures: 1, warnings: 2 }
   let json = @json.parse(s.to_json().stringify())
   let back : @papion.Summary = @json.from_json(json)
-  assert_eq(s, back)
+  @test.assert_eq(s, back)
 }
 
 ///|
@@ -218,5 +218,5 @@ test "ScanResult json roundtrip" {
   }
   let json = @json.parse(r.to_json().stringify())
   let back : @papion.ScanResult = @json.from_json(json)
-  assert_eq(r, back)
+  @test.assert_eq(r, back)
 }

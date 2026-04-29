@@ -9,7 +9,7 @@ fn usage() -> String {
 ///|
 fn main {
   let args = @env.args()
-  let cli_args = if args.length() > 0 { args[1:].to_array() } else { [] }
+  let cli_args = if args.length() > 0 { args[1:].to_owned() } else { [] }
   match run(cli_args) {
     Ok(outcome) => {
       println(outcome.output)

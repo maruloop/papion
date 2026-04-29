@@ -3,7 +3,7 @@ test "parse_policy full config" {
   let json_str =
     #|{"sha_pinning":false,"allowed":["actions/*","github/*"],"disallowed":["bad-org/unsafe"]}
   let result = parse_policy(json_str)
-  assert_eq(
+  @test.assert_eq(
     result,
     Ok({
       sha_pinning: false,
@@ -16,7 +16,10 @@ test "parse_policy full config" {
 ///|
 test "parse_policy defaults on empty object" {
   let result = parse_policy("{}")
-  assert_eq(result, Ok({ sha_pinning: true, allowed: [], disallowed: [] }))
+  @test.assert_eq(
+    result,
+    Ok({ sha_pinning: true, allowed: [], disallowed: [] }),
+  )
 }
 
 ///|
@@ -91,7 +94,7 @@ test "parse_policy nested policy key full config" {
   let json_str =
     #|{"policy":{"sha_pinning":false,"allowed":["actions/*"],"disallowed":["bad-org/unsafe"]}}
   let result = parse_policy(json_str)
-  assert_eq(
+  @test.assert_eq(
     result,
     Ok({
       sha_pinning: false,
@@ -116,7 +119,7 @@ test "parse_policy normalizes patterns to lowercase" {
   let json_str =
     #|{"allowed":["Actions/*","GitHub/*"],"disallowed":["Bad-Org/Unsafe"]}
   let result = parse_policy(json_str)
-  assert_eq(
+  @test.assert_eq(
     result,
     Ok({
       sha_pinning: true,
@@ -151,7 +154,10 @@ test "parse_policy nested policy key empty object uses defaults" {
   let json_str =
     #|{"policy":{}}
   let result = parse_policy(json_str)
-  assert_eq(result, Ok({ sha_pinning: true, allowed: [], disallowed: [] }))
+  @test.assert_eq(
+    result,
+    Ok({ sha_pinning: true, allowed: [], disallowed: [] }),
+  )
 }
 
 ///|
@@ -167,7 +173,7 @@ test "matches_allowed empty list passes all" {
     git_ref: "v4",
     path: None,
   }
-  assert_eq(matches_allowed(policy, action_ref), true)
+  @test.assert_eq(matches_allowed(policy, action_ref), true)
 }
 
 ///|
@@ -183,7 +189,7 @@ test "matches_allowed with matching pattern" {
     git_ref: "v4",
     path: None,
   }
-  assert_eq(matches_allowed(policy, action_ref), true)
+  @test.assert_eq(matches_allowed(policy, action_ref), true)
 }
 
 ///|
@@ -199,7 +205,7 @@ test "matches_allowed case-insensitive owner in target" {
     git_ref: "v4",
     path: None,
   }
-  assert_eq(matches_allowed(policy, action_ref), true)
+  @test.assert_eq(matches_allowed(policy, action_ref), true)
 }
 
 ///|
@@ -215,7 +221,7 @@ test "matches_allowed no match returns false" {
     git_ref: "v4",
     path: None,
   }
-  assert_eq(matches_allowed(policy, action_ref), false)
+  @test.assert_eq(matches_allowed(policy, action_ref), false)
 }
 
 ///|
@@ -231,7 +237,7 @@ test "matches_disallowed with matching pattern" {
     git_ref: "v1",
     path: None,
   }
-  assert_eq(matches_disallowed(policy, action_ref), true)
+  @test.assert_eq(matches_disallowed(policy, action_ref), true)
 }
 
 ///|
@@ -247,7 +253,7 @@ test "matches_disallowed case-insensitive owner in target" {
     git_ref: "v1",
     path: None,
   }
-  assert_eq(matches_disallowed(policy, action_ref), true)
+  @test.assert_eq(matches_disallowed(policy, action_ref), true)
 }
 
 ///|
@@ -263,5 +269,5 @@ test "matches_disallowed no match returns false" {
     git_ref: "v4",
     path: None,
   }
-  assert_eq(matches_disallowed(policy, action_ref), false)
+  @test.assert_eq(matches_disallowed(policy, action_ref), false)
 }

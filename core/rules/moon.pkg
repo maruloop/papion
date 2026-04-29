@@ -1,4 +1,5 @@
 import {
   "maruloop/papion",
   "maruloop/papion/config",
+  "moonbitlang/core/test",
 }

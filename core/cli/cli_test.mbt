@@ -1,7 +1,7 @@
 ///|
 test "parse_args run owner repo ref" {
   let result = parse_args(["run", "actions/checkout@v4"])
-  assert_eq(
+  @test.assert_eq(
     result,
     Ok({
       owner: "actions",
@@ -18,12 +18,15 @@ test "parse_args run owner repo ref" {
 
 ///|
 test "percent_decode_url_path_segment decodes percent-escaped segment" {
-  assert_eq(percent_decode_url_path_segment("release%2Fv1"), Ok("release/v1"))
+  @test.assert_eq(
+    percent_decode_url_path_segment("release%2Fv1"),
+    Ok("release/v1"),
+  )
 }
 
 ///|
 test "percent_decode_url_path_segment rejects invalid escape" {
-  assert_eq(
+  @test.assert_eq(
     percent_decode_url_path_segment("release%"),
     Err("invalid GitHub URL: invalid percent-encoding"),
   )
@@ -32,7 +35,7 @@ test "percent_decode_url_path_segment rejects invalid escape" {
 ///|
 test "parse_args run with path" {
   let result = parse_args(["run", "maruloop/papion/action@v1"])
-  assert_eq(
+  @test.assert_eq(
     result,
     Ok({
       owner: "maruloop",
@@ -50,7 +53,7 @@ test "parse_args run with path" {
 ///|
 test "parse_args json format" {
   let result = parse_args(["run", "actions/checkout@v4", "--format", "json"])
-  assert_eq(
+  @test.assert_eq(
     result,
     Ok({
       owner: "actions",
@@ -68,7 +71,7 @@ test "parse_args json format" {
 ///|
 test "parse_args fail_on warn" {
   let result = parse_args(["run", "actions/checkout@v4", "--fail-on", "warn"])
-  assert_eq(
+  @test.assert_eq(
     result,
     Ok({
       owner: "actions",
@@ -86,7 +89,7 @@ test "parse_args fail_on warn" {
 ///|
 test "parse_args fail_on none" {
   let result = parse_args(["run", "actions/checkout@v4", "--fail-on", "none"])
-  assert_eq(
+  @test.assert_eq(
     result,
     Ok({
       owner: "actions",
@@ -104,7 +107,7 @@ test "parse_args fail_on none" {
 ///|
 test "parse_args short flag -f for format" {
   let result = parse_args(["run", "actions/checkout@v4", "-f", "json"])
-  assert_eq(
+  @test.assert_eq(
     result,
     Ok({
       owner: "actions",
@@ -122,7 +125,7 @@ test "parse_args short flag -f for format" {
 ///|
 test "parse_args short flag -F for fail-on" {
   let result = parse_args(["run", "actions/checkout@v4", "-F", "warn"])
-  assert_eq(
+  @test.assert_eq(
     result,
     Ok({
       owner: "actions",
@@ -140,19 +143,19 @@ test "parse_args short flag -F for fail-on" {
 ///|
 test "parse_args error no args" {
   let result = parse_args([])
-  assert_eq(result, Err(ArgError("missing command and target")))
+  @test.assert_eq(result, Err(ArgError("missing command and target")))
 }
 
 ///|
 test "parse_args error command only" {
   let result = parse_args(["run"])
-  assert_eq(result, Err(ArgError("missing command and target")))
+  @test.assert_eq(result, Err(ArgError("missing command and target")))
 }
 
 ///|
 test "parse_args run owner repo without ref" {
   let result = parse_args(["run", "actions/checkout"])
-  assert_eq(
+  @test.assert_eq(
     result,
     Ok({
       owner: "actions",
@@ -170,7 +173,7 @@ test "parse_args run owner repo without ref" {
 ///|
 test "parse_args run github url without ref" {
   let result = parse_args(["run", "https://github.com/actions/checkout"])
-  assert_eq(
+  @test.assert_eq(
     result,
     Ok({
       owner: "actions",
@@ -190,7 +193,7 @@ test "parse_args run github url ignores query and fragment" {
   let result = parse_args([
     "run", "https://github.com/actions/checkout?tab=readme#top",
   ])
-  assert_eq(
+  @test.assert_eq(
     result,
     Ok({
       owner: "actions",
@@ -208,7 +211,7 @@ test "parse_args run github url ignores query and fragment" {
 ///|
 test "parse_args run github url strips trailing dot git" {
   let result = parse_args(["run", "https://github.com/actions/checkout.git"])
-  assert_eq(
+  @test.assert_eq(
     result,
     Ok({
       owner: "actions",
@@ -228,7 +231,7 @@ test "parse_args run github tree url with ref and path" {
   let result = parse_args([
     "run", "https://github.com/actions/checkout/tree/v6.0.2/action",
   ])
-  assert_eq(
+  @test.assert_eq(
     result,
     Ok({
       owner: "actions",
@@ -248,7 +251,7 @@ test "parse_args run github tree url decodes percent-escaped ref and path" {
   let result = parse_args([
     "run", "https://github.com/actions/checkout/tree/release%2Fv1/sub%20dir",
   ])
-  assert_eq(
+  @test.assert_eq(
     result,
     Ok({
       owner: "actions",
@@ -266,73 +269,73 @@ test "parse_args run github tree url decodes percent-escaped ref and path" {
 ///|
 test "parse_args error unknown command" {
   let result = parse_args(["scan", "actions/checkout@v4"])
-  assert_eq(result, Err(ArgError("unknown command: \"scan\"")))
+  @test.assert_eq(result, Err(ArgError("unknown command: \"scan\"")))
 }
 
 ///|
 test "parse_args error missing format value" {
   let result = parse_args(["run", "actions/checkout@v4", "--format"])
-  assert_eq(result, Err(ArgError("missing value for --format")))
+  @test.assert_eq(result, Err(ArgError("missing value for --format")))
 }
 
 ///|
 test "parse_args error missing fail-on value" {
   let result = parse_args(["run", "actions/checkout@v4", "--fail-on"])
-  assert_eq(result, Err(ArgError("missing value for --fail-on")))
+  @test.assert_eq(result, Err(ArgError("missing value for --fail-on")))
 }
 
 ///|
 test "parse_args error missing config value" {
   let result = parse_args(["run", "actions/checkout@v4", "--config"])
-  assert_eq(result, Err(ArgError("missing value for --config")))
+  @test.assert_eq(result, Err(ArgError("missing value for --config")))
 }
 
 ///|
 test "parse_args error unknown flag" {
   let result = parse_args(["run", "actions/checkout@v4", "--unknown"])
-  assert_eq(result, Err(ArgError("unknown flag: \"--unknown\"")))
+  @test.assert_eq(result, Err(ArgError("unknown flag: \"--unknown\"")))
 }
 
 ///|
 test "parse_args error invalid format value" {
   let result = parse_args(["run", "actions/checkout@v4", "--format", "xml"])
-  assert_eq(result, Err(ArgError("invalid value for --format: \"xml\"")))
+  @test.assert_eq(result, Err(ArgError("invalid value for --format: \"xml\"")))
 }
 
 ///|
 test "parse_args error invalid fail-on value" {
   let result = parse_args(["run", "actions/checkout@v4", "--fail-on", "foo"])
-  assert_eq(result, Err(ArgError("invalid value for --fail-on: \"foo\"")))
+  @test.assert_eq(result, Err(ArgError("invalid value for --fail-on: \"foo\"")))
 }
 
 ///|
 test "parse_args split_target error missing owner" {
   let result = parse_args(["run", "@v1"])
-  assert_eq(result, Err(ArgError("invalid target: expected owner/repo")))
+  @test.assert_eq(result, Err(ArgError("invalid target: expected owner/repo")))
 }
 
 ///|
 test "parse_args split_target error empty owner" {
   let result = parse_args(["run", "/repo@v1"])
-  assert_eq(result, Err(ArgError("owner is empty")))
+  @test.assert_eq(result, Err(ArgError("owner is empty")))
 }
 
 ///|
 test "parse_args split_target error empty repo" {
   let result = parse_args(["run", "org/@v1"])
-  assert_eq(result, Err(ArgError("repo is empty")))
+  @test.assert_eq(result, Err(ArgError("repo is empty")))
 }
 
 ///|
 test "parse_args split_target error empty path" {
   let result = parse_args(["run", "org/repo/@v1"])
-  assert_eq(result, Err(ArgError("path is empty")))
+  @test.assert_eq(result, Err(ArgError("path is empty")))
 }
 
 ///|
 test "parse_args split_target error empty ref" {
   let result = parse_args(["run", "org/repo@"])
-  assert_eq(result, Err(ArgError("missing ref after '@'")))
+  @test.assert_eq(result, Err(ArgError("missing ref after '@'")))
 }
 
 ///|
@@ -340,7 +343,7 @@ test "parse_args github blob url is rejected" {
   let result = parse_args([
     "run", "https://github.com/actions/checkout/blob/main/action.yml",
   ])
-  assert_eq(
+  @test.assert_eq(
     result,
     Err(
       ArgError(
@@ -365,9 +368,9 @@ test "run_with_host propagates arg error before host calls" {
       Ok(("", "unused", None))
     },
   )
-  assert_eq(result, Err(ArgError("missing command and target")))
-  assert_eq(load_config_called, false)
-  assert_eq(fetch_called, false)
+  @test.assert_eq(result, Err(ArgError("missing command and target")))
+  @test.assert_eq(load_config_called, false)
+  @test.assert_eq(fetch_called, false)
 }
 
 ///|
@@ -401,11 +404,11 @@ test "run_with_host uses resolved git ref from host fetch" {
   )
   match result {
     Ok(outcome) => {
-      assert_eq(captured_owner, "actions")
-      assert_eq(captured_repo, "checkout")
-      assert_eq(captured_git_ref, Some("v4"))
-      assert_eq(captured_path, None)
-      assert_eq(captured_allow_ref_fallback, false)
+      @test.assert_eq(captured_owner, "actions")
+      @test.assert_eq(captured_repo, "checkout")
+      @test.assert_eq(captured_git_ref, Some("v4"))
+      @test.assert_eq(captured_path, None)
+      @test.assert_eq(captured_allow_ref_fallback, false)
       assert_true(
         outcome.output.contains("\"target\":\"actions/checkout@release/v1\""),
       )
@@ -443,8 +446,8 @@ test "run_with_host passes allow_ref_fallback for github tree urls" {
   )
   match result {
     Ok(outcome) => {
-      assert_eq(captured_allow_ref_fallback, true)
-      assert_eq(captured_path, Some("v1/action"))
+      @test.assert_eq(captured_allow_ref_fallback, true)
+      @test.assert_eq(captured_path, Some("v1/action"))
       assert_true(
         outcome.output.contains(
           "\"target\":\"actions/checkout/action@release/v1\"",
@@ -489,10 +492,10 @@ test "run_with_host passes custom ref kind resolver into engine" {
   )
   match result {
     Ok(outcome) => {
-      assert_eq(resolver_called, true)
-      assert_eq(resolved_owner, "actions")
-      assert_eq(resolved_repo, "checkout")
-      assert_eq(resolved_git_ref, "v4")
+      @test.assert_eq(resolver_called, true)
+      @test.assert_eq(resolved_owner, "actions")
+      @test.assert_eq(resolved_repo, "checkout")
+      @test.assert_eq(resolved_git_ref, "v4")
       assert_true(outcome.output.contains("\"findings\":[]"))
     }
     Err(err) => fail(err.to_string())
@@ -501,25 +504,25 @@ test "run_with_host passes custom ref kind resolver into engine" {
 
 ///|
 test "exit_code_for fail_on fail clean" {
-  assert_eq(exit_code_for({ failures: 0, warnings: 0 }, Fail), 0)
+  @test.assert_eq(exit_code_for({ failures: 0, warnings: 0 }, Fail), 0)
 }
 
 ///|
 test "exit_code_for fail_on fail with failure" {
-  assert_eq(exit_code_for({ failures: 1, warnings: 0 }, Fail), 1)
+  @test.assert_eq(exit_code_for({ failures: 1, warnings: 0 }, Fail), 1)
 }
 
 ///|
 test "exit_code_for fail_on warn warning only" {
-  assert_eq(exit_code_for({ failures: 0, warnings: 1 }, Warn), 1)
+  @test.assert_eq(exit_code_for({ failures: 0, warnings: 1 }, Warn), 1)
 }
 
 ///|
 test "exit_code_for fail_on warn clean" {
-  assert_eq(exit_code_for({ failures: 0, warnings: 0 }, Warn), 0)
+  @test.assert_eq(exit_code_for({ failures: 0, warnings: 0 }, Warn), 0)
 }
 
 ///|
 test "exit_code_for fail_on none ignores findings" {
-  assert_eq(exit_code_for({ failures: 2, warnings: 3 }, NoneLevel), 0)
+  @test.assert_eq(exit_code_for({ failures: 2, warnings: 3 }, NoneLevel), 0)
 }
