@@ -11,6 +11,10 @@ pub fn cli_user_agent() -> String
 
 pub let max_policy_pattern_len : Int
 
+pub let max_scan_depth : Int
+
+pub let max_scan_nodes : Int
+
 pub let version : String
 
 // Errors
@@ -88,6 +92,7 @@ pub(all) struct ScanTarget {
   owner : String
   repo : String
   git_ref : String
+  path : String?
 } derive(Eq, ToJson, @debug.Debug, @json.FromJson)
 pub impl Show for ScanTarget
 

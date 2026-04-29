@@ -5,6 +5,17 @@ pub let version : String = "0.1.0"
 pub let max_policy_pattern_len : Int = 256
 
 ///|
+/// Maximum depth of recursive action dependency traversal.
+/// Root action is depth 0; its direct dependencies are depth 1.
+pub let max_scan_depth : Int = 10
+
+///|
+/// Maximum number of unique action nodes scheduled/attempted during recursive
+/// traversal.
+/// Prevents runaway traversal work on unusually wide dependency graphs.
+pub let max_scan_nodes : Int = 100
+
+///|
 pub fn cli_user_agent() -> String {
   "papion/\{version} (+https://github.com/maruloop/papion)"
 }
@@ -149,6 +160,7 @@ pub(all) struct ScanTarget {
   owner : String
   repo : String
   git_ref : String
+  path : String?
 } derive(Debug, Eq, ToJson, FromJson)
 
 ///|

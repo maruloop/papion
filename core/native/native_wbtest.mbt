@@ -295,56 +295,80 @@ test "extract_release_immutable_field errors on parse failure" {
 
 ///|
 test "select_best_matching_ref returns exact ref with no remaining path" {
-  assert_eq(select_best_matching_ref(["v4"], "v4", None), Ok(("v4", None)))
+  match select_best_matching_ref(["v4"], "v4", None) {
+    Ok((ref_name, remaining)) => {
+      assert_eq(ref_name, "v4")
+      assert_eq(remaining, None)
+    }
+    Err(e) => fail("expected Ok but got Err: \{e}")
+  }
 }
 
 ///|
 test "select_best_matching_ref picks longest matching ref" {
-  assert_eq(
+  match
     select_best_matching_ref(
       ["release", "release/v1"],
       "release",
       Some("v1/action"),
-    ),
-    Ok(("release/v1", Some("action"))),
-  )
+    ) {
+    Ok((ref_name, remaining)) => {
+      assert_eq(ref_name, "release/v1")
+      assert_eq(remaining, Some("action"))
+    }
+    Err(e) => fail("expected Ok but got Err: \{e}")
+  }
 }
 
 ///|
 test "select_best_matching_ref errors when no candidate matches" {
-  assert_eq(
-    select_best_matching_ref(["release/v2"], "release", Some("v1/action")),
-    Err("no matching Git refs found"),
-  )
+  match select_best_matching_ref(["release/v2"], "release", Some("v1/action")) {
+    Err(e) => assert_eq(e, "no matching Git refs found")
+    Ok(_) => fail("expected Err")
+  }
 }
 
 ///|
 test "select_best_matching_ref errors when candidates empty" {
-  assert_eq(
-    select_best_matching_ref([], "release", Some("v1/action")),
-    Err("no matching Git refs found"),
-  )
+  match select_best_matching_ref([], "release", Some("v1/action")) {
+    Err(e) => assert_eq(e, "no matching Git refs found")
+    Ok(_) => fail("expected Err")
+  }
 }
 
 ///|
 test "select_best_matching_ref normalizes leading slash path" {
-  assert_eq(
-    select_best_matching_ref(["release/v1"], "release", Some("/v1/action")),
-    Ok(("release/v1", Some("action"))),
-  )
+  match
+    select_best_matching_ref(["release/v1"], "release", Some("/v1/action")) {
+    Ok((ref_name, remaining)) => {
+      assert_eq(ref_name, "release/v1")
+      assert_eq(remaining, Some("action"))
+    }
+    Err(e) => fail("expected Ok but got Err: \{e}")
+  }
 }
 
 ///|
 test "select_best_matching_ref normalizes double slash path" {
-  assert_eq(
-    select_best_matching_ref(["release/v1"], "release", Some("v1//action")),
-    Ok(("release/v1", Some("action"))),
-  )
+  match
+    select_best_matching_ref(["release/v1"], "release", Some("v1//action")) {
+    Ok((ref_name, remaining)) => {
+      assert_eq(ref_name, "release/v1")
+      assert_eq(remaining, Some("action"))
+    }
+    Err(e) => fail("expected Ok but got Err: \{e}")
+  }
 }
 
 ///|
 test "select_best_matching_ref normalizes trailing slash path to none" {
-  assert_eq(select_best_matching_ref(["v4"], "v4", Some("/")), Ok(("v4", None)))
+  match select_best_matching_ref(["v4"], "v4", Some("/")) {
+    Ok((ref_name, remaining)) => {
+      assert_eq(ref_name, "v4")
+      assert_eq(remaining, None)
+    }
+    Err(e) => fail("expected Ok but got Err: \{e}")
+  }
 }
 
 ///|
@@ -378,7 +402,7 @@ test "run parse_args error on --config propagates before fetch" {
     },
     fn(_owner, _repo, _git_ref, _path, _allow_ref_fallback) {
       fetch_called = true
-      Ok(("", "unused"))
+      Ok(("", "unused", None))
     },
   )
   assert_eq(result, Err(@cli.ArgError("missing value for --config")))

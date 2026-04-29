@@ -362,7 +362,7 @@ test "run_with_host propagates arg error before host calls" {
     },
     fn(_owner, _repo, _git_ref, _path, _allow_ref_fallback) {
       fetch_called = true
-      Ok(("", "unused"))
+      Ok(("", "unused", None))
     },
   )
   assert_eq(result, Err(ArgError("missing command and target")))
@@ -394,6 +394,7 @@ test "run_with_host uses resolved git ref from host fetch" {
             #|  using: node20
           ),
           "release/v1",
+          None,
         ),
       )
     },
@@ -417,11 +418,16 @@ test "run_with_host uses resolved git ref from host fetch" {
 ///|
 test "run_with_host passes allow_ref_fallback for github tree urls" {
   let mut captured_allow_ref_fallback = false
+  let mut captured_path = None
   let result = run_with_host(
-    ["run", "https://github.com/actions/checkout/tree/release/v1/action"],
+    [
+      "run", "https://github.com/actions/checkout/tree/release/v1/action", "--format",
+      "json",
+    ],
     fn(_config_path) { Ok(@papion.Policy::default()) },
     fn(_owner, _repo, _git_ref, _path, allow_ref_fallback) {
       captured_allow_ref_fallback = allow_ref_fallback
+      captured_path = _path
       Ok(
         (
           (
@@ -430,12 +436,21 @@ test "run_with_host passes allow_ref_fallback for github tree urls" {
             #|  using: node20
           ),
           "release/v1",
+          Some("action"),
         ),
       )
     },
   )
   match result {
-    Ok(_) => assert_eq(captured_allow_ref_fallback, true)
+    Ok(outcome) => {
+      assert_eq(captured_allow_ref_fallback, true)
+      assert_eq(captured_path, Some("v1/action"))
+      assert_true(
+        outcome.output.contains(
+          "\"target\":\"actions/checkout/action@release/v1\"",
+        ),
+      )
+    }
     Err(err) => fail(err.to_string())
   }
 }
@@ -460,6 +475,7 @@ test "run_with_host passes custom ref kind resolver into engine" {
             #|    - uses: actions/checkout@v4
           ),
           "v4",
+          None,
         ),
       )
     },

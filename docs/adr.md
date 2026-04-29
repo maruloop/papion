@@ -574,6 +574,43 @@ This lets MoonBit's package-level `unused_package` checks reflect real dependenc
 
 ---
 
+## Decision 20: Recursive dependency scanning with cycle detection
+
+### Context
+
+Papion v0 scanned only the direct `uses:` references in the target action's own `action.yml`. Transitive dependencies (actions used by dependencies) were invisible to the scanner, creating a significant gap for security evaluation.
+
+### Decision
+
+Add recursive transitive scanning via `scan` in `core/engine`, with recursion enabled when a fetch callback is provided, keeping the existing layer boundaries:
+
+* **Core engine** manages traversal state: BFS queue, visited set, depth counter, node counter
+* **Host layer** continues to own I/O: `fetch_action_yml` is injected as a callback from the CLI into the engine
+* **Core parsing and rules** remain unchanged and pure
+
+### Safeguards
+
+| Mechanism | Details |
+|---|---|
+| Cycle detection | Visited set keyed by `owner/repo[/path]@git_ref` |
+| Max depth | `max_scan_depth = 10` (root = depth 0) |
+| Max nodes | `max_scan_nodes = 100` unique nodes scheduled for traversal (including failed fetch attempts) |
+| Fetch errors | Silently skipped — best-effort traversal |
+
+### Design notes
+
+* `scan` accepts `fetch_action_yml? : (owner, repo, git_ref, path?) -> Result[String, String]` as an optional dependency-injected callback. This keeps the core pure (no host imports) while enabling full traversal when the host supplies fetch support — consistent with Decision 10.
+* Policy findings are generated for **every reference**, including repeated references to already-visited nodes. Only **traversal** (fetching) is deduplicated per identity.
+* Transitive findings carry a `context` field set to `"via owner/repo@ref"` showing the **immediate parent** action where the dependency was found — not the full chain.
+* Omitting `fetch_action_yml?` preserves the old root-only behavior for callers that do not require recursive traversal.
+* The CLI `run_with_host` passes an adapted `engine_fetch` that wraps its host `fetch_action_yml` (stripping the resolved-ref return value and the `allow_ref_fallback` flag, which are CLI-only concerns).
+
+### Relation to Decision 9 and Decision 10
+
+The traversal logic lives in the engine (core layer) with a callback injection pattern, preserving the host/core boundary from Decisions 9 and 10. The host remains the sole owner of I/O; the engine manages only pure traversal state.
+
+---
+
 ## Final Architecture Summary
 
 Papion is:

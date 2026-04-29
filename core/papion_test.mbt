@@ -179,6 +179,7 @@ test "ScanTarget json roundtrip" {
     owner: "actions",
     repo: "checkout",
     git_ref: "v4",
+    path: Some("subdir/action"),
   }
   let json = @json.parse(t.to_json().stringify())
   let back : @papion.ScanTarget = @json.from_json(json)
@@ -206,7 +207,12 @@ test "ScanResult json roundtrip" {
     ),
   }
   let r : @papion.ScanResult = {
-    target: { owner: "actions", repo: "checkout", git_ref: "v4" },
+    target: {
+      owner: "actions",
+      repo: "checkout",
+      git_ref: "v4",
+      path: Some("subdir/action"),
+    },
     findings: [finding],
     summary: { failures: 0, warnings: 1 },
   }

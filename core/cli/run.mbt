@@ -27,7 +27,7 @@ pub fn run_with_host(
   args : Array[String],
   load_config : (String?) -> Result[@papion.Policy, String],
   fetch_action_yml : (String, String, String?, String?, Bool) -> Result[
-    (String, String),
+    (String, String, String?),
     String,
   ],
   resolve_ref_kind? : (String, String, String) -> @papion.RefKind = fn(
@@ -46,7 +46,7 @@ pub fn run_with_host(
     Ok(policy) => policy
     Err(err) => return Err(RuntimeError(err))
   }
-  let (action_yml, resolved_git_ref) = match
+  let (action_yml, resolved_git_ref, resolved_path) = match
     fetch_action_yml(
       options.owner,
       options.repo,
@@ -57,11 +57,28 @@ pub fn run_with_host(
     Ok(result) => result
     Err(err) => return Err(RuntimeError(err))
   }
+  let engine_fetch = fn(
+    owner : String,
+    repo : String,
+    git_ref : String,
+    path : String?,
+  ) -> Result[String, String] {
+    match fetch_action_yml(owner, repo, Some(git_ref), path, false) {
+      Ok((yaml, _, _)) => Ok(yaml)
+      Err(err) => Err(err)
+    }
+  }
   let result = match
     @engine.scan(
-      { owner: options.owner, repo: options.repo, git_ref: resolved_git_ref },
+      {
+        owner: options.owner,
+        repo: options.repo,
+        git_ref: resolved_git_ref,
+        path: resolved_path,
+      },
       action_yml,
       policy,
+      engine_fetch,
       resolve_ref_kind~,
     ) {
     Ok(result) => result

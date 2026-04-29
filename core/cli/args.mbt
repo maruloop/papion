@@ -68,9 +68,13 @@ pub impl Show for RunOptions with output(self, logger) {
   self.path.output(logger)
   logger.write_string(", git_ref: ")
   self.git_ref.output(logger)
-  logger.write_string(
-    ", allow_ref_fallback: \{self.allow_ref_fallback}, format: \{self.format}, fail_on: \{self.fail_on}, config: ",
-  )
+  logger.write_string(", allow_ref_fallback: ")
+  self.allow_ref_fallback.output(logger)
+  logger.write_string(", format: ")
+  self.format.output(logger)
+  logger.write_string(", fail_on: ")
+  self.fail_on.output(logger)
+  logger.write_string(", config: ")
   self.config.output(logger)
   logger.write_string(")")
 }
