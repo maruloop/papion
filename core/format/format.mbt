@@ -1,6 +1,10 @@
 ///|
 fn target_string(t : @papion.ScanTarget) -> String {
-  t.owner + "/" + t.repo + "@" + t.git_ref
+  let path_part = match t.path {
+    None => ""
+    Some(path) => "/" + path
+  }
+  t.owner + "/" + t.repo + path_part + "@" + t.git_ref
 }
 
 ///|

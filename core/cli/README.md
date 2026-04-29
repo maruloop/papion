@@ -21,8 +21,8 @@ papion run org/repo[/path]@ref [--format human|json] [--fail-on warn|fail|none] 
 Rules:
 
 - `org/repo[/path]@ref` is parsed by the shared CLI package.
-- `path` is host-side only and is not included in `@papion.ScanTarget`.
-- `ScanTarget` passed to the engine is `{ owner, repo, git_ref }`.
+- `path` is propagated into `@papion.ScanTarget` so the reported root target and root traversal identity match the action that was actually fetched.
+- `ScanTarget` passed to the engine is `{ owner, repo, git_ref, path }`.
 - `--format` defaults to `human`.
 - `--fail-on` defaults to `fail`.
 - `--config` is optional. When omitted, default policy is used.

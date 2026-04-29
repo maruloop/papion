@@ -13,6 +13,8 @@ jobs:
   build:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
+    env:
+      MOONBIT_VERSION: 0.8.4+4d98d95d4
     strategy:
       fail-fast: false
       matrix:
@@ -26,7 +28,9 @@ jobs:
         working-directory: core
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      - uses: hustcer/setup-moonbit@e9b0a3082767ae669bf7588992ae3ba9eac09baa
+      - uses: ./.github/actions/setup-moonbit
+        with:
+          version: ${{ env.MOONBIT_VERSION }}
       - run: moon update
       - name: Build native binary
         run: moon build --release --target native

@@ -116,6 +116,7 @@ ScanTarget {
   owner : String
   repo : String
   git_ref : String
+  path : String?
 }
 ```
 

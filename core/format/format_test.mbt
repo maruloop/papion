@@ -4,7 +4,7 @@ fn make_target(
   repo : String,
   git_ref : String,
 ) -> @papion.ScanTarget {
-  { owner, repo, git_ref }
+  { owner, repo, git_ref, path: None }
 }
 
 ///|
@@ -264,8 +264,14 @@ test "format_json finding omits absent optional fields" {
           match arr[0] {
             Object(finding_obj) => {
               assert_eq(get_str(arr[0], "level"), Some("fail"))
-              assert_eq(finding_obj.get("context"), None)
-              assert_eq(finding_obj.get("suggestion"), None)
+              match finding_obj.get("context") {
+                None => ()
+                Some(_) => fail("expected no context field")
+              }
+              match finding_obj.get("suggestion") {
+                None => ()
+                Some(_) => fail("expected no suggestion field")
+              }
             }
             _ => fail("expected finding object")
           }
