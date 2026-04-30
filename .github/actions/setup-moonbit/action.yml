@@ -47,7 +47,7 @@ runs:
         archive_url="https://cli.moonbitlang.com/binaries/${encoded_version}/${artifact}"
         checksum_url="${archive_url}.sha256"
         core_archive="core-${version}.tar.gz"
-        core_url="https://cli.moonbitlang.com/cores/${core_archive}"
+        core_url="https://cli.moonbitlang.com/cores/core-${encoded_version}.tar.gz"
 
         tmpdir="$(mktemp -d)"
         trap 'rm -rf "$tmpdir"' EXIT
