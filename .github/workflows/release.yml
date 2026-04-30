@@ -14,7 +14,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     env:
-      MOONBIT_VERSION: 0.8.4+4d98d95d4
+      MOONBIT_VERSION: 0.9.0+9f1423bcb
     strategy:
       fail-fast: false
       matrix:

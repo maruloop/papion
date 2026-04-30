@@ -60,14 +60,24 @@ pub(all) struct RunOptions {
 
 ///|
 pub impl Show for RunOptions with output(self, logger) {
+  let output_option_string = fn(value : String?) {
+    match value {
+      None => logger.write_string("None")
+      Some(v) => {
+        logger.write_string("Some(")
+        v.output(logger)
+        logger.write_string(")")
+      }
+    }
+  }
   logger.write_string("RunOptions(owner: ")
   self.owner.output(logger)
   logger.write_string(", repo: ")
   self.repo.output(logger)
   logger.write_string(", path: ")
-  self.path.output(logger)
+  output_option_string(self.path)
   logger.write_string(", git_ref: ")
-  self.git_ref.output(logger)
+  output_option_string(self.git_ref)
   logger.write_string(", allow_ref_fallback: ")
   self.allow_ref_fallback.output(logger)
   logger.write_string(", format: ")
@@ -75,7 +85,7 @@ pub impl Show for RunOptions with output(self, logger) {
   logger.write_string(", fail_on: ")
   self.fail_on.output(logger)
   logger.write_string(", config: ")
-  self.config.output(logger)
+  output_option_string(self.config)
   logger.write_string(")")
 }
 
