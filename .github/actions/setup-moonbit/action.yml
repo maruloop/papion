@@ -65,11 +65,11 @@ runs:
         tar -xzf "$tmpdir/$artifact" -C "$extract_dir"
 
         install_src="$extract_dir"
-        if [ ! -x "$install_src/bin/moon" ]; then
+        if [ ! -e "$install_src/bin/moon" ]; then
           install_src="$(find "$extract_dir" -mindepth 1 -maxdepth 2 -type d -path '*/bin' | sed 's#/bin$##' | head -n 1)"
         fi
 
-        if [ -z "$install_src" ] || [ ! -x "$install_src/bin/moon" ]; then
+        if [ -z "$install_src" ] || [ ! -e "$install_src/bin/moon" ]; then
           echo "::error::Could not locate extracted MoonBit toolchain in $artifact"
           exit 1
         fi
