@@ -33,6 +33,6 @@ fn run(args : Array[String]) -> Result[@cli.RunOutcome, @cli.CliError] {
     args,
     load_config,
     fetch_action_yml,
-    resolve_ref_kind=resolve_ref_kind_via_api,
+    resolve_ref_kind=cached_ref_kind_resolver(),
   )
 }
