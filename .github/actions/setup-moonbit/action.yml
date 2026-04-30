@@ -53,7 +53,9 @@ runs:
         expected_sha="$(awk '{ print $1 }' "$tmpdir/${artifact}.sha256")"
         actual_sha="$(shasum -a 256 "$tmpdir/$artifact" | awk '{ print $1 }')"
         if [ "$actual_sha" != "$expected_sha" ]; then
-          echo "::error::MoonBit archive checksum verification failed for $artifact"
+          echo "::error::MoonBit archive checksum verification failed for $artifact from $archive_url"
+          echo "::error::expected sha256: $expected_sha"
+          echo "::error::actual sha256:   $actual_sha"
           exit 1
         fi
 
@@ -85,6 +87,10 @@ runs:
         rm -rf "$lib_dir/core"
         mkdir -p "$lib_dir"
         tar -xzf "$tmpdir/$core_archive" -C "$lib_dir"
+        if [ ! -d "$lib_dir/core" ] || [ ! -f "$lib_dir/core/moon.mod.json" ]; then
+          echo "::error::Invalid MoonBit core archive layout in $core_archive from $core_url"
+          exit 1
+        fi
 
         PATH="$bin_dir:$PATH" "$bin_dir/moon" -C "$lib_dir/core" bundle --warn-list -a --all
         PATH="$bin_dir:$PATH" "$bin_dir/moon" -C "$lib_dir/core" bundle --warn-list -a --target wasm-gc --quiet
