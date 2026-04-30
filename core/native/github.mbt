@@ -703,6 +703,6 @@ fn cached_ref_kind_resolver_with(
 }
 
 ///|
-pub fn cached_ref_kind_resolver() -> (String, String, String) -> @papion.RefKind {
+fn cached_ref_kind_resolver() -> (String, String, String) -> @papion.RefKind {
   cached_ref_kind_resolver_with(resolve_ref_kind_via_api)
 }
