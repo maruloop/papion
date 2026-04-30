@@ -683,3 +683,26 @@ pub fn resolve_ref_kind_via_api(
     git_ref, fetch_commit_exists, fetch_release_by_tag, owner, repo,
   )
 }
+
+///|
+fn cached_ref_kind_resolver_with(
+  api : (String, String, String) -> @papion.RefKind,
+) -> (String, String, String) -> @papion.RefKind {
+  let cache : Map[String, @papion.RefKind] = {}
+  fn(owner, repo, git_ref) {
+    let key = "\{owner.to_lower()}/\{repo.to_lower()}@\{git_ref}"
+    match cache.get(key) {
+      Some(kind) => kind
+      None => {
+        let kind = api(owner, repo, git_ref)
+        cache[key] = kind
+        kind
+      }
+    }
+  }
+}
+
+///|
+pub fn cached_ref_kind_resolver() -> (String, String, String) -> @papion.RefKind {
+  cached_ref_kind_resolver_with(resolve_ref_kind_via_api)
+}

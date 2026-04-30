@@ -521,3 +521,58 @@ test "resolve_ref_kind_impl: non-sha ref + release error => Branch" {
     Branch,
   )
 }
+
+///|
+test "cached_ref_kind_resolver_with: same key hits api only once" {
+  let mut call_count = 0
+  let api : (String, String, String) -> @papion.RefKind = fn(
+    _owner,
+    _repo,
+    _git_ref,
+  ) {
+    call_count = call_count + 1
+    ImmutableRelease
+  }
+  let resolver = cached_ref_kind_resolver_with(api)
+  let r1 = resolver("octocat", "hello-world", "v1.0.0")
+  let r2 = resolver("octocat", "hello-world", "v1.0.0")
+  assert_eq(call_count, 1)
+  assert_eq(r1, ImmutableRelease)
+  assert_eq(r2, ImmutableRelease)
+}
+
+///|
+test "cached_ref_kind_resolver_with: different keys each call api" {
+  let mut call_count = 0
+  let api : (String, String, String) -> @papion.RefKind = fn(
+    _owner,
+    _repo,
+    _git_ref,
+  ) {
+    call_count = call_count + 1
+    Branch
+  }
+  let resolver = cached_ref_kind_resolver_with(api)
+  ignore(resolver("octocat", "hello-world", "v1.0.0"))
+  ignore(resolver("octocat", "hello-world", "v2.0.0"))
+  assert_eq(call_count, 2)
+}
+
+///|
+test "cached_ref_kind_resolver_with: owner/repo case-insensitive" {
+  let mut call_count = 0
+  let api : (String, String, String) -> @papion.RefKind = fn(
+    _owner,
+    _repo,
+    _git_ref,
+  ) {
+    call_count = call_count + 1
+    Sha
+  }
+  let resolver = cached_ref_kind_resolver_with(api)
+  let r1 = resolver("Actions", "Checkout", "v4")
+  let r2 = resolver("actions", "checkout", "v4")
+  assert_eq(call_count, 1)
+  assert_eq(r1, Sha)
+  assert_eq(r2, Sha)
+}
