@@ -26,6 +26,7 @@ pub(all) struct ActionRef {
   git_ref : String
   path : String?
 } derive(Eq, ToJson, @debug.Debug, @json.FromJson)
+pub fn ActionRef::format_ref(Self) -> String
 pub impl Show for ActionRef
 
 pub(all) struct ActionYml {
@@ -94,6 +95,7 @@ pub(all) struct ScanTarget {
   git_ref : String
   path : String?
 } derive(Eq, ToJson, @debug.Debug, @json.FromJson)
+pub fn ScanTarget::format_target(Self) -> String
 pub impl Show for ScanTarget
 
 pub(all) struct Summary {

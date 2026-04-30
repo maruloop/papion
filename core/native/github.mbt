@@ -1,4 +1,16 @@
 ///|
+fn parse_github_json(
+  body : String,
+  description : String,
+) -> Result[Json, (Int, String)] {
+  let json = try? @json.parse(body)
+  match json {
+    Ok(json) => Ok(json)
+    Err(err) => Err((0, "failed to parse GitHub \{description}: \{err}"))
+  }
+}
+
+///|
 fn decode_base64_content(content : String) -> Result[Bytes, String] {
   Ok(@base64.decode(content, ignore_whitespace=true)) catch {
     _ => Err("failed to decode GitHub contents payload")
@@ -10,11 +22,9 @@ fn extract_content_field(
   body : String,
   path : String,
 ) -> Result[Bytes, (Int, String)] {
-  let json = try? @json.parse(body)
-  let json = match json {
+  let json = match parse_github_json(body, "response for \{path}") {
     Ok(json) => json
-    Err(err) =>
-      return Err((0, "failed to parse GitHub response for \{path}: \{err}"))
+    Err(err) => return Err(err)
   }
   match json {
     { "content": String(content), .. } =>
@@ -36,16 +46,10 @@ fn extract_default_branch_field(
   owner : String,
   repo : String,
 ) -> Result[String, (Int, String)] {
-  let json = try? @json.parse(body)
-  let json = match json {
+  let json = match
+    parse_github_json(body, "repository response for \{owner}/\{repo}") {
     Ok(json) => json
-    Err(err) =>
-      return Err(
-        (
-          0,
-          "failed to parse GitHub repository response for \{owner}/\{repo}: \{err}",
-        ),
-      )
+    Err(err) => return Err(err)
   }
   match json {
     { "default_branch": String(branch), .. } => Ok(branch)
@@ -73,16 +77,10 @@ fn extract_release_immutable_field(
   repo : String,
   tag : String,
 ) -> Result[Bool, (Int, String)] {
-  let json = try? @json.parse(body)
-  let json = match json {
+  let json = match
+    parse_github_json(body, "release response for \{owner}/\{repo}@\{tag}") {
     Ok(json) => json
-    Err(err) =>
-      return Err(
-        (
-          0,
-          "failed to parse GitHub release response for \{owner}/\{repo}@\{tag}: \{err}",
-        ),
-      )
+    Err(err) => return Err(err)
   }
   match json {
     { "immutable": true, .. } => Ok(true)
@@ -105,16 +103,10 @@ fn extract_matching_refs_field(
   repo : String,
   ref_type : String,
 ) -> Result[Array[String], (Int, String)] {
-  let json = try? @json.parse(body)
-  let json = match json {
+  let json = match
+    parse_github_json(body, "matching refs response for \{owner}/\{repo}") {
     Ok(json) => json
-    Err(err) =>
-      return Err(
-        (
-          0,
-          "failed to parse GitHub matching refs response for \{owner}/\{repo}: \{err}",
-        ),
-      )
+    Err(err) => return Err(err)
   }
   let expected_prefix = "refs/\{ref_type}/"
   match json {
@@ -289,29 +281,30 @@ priv suberror HttpError {
 }
 
 ///|
-fn fetch_contents(
-  owner : String,
-  repo : String,
-  git_ref : String,
-  filename : String,
-) -> Result[Bytes, (Int, String)] {
-  let url = match github_contents_url(owner, repo, git_ref, filename) {
-    Ok(url) => url
-    Err(err) => return Err(err)
+fn github_headers() -> Map[String, String] {
+  let headers = {
+    "User-Agent": @papion.cli_user_agent(),
+    "Accept": "application/vnd.github+json",
   }
-  let mut result : Result[Bytes, (Int, String)] = Err(
+  if github_token() is Some(token) {
+    headers["Authorization"] = "Bearer \{token}"
+  }
+  headers
+}
+
+///|
+fn[T] github_get(
+  url : String,
+  context : String,
+  handle_response : (Int, String, String) -> Result[T, (Int, String)],
+) -> Result[T, (Int, String)] {
+  let mut result : Result[T, (Int, String)] = Err(
     (0, "request was not executed"),
   )
   @async.run_async_main(() => {
-    let headers = {
-      "User-Agent": @papion.cli_user_agent(),
-      "Accept": "application/vnd.github+json",
-    }
-    if github_token() is Some(token) {
-      headers["Authorization"] = "Bearer \{token}"
-    }
-    let request : Result[Bytes, (Int, String)] = try {
-      let bytes = @async.retry(
+    let headers = github_headers()
+    let request : Result[T, (Int, String)] = try {
+      let value = @async.retry(
         @async.ExponentialDelay(initial=1000, factor=2.0, maximum=10000),
         max_retry=3,
         fatal_error=fn(err) {
@@ -324,32 +317,47 @@ fn fetch_contents(
         () => {
           let pair = @async.with_timeout(30000, () => @http.get(url, headers~))
           let (response, body) = pair
-          if response.code == 200 {
-            match extract_content_field(body.text(), filename) {
-              Ok(bytes) => bytes
-              Err(err) => raise HttpError(err)
-            }
-          } else {
-            raise HttpError(
-              (
-                response.code,
-                "failed to fetch \{filename} from GitHub (\{response.code} \{response.reason})",
-              ),
-            )
+          match handle_response(response.code, response.reason, body.text()) {
+            Ok(value) => value
+            Err(err) => raise HttpError(err)
           }
         },
       )
-      Ok(bytes)
+      Ok(value)
     } catch {
       HttpError(err) => Err(err)
-      err => Err((0, "failed to fetch \{filename} from GitHub: \{err}"))
+      err => Err((0, "\{context}: \{err}"))
     }
     match request {
-      Ok(bytes) => result = Ok(bytes)
+      Ok(value) => result = Ok(value)
       Err(err) => result = Err(err)
     }
   })
   result
+}
+
+///|
+fn fetch_contents(
+  owner : String,
+  repo : String,
+  git_ref : String,
+  filename : String,
+) -> Result[Bytes, (Int, String)] {
+  let url = match github_contents_url(owner, repo, git_ref, filename) {
+    Ok(url) => url
+    Err(err) => return Err(err)
+  }
+  github_get(url, "failed to fetch \{filename} from GitHub", fn(
+    code,
+    reason,
+    body,
+  ) {
+    if code == 200 {
+      extract_content_field(body, filename)
+    } else {
+      Err((code, "failed to fetch \{filename} from GitHub (\{code} \{reason})"))
+    }
+  })
 }
 
 ///|
@@ -361,63 +369,22 @@ fn fetch_default_branch(
     Ok(url) => url
     Err(err) => return Err(err)
   }
-  let mut result : Result[String, (Int, String)] = Err(
-    (0, "request was not executed"),
-  )
-  @async.run_async_main(() => {
-    let headers = {
-      "User-Agent": @papion.cli_user_agent(),
-      "Accept": "application/vnd.github+json",
-    }
-    if github_token() is Some(token) {
-      headers["Authorization"] = "Bearer \{token}"
-    }
-    let request : Result[String, (Int, String)] = try {
-      let branch = @async.retry(
-        @async.ExponentialDelay(initial=1000, factor=2.0, maximum=10000),
-        max_retry=3,
-        fatal_error=fn(err) {
-          match err {
-            HttpError((code, _)) =>
-              code == 0 || (code >= 400 && code < 500 && code != 429)
-            _ => false
-          }
-        },
-        () => {
-          let pair = @async.with_timeout(30000, () => @http.get(url, headers~))
-          let (response, body) = pair
-          if response.code == 200 {
-            match extract_default_branch_field(body.text(), owner, repo) {
-              Ok(branch) => branch
-              Err(err) => raise HttpError(err)
-            }
-          } else {
-            raise HttpError(
-              (
-                response.code,
-                "failed to fetch repository metadata for \{owner}/\{repo} (\{response.code} \{response.reason})",
-              ),
-            )
-          }
-        },
+  github_get(url, "failed to fetch repository metadata for \{owner}/\{repo}", fn(
+    code,
+    reason,
+    body,
+  ) {
+    if code == 200 {
+      extract_default_branch_field(body, owner, repo)
+    } else {
+      Err(
+        (
+          code,
+          "failed to fetch repository metadata for \{owner}/\{repo} (\{code} \{reason})",
+        ),
       )
-      Ok(branch)
-    } catch {
-      HttpError(err) => Err(err)
-      err =>
-        Err(
-          (
-            0,
-            "failed to fetch repository metadata for \{owner}/\{repo}: \{err}",
-          ),
-        )
-    }
-    match request {
-      Ok(branch) => result = Ok(branch)
-      Err(err) => result = Err(err)
     }
   })
-  result
 }
 
 ///|
@@ -430,66 +397,23 @@ fn fetch_release_by_tag(
     Ok(url) => url
     Err(err) => return Err(err)
   }
-  let mut result : Result[Bool, (Int, String)] = Err(
-    (0, "request was not executed"),
+  github_get(
+    url,
+    "failed to fetch release metadata for \{owner}/\{repo}@\{tag}",
+    fn(code, reason, body) {
+      match code {
+        200 => extract_release_immutable_field(body, owner, repo, tag)
+        404 => Ok(false)
+        _ =>
+          Err(
+            (
+              code,
+              "failed to fetch release metadata for \{owner}/\{repo}@\{tag} (\{code} \{reason})",
+            ),
+          )
+      }
+    },
   )
-  @async.run_async_main(() => {
-    let headers = {
-      "User-Agent": @papion.cli_user_agent(),
-      "Accept": "application/vnd.github+json",
-    }
-    if github_token() is Some(token) {
-      headers["Authorization"] = "Bearer \{token}"
-    }
-    let request : Result[Bool, (Int, String)] = try {
-      let immutable = @async.retry(
-        @async.ExponentialDelay(initial=1000, factor=2.0, maximum=10000),
-        max_retry=3,
-        fatal_error=fn(err) {
-          match err {
-            HttpError((code, _)) =>
-              code == 0 || (code >= 400 && code < 500 && code != 429)
-            _ => false
-          }
-        },
-        () => {
-          let pair = @async.with_timeout(30000, () => @http.get(url, headers~))
-          let (response, body) = pair
-          match response.code {
-            200 =>
-              match
-                extract_release_immutable_field(body.text(), owner, repo, tag) {
-                Ok(immutable) => immutable
-                Err(err) => raise HttpError(err)
-              }
-            404 => false
-            _ =>
-              raise HttpError(
-                (
-                  response.code,
-                  "failed to fetch release metadata for \{owner}/\{repo}@\{tag} (\{response.code} \{response.reason})",
-                ),
-              )
-          }
-        },
-      )
-      Ok(immutable)
-    } catch {
-      HttpError(err) => Err(err)
-      err =>
-        Err(
-          (
-            0,
-            "failed to fetch release metadata for \{owner}/\{repo}@\{tag}: \{err}",
-          ),
-        )
-    }
-    match request {
-      Ok(immutable) => result = Ok(immutable)
-      Err(err) => result = Err(err)
-    }
-  })
-  result
 }
 
 ///|
@@ -502,58 +426,23 @@ fn fetch_commit_exists(
     Ok(url) => url
     Err(err) => return Err(err)
   }
-  let mut result : Result[Bool, (Int, String)] = Err(
-    (0, "request was not executed"),
-  )
-  @async.run_async_main(() => {
-    let headers = {
-      "User-Agent": @papion.cli_user_agent(),
-      "Accept": "application/vnd.github+json",
-    }
-    if github_token() is Some(token) {
-      headers["Authorization"] = "Bearer \{token}"
-    }
-    let request : Result[Bool, (Int, String)] = try {
-      let exists = @async.retry(
-        @async.ExponentialDelay(initial=1000, factor=2.0, maximum=10000),
-        max_retry=3,
-        fatal_error=fn(err) {
-          match err {
-            HttpError((code, _)) =>
-              code == 0 || (code >= 400 && code < 500 && code != 429)
-            _ => false
-          }
-        },
-        () => {
-          let pair = @async.with_timeout(30000, () => @http.get(url, headers~))
-          let (response, _) = pair
-          match response.code {
-            200 => true
-            404 => false
-            _ =>
-              raise HttpError(
-                (
-                  response.code,
-                  "failed to verify commit SHA for \{owner}/\{repo}@\{sha} (\{response.code} \{response.reason})",
-                ),
-              )
-          }
-        },
-      )
-      Ok(exists)
-    } catch {
-      HttpError(err) => Err(err)
-      err =>
+  github_get(url, "failed to verify commit SHA for \{owner}/\{repo}@\{sha}", fn(
+    code,
+    reason,
+    _body,
+  ) {
+    match code {
+      200 => Ok(true)
+      404 => Ok(false)
+      _ =>
         Err(
-          (0, "failed to verify commit SHA for \{owner}/\{repo}@\{sha}: \{err}"),
+          (
+            code,
+            "failed to verify commit SHA for \{owner}/\{repo}@\{sha} (\{code} \{reason})",
+          ),
         )
     }
-    match request {
-      Ok(exists) => result = Ok(exists)
-      Err(err) => result = Err(err)
-    }
   })
-  result
 }
 
 ///|
@@ -567,59 +456,22 @@ fn fetch_matching_refs(
     Ok(url) => url
     Err(err) => return Err(err)
   }
-  let mut result : Result[Array[String], (Int, String)] = Err(
-    (0, "request was not executed"),
-  )
-  @async.run_async_main(() => {
-    let headers = {
-      "User-Agent": @papion.cli_user_agent(),
-      "Accept": "application/vnd.github+json",
-    }
-    if github_token() is Some(token) {
-      headers["Authorization"] = "Bearer \{token}"
-    }
-    let request : Result[Array[String], (Int, String)] = try {
-      let refs = @async.retry(
-        @async.ExponentialDelay(initial=1000, factor=2.0, maximum=10000),
-        max_retry=3,
-        fatal_error=fn(err) {
-          match err {
-            HttpError((code, _)) =>
-              code == 0 || (code >= 400 && code < 500 && code != 429)
-            _ => false
-          }
-        },
-        () => {
-          let pair = @async.with_timeout(30000, () => @http.get(url, headers~))
-          let (response, body) = pair
-          if response.code == 200 {
-            match
-              extract_matching_refs_field(body.text(), owner, repo, ref_type) {
-              Ok(refs) => refs
-              Err(err) => raise HttpError(err)
-            }
-          } else {
-            raise HttpError(
-              (
-                response.code,
-                "failed to fetch matching refs for \{owner}/\{repo} (\{response.code} \{response.reason})",
-              ),
-            )
-          }
-        },
+  github_get(url, "failed to fetch matching refs for \{owner}/\{repo}", fn(
+    code,
+    reason,
+    body,
+  ) {
+    if code == 200 {
+      extract_matching_refs_field(body, owner, repo, ref_type)
+    } else {
+      Err(
+        (
+          code,
+          "failed to fetch matching refs for \{owner}/\{repo} (\{code} \{reason})",
+        ),
       )
-      Ok(refs)
-    } catch {
-      HttpError(err) => Err(err)
-      err =>
-        Err((0, "failed to fetch matching refs for \{owner}/\{repo}: \{err}"))
-    }
-    match request {
-      Ok(refs) => result = Ok(refs)
-      Err(err) => result = Err(err)
     }
   })
-  result
 }
 
 ///|

@@ -46,6 +46,15 @@ pub(all) struct ActionRef {
 } derive(Debug, Eq, ToJson, FromJson)
 
 ///|
+pub fn ActionRef::format_ref(self : ActionRef) -> String {
+  let path_part = match self.path {
+    Some(p) => "/\{p}"
+    None => ""
+  }
+  "\{self.owner}/\{self.repo}\{path_part}@\{self.git_ref}"
+}
+
+///|
 pub impl Show for ActionRef with output(self, logger) {
   logger.write_string(self.to_json().stringify())
 }
@@ -162,6 +171,15 @@ pub(all) struct ScanTarget {
   git_ref : String
   path : String?
 } derive(Debug, Eq, ToJson, FromJson)
+
+///|
+pub fn ScanTarget::format_target(self : ScanTarget) -> String {
+  let path_part = match self.path {
+    Some(p) => "/\{p}"
+    None => ""
+  }
+  "\{self.owner}/\{self.repo}\{path_part}@\{self.git_ref}"
+}
 
 ///|
 pub impl Show for ScanTarget with output(self, logger) {
