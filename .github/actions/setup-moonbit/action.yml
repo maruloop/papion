@@ -68,7 +68,10 @@ runs:
 
         install_src="$extract_dir"
         if [ ! -e "$install_src/bin/moon" ]; then
-          install_src="$(find "$extract_dir" -mindepth 1 -maxdepth 2 -type d -path '*/bin' | sed 's#/bin$##' | head -n 1)"
+          bin_dir_match="$(find "$extract_dir" -mindepth 1 -maxdepth 2 -type d -path '*/bin' -print -quit)"
+          if [ -n "$bin_dir_match" ]; then
+            install_src="${bin_dir_match%/bin}"
+          fi
         fi
 
         if [ -z "$install_src" ] || [ ! -e "$install_src/bin/moon" ]; then
