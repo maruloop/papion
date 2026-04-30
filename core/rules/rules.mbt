@@ -1,14 +1,4 @@
 ///|
-fn format_target(action_ref : @papion.ActionRef) -> String {
-  let base = action_ref.owner + "/" + action_ref.repo
-  let with_path = match action_ref.path {
-    Some(p) => base + "/" + p
-    None => base
-  }
-  with_path + "@" + action_ref.git_ref
-}
-
-///|
 /// Classify a git ref by its format.
 ///
 /// Returns `Sha` if the ref is exactly 40 hex characters (case-insensitive).
@@ -49,7 +39,7 @@ pub fn check_sha_pinning(
     {
       level: Fail,
       rule: "sha-pinning",
-      target: format_target(action_ref),
+      target: action_ref.format_ref(),
       context: None,
       message: "action ref is not pinned to a SHA or immutable release",
       suggestion: Some(
@@ -76,7 +66,7 @@ pub fn check_allowed(
     {
       level: Fail,
       rule: "allowed-list",
-      target: format_target(action_ref),
+      target: action_ref.format_ref(),
       context: None,
       message: "action is not in the allowed list",
       suggestion: None,
@@ -100,7 +90,7 @@ pub fn check_disallowed(
     {
       level: Fail,
       rule: "disallowed-list",
-      target: format_target(action_ref),
+      target: action_ref.format_ref(),
       context: None,
       message: "action matches a disallowed pattern",
       suggestion: None,

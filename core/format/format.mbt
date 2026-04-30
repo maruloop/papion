@@ -1,13 +1,4 @@
 ///|
-fn target_string(t : @papion.ScanTarget) -> String {
-  let path_part = match t.path {
-    None => ""
-    Some(path) => "/" + path
-  }
-  t.owner + "/" + t.repo + path_part + "@" + t.git_ref
-}
-
-///|
 fn level_label(level : @papion.FindingLevel) -> String {
   match level {
     Warn => "WARN"
@@ -111,7 +102,7 @@ fn finding_to_json(f : @papion.Finding) -> Json {
 /// Optional finding fields (context, suggestion) are omitted when absent.
 pub fn format_json(result : @papion.ScanResult) -> String {
   let root : Map[String, Json] = {
-    "target": Json::string(target_string(result.target)),
+    "target": Json::string(result.target.format_target()),
     "ref": Json::string(result.target.git_ref),
     "findings": Json::array(result.findings.map(finding_to_json)),
     "summary": Json::object({

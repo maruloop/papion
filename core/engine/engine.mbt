@@ -7,52 +7,33 @@ priv struct ScanNode {
 }
 
 ///|
-fn normalize_key_path(path : String?) -> String? {
+fn normalize_path_part(path : String?) -> String {
   match path {
-    None => None
+    None => ""
     Some(p) => {
-      let trimmed = p.trim(chars="/").to_string()
+      let trimmed = p.trim(chars="/")
       if trimmed.is_empty() {
-        None
+        ""
       } else {
-        Some(trimmed)
+        "/\{trimmed}"
       }
     }
   }
 }
 
 ///|
-/// Build a visited-set key from an ActionRef: "owner/repo[/path]@ref".
+/// Build a visited-set key from an ActionRef.
 /// Owner and repo are lowercased so the same repo spelled with different
 /// case does not bypass dedup or cycle detection.
 fn action_ref_key(ref_ : @papion.ActionRef) -> String {
-  let path_part = match normalize_key_path(ref_.path) {
-    None => ""
-    Some(p) => "/\{p}"
-  }
+  let path_part = normalize_path_part(ref_.path)
   "\{ref_.owner.to_lower()}/\{ref_.repo.to_lower()}\{path_part}@\{ref_.git_ref}"
 }
 
 ///|
-/// Build the visited-set key for the root scan target using the same
-/// normalization rules as dependency keys.
 fn scan_target_key(target : @papion.ScanTarget) -> String {
-  let path_part = match normalize_key_path(target.path) {
-    None => ""
-    Some(p) => "/\{p}"
-  }
+  let path_part = normalize_path_part(target.path)
   "\{target.owner.to_lower()}/\{target.repo.to_lower()}\{path_part}@\{target.git_ref}"
-}
-
-///|
-/// Format the context string shown on transitive findings:
-/// "via owner/repo[/path]@ref".
-fn transitive_context(ref_ : @papion.ActionRef) -> String {
-  let path_part = match normalize_key_path(ref_.path) {
-    None => ""
-    Some(p) => "/\{p}"
-  }
-  "via \{ref_.owner}/\{ref_.repo}\{path_part}@\{ref_.git_ref}"
 }
 
 ///|
@@ -147,7 +128,9 @@ pub fn scan(
                     queue.push({
                       yaml_str: fetched_yaml,
                       depth: node.depth + 1,
-                      via: Some(transitive_context(ref_)),
+                      via: Some(
+                        "via \{ref_.owner}/\{ref_.repo}\{normalize_path_part(ref_.path)}@\{ref_.git_ref}",
+                      ),
                     })
                   Err(_) => ()
                 }
@@ -158,7 +141,13 @@ pub fn scan(
       }
     }
   }
-  let failures = all_findings.iter().filter(fn(f) { f.level == Fail }).count()
-  let warnings = all_findings.iter().filter(fn(f) { f.level == Warn }).count()
+  let mut failures = 0
+  let mut warnings = 0
+  for f in all_findings {
+    match f.level {
+      Fail => failures = failures + 1
+      Warn => warnings = warnings + 1
+    }
+  }
   Ok({ target, findings: all_findings, summary: { failures, warnings } })
 }
