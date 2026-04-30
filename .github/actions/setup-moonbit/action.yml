@@ -17,6 +17,7 @@ runs:
           echo "::error::setup-moonbit requires an explicit MoonBit version"
           exit 1
         fi
+        encoded_version="${version//+/%2B}"
 
         case "$(uname -s)" in
           Linux) os="linux" ;;
@@ -37,15 +38,17 @@ runs:
         esac
 
         artifact="moonbit-${os}-${arch}.tar.gz"
-        base_url="https://cli.moonbitlang.com/binaries/${version}"
-        archive_url="${base_url}/${artifact}"
+        archive_url="https://cli.moonbitlang.com/binaries/${encoded_version}/${artifact}"
         checksum_url="${archive_url}.sha256"
+        core_archive="core-${encoded_version}.tar.gz"
+        core_url="https://cli.moonbitlang.com/cores/${core_archive}"
 
         tmpdir="$(mktemp -d)"
         trap 'rm -rf "$tmpdir"' EXIT
 
         curl -fsSLo "$tmpdir/$artifact" "$archive_url"
         curl -fsSLo "$tmpdir/${artifact}.sha256" "$checksum_url"
+        curl -fsSLo "$tmpdir/$core_archive" "$core_url"
 
         expected_sha="$(awk '{ print $1 }' "$tmpdir/${artifact}.sha256")"
         actual_sha="$(shasum -a 256 "$tmpdir/$artifact" | awk '{ print $1 }')"
@@ -56,6 +59,8 @@ runs:
 
         extract_dir="$tmpdir/extract"
         install_root="$HOME/.moon"
+        bin_dir="$install_root/bin"
+        lib_dir="$install_root/lib"
         mkdir -p "$extract_dir"
         tar -xzf "$tmpdir/$artifact" -C "$extract_dir"
 
@@ -72,6 +77,17 @@ runs:
         rm -rf "$install_root"
         mkdir -p "$install_root"
         cp -R "$install_src"/. "$install_root"/
+        chmod +x "$bin_dir"/*
+        if [ -e "$bin_dir/internal/tcc" ]; then
+          chmod +x "$bin_dir/internal/tcc"
+        fi
+
+        rm -rf "$lib_dir/core"
+        mkdir -p "$lib_dir"
+        tar -xzf "$tmpdir/$core_archive" -C "$lib_dir"
+
+        PATH="$bin_dir:$PATH" "$bin_dir/moon" -C "$lib_dir/core" bundle --warn-list -a --all
+        PATH="$bin_dir:$PATH" "$bin_dir/moon" -C "$lib_dir/core" bundle --warn-list -a --target wasm-gc --quiet
 
         "$install_root/bin/moon" version
         echo "$install_root/bin" >> "$GITHUB_PATH"
