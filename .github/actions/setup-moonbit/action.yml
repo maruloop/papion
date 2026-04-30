@@ -3,17 +3,75 @@ description: Install a MoonBit toolchain for CI
 inputs:
   version:
     description: MoonBit release version to install
-    required: false
-    default: ""
+    required: true
 runs:
   using: composite
   steps:
     - name: Install MoonBit CLI
       shell: bash
       run: |
-        if [ -n "${{ inputs.version }}" ]; then
-          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash -s -- "${{ inputs.version }}"
-        else
-          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
+        set -euo pipefail
+
+        version="${{ inputs.version }}"
+        if [ -z "$version" ]; then
+          echo "::error::setup-moonbit requires an explicit MoonBit version"
+          exit 1
         fi
-        echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
+
+        case "$(uname -s)" in
+          Linux) os="linux" ;;
+          Darwin) os="darwin" ;;
+          *)
+            echo "::error::Unsupported OS: $(uname -s)"
+            exit 1
+            ;;
+        esac
+
+        case "$(uname -m)" in
+          x86_64|amd64) arch="x86_64" ;;
+          arm64|aarch64) arch="aarch64" ;;
+          *)
+            echo "::error::Unsupported architecture: $(uname -m)"
+            exit 1
+            ;;
+        esac
+
+        artifact="moonbit-${os}-${arch}.tar.gz"
+        base_url="https://cli.moonbitlang.com/binaries/${version}"
+        archive_url="${base_url}/${artifact}"
+        checksum_url="${archive_url}.sha256"
+
+        tmpdir="$(mktemp -d)"
+        trap 'rm -rf "$tmpdir"' EXIT
+
+        curl -fsSLo "$tmpdir/$artifact" "$archive_url"
+        curl -fsSLo "$tmpdir/${artifact}.sha256" "$checksum_url"
+
+        expected_sha="$(awk '{ print $1 }' "$tmpdir/${artifact}.sha256")"
+        actual_sha="$(shasum -a 256 "$tmpdir/$artifact" | awk '{ print $1 }')"
+        if [ "$actual_sha" != "$expected_sha" ]; then
+          echo "::error::MoonBit archive checksum verification failed for $artifact"
+          exit 1
+        fi
+
+        extract_dir="$tmpdir/extract"
+        install_root="$HOME/.moon"
+        mkdir -p "$extract_dir"
+        tar -xzf "$tmpdir/$artifact" -C "$extract_dir"
+
+        install_src="$extract_dir"
+        if [ ! -x "$install_src/bin/moon" ]; then
+          install_src="$(find "$extract_dir" -mindepth 1 -maxdepth 2 -type d -path '*/bin' | sed 's#/bin$##' | head -n 1)"
+        fi
+
+        if [ -z "$install_src" ] || [ ! -x "$install_src/bin/moon" ]; then
+          echo "::error::Could not locate extracted MoonBit toolchain in $artifact"
+          exit 1
+        fi
+
+        rm -rf "$install_root"
+        mkdir -p "$install_root"
+        cp -R "$install_src"/. "$install_root"/
+
+        "$install_root/bin/moon" version
+        echo "$install_root/bin" >> "$GITHUB_PATH"
