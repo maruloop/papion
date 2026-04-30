@@ -17,6 +17,12 @@ runs:
           echo "::error::setup-moonbit requires an explicit MoonBit version"
           exit 1
         fi
+        case "$version" in
+          *[!A-Za-z0-9._+-]*|*..*)
+            echo "::error::Invalid MoonBit version: $version"
+            exit 1
+            ;;
+        esac
         encoded_version="${version//+/%2B}"
 
         case "$(uname -s)" in
@@ -40,7 +46,7 @@ runs:
         artifact="moonbit-${os}-${arch}.tar.gz"
         archive_url="https://cli.moonbitlang.com/binaries/${encoded_version}/${artifact}"
         checksum_url="${archive_url}.sha256"
-        core_archive="core-${encoded_version}.tar.gz"
+        core_archive="core-${version}.tar.gz"
         core_url="https://cli.moonbitlang.com/cores/${core_archive}"
 
         tmpdir="$(mktemp -d)"
