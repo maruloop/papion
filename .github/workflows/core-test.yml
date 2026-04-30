@@ -3,9 +3,9 @@ name: Core Tests
 on:
   push:
     branches: [main]
-    paths: ['core/**', '.github/workflows/core-test.yml']
+    paths: ['core/**', '.github/workflows/core-test.yml', '.github/actions/setup-moonbit/**']
   pull_request:
-    paths: ['core/**', '.github/workflows/core-test.yml']
+    paths: ['core/**', '.github/workflows/core-test.yml', '.github/actions/setup-moonbit/**']
 
 jobs:
   test:
