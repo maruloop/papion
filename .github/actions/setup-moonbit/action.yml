@@ -24,8 +24,13 @@ runs:
         validate_tar_archive() {
           local archive="$1"
           local entry
+          local normalized_entry
           while IFS= read -r entry; do
-            case "$entry" in
+            normalized_entry="$entry"
+            while [[ "$normalized_entry" == ./* ]]; do
+              normalized_entry="${normalized_entry#./}"
+            done
+            case "$normalized_entry" in
               /*|../*|*/../*|..|*/..)
                 echo "::error::Unsafe archive entry '$entry' in $archive"
                 return 1
@@ -45,7 +50,7 @@ runs:
                 return 1
                 ;;
             esac
-          done < <(tar -tvzf "$archive" | awk '{ print $1 }')
+          done < <(tar -tvzf "$archive")
         }
 
         reject_symlinks() {
