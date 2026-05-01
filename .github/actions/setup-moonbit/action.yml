@@ -23,6 +23,19 @@ runs:
 
         validate_tar_archive() {
           local archive="$1"
+          local validate_dir
+          validate_dir="$(make_temp_dir)"
+          if ! tar -tzf "$archive" > "$validate_dir/paths"; then
+            echo "::error::Failed to list archive paths in $archive"
+            rm -rf "$validate_dir"
+            return 1
+          fi
+          if ! tar -tvzf "$archive" > "$validate_dir/metadata"; then
+            echo "::error::Failed to inspect archive metadata in $archive"
+            rm -rf "$validate_dir"
+            return 1
+          fi
+
           local entry
           local normalized_entry
           while IFS= read -r entry; do
@@ -33,24 +46,28 @@ runs:
             case "$normalized_entry" in
               /*|../*|*/../*|..|*/..)
                 echo "::error::Unsafe archive entry '$entry' in $archive"
+                rm -rf "$validate_dir"
                 return 1
                 ;;
             esac
-          done < <(tar -tzf "$archive")
+          done < "$validate_dir/paths"
 
           local metadata
           local type
           while IFS= read -r metadata; do
             type="${metadata:0:1}"
             case "$type" in
-              d|-)
+              d|-|x|g|L|K)
                 ;;
               *)
                 echo "::error::Unsupported archive entry type '$type' in $archive: $metadata"
+                rm -rf "$validate_dir"
                 return 1
                 ;;
             esac
-          done < <(tar -tvzf "$archive")
+          done < "$validate_dir/metadata"
+
+          rm -rf "$validate_dir"
         }
 
         reject_symlinks() {
