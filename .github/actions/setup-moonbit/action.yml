@@ -34,6 +34,17 @@ runs:
           done < <(tar -tzf "$archive")
         }
 
+        reject_symlinks() {
+          local root="$1"
+          local label="$2"
+          local link
+          link="$(find "$root" -type l -print -quit)"
+          if [ -n "$link" ]; then
+            echo "::error::Unexpected symlink in $label: $link"
+            return 1
+          fi
+        }
+
         version="${{ inputs.version }}"
         if [ -z "$version" ]; then
           echo "::error::setup-moonbit requires an explicit MoonBit version"
@@ -109,11 +120,12 @@ runs:
           echo "::error::Could not locate extracted MoonBit toolchain in $artifact"
           exit 1
         fi
+        reject_symlinks "$install_src" "MoonBit toolchain"
 
         rm -rf "$install_root"
         mkdir -p "$install_root"
         cp -R "$install_src"/. "$install_root"/
-        chmod +x "$bin_dir"/*
+        find "$bin_dir" -maxdepth 1 -type f -exec chmod +x {} +
         if [ -e "$bin_dir/internal/tcc" ]; then
           chmod +x "$bin_dir/internal/tcc"
         fi
@@ -126,6 +138,7 @@ runs:
           echo "::error::Invalid MoonBit core archive layout in $core_archive from $core_url"
           exit 1
         fi
+        reject_symlinks "$core_extract_dir/core" "MoonBit core archive"
         cp -R "$core_extract_dir/core" "$lib_dir/core"
 
         PATH="$bin_dir:$PATH" "$bin_dir/moon" -C "$lib_dir/core" bundle --warn-list -a --all
