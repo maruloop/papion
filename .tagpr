@@ -1,3 +1,4 @@
 [tagpr]
 	vPrefix = true
 	release = false
+	changelog = true
