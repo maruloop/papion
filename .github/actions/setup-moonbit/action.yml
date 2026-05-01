@@ -66,10 +66,12 @@ runs:
         fi
 
         extract_dir="$tmpdir/extract"
+        core_extract_dir="$tmpdir/core-extract"
         install_root="$HOME/.moon"
         bin_dir="$install_root/bin"
         lib_dir="$install_root/lib"
         mkdir -p "$extract_dir"
+        mkdir -p "$core_extract_dir"
         tar -xzf "$tmpdir/$artifact" -C "$extract_dir"
 
         install_src="$extract_dir"
@@ -95,11 +97,12 @@ runs:
 
         rm -rf "$lib_dir/core"
         mkdir -p "$lib_dir"
-        tar -xzf "$tmpdir/$core_archive" -C "$lib_dir"
-        if [ ! -d "$lib_dir/core" ] || [ ! -f "$lib_dir/core/moon.mod.json" ]; then
+        tar -xzf "$tmpdir/$core_archive" -C "$core_extract_dir"
+        if [ ! -d "$core_extract_dir/core" ] || [ ! -f "$core_extract_dir/core/moon.mod.json" ]; then
           echo "::error::Invalid MoonBit core archive layout in $core_archive from $core_url"
           exit 1
         fi
+        cp -R "$core_extract_dir/core" "$lib_dir/core"
 
         PATH="$bin_dir:$PATH" "$bin_dir/moon" -C "$lib_dir/core" bundle --warn-list -a --all
         PATH="$bin_dir:$PATH" "$bin_dir/moon" -C "$lib_dir/core" bundle --warn-list -a --target wasm-gc --quiet
