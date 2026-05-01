@@ -12,6 +12,28 @@ runs:
       run: |
         set -euo pipefail
 
+        make_temp_dir() {
+          local dir
+          if dir="$(mktemp -d 2>/dev/null)"; then
+            printf '%s\n' "$dir"
+            return 0
+          fi
+          mktemp -d -t papion-moonbit
+        }
+
+        validate_tar_paths() {
+          local archive="$1"
+          local entry
+          while IFS= read -r entry; do
+            case "$entry" in
+              /*|../*|*/../*|..|*/..)
+                echo "::error::Unsafe archive entry '$entry' in $archive"
+                return 1
+                ;;
+            esac
+          done < <(tar -tzf "$archive")
+        }
+
         version="${{ inputs.version }}"
         if [ -z "$version" ]; then
           echo "::error::setup-moonbit requires an explicit MoonBit version"
@@ -49,12 +71,12 @@ runs:
         core_archive="core-${version}.tar.gz"
         core_url="https://cli.moonbitlang.com/cores/core-${encoded_version}.tar.gz"
 
-        tmpdir="$(mktemp -d)"
+        tmpdir="$(make_temp_dir)"
         trap 'rm -rf "$tmpdir"' EXIT
 
-        curl -fsSLo "$tmpdir/$artifact" "$archive_url"
-        curl -fsSLo "$tmpdir/${artifact}.sha256" "$checksum_url"
-        curl -fsSLo "$tmpdir/$core_archive" "$core_url"
+        curl -fsSL --retry 3 -o "$tmpdir/$artifact" "$archive_url"
+        curl -fsSL --retry 3 -o "$tmpdir/${artifact}.sha256" "$checksum_url"
+        curl -fsSL --retry 3 -o "$tmpdir/$core_archive" "$core_url"
 
         expected_sha="$(awk '{ print $1 }' "$tmpdir/${artifact}.sha256")"
         actual_sha="$(shasum -a 256 "$tmpdir/$artifact" | awk '{ print $1 }')"
@@ -72,6 +94,7 @@ runs:
         lib_dir="$install_root/lib"
         mkdir -p "$extract_dir"
         mkdir -p "$core_extract_dir"
+        validate_tar_paths "$tmpdir/$artifact"
         tar -xzf "$tmpdir/$artifact" -C "$extract_dir"
 
         install_src="$extract_dir"
@@ -97,6 +120,7 @@ runs:
 
         rm -rf "$lib_dir/core"
         mkdir -p "$lib_dir"
+        validate_tar_paths "$tmpdir/$core_archive"
         tar -xzf "$tmpdir/$core_archive" -C "$core_extract_dir"
         if [ ! -d "$core_extract_dir/core" ] || [ ! -f "$core_extract_dir/core/moon.mod.json" ]; then
           echo "::error::Invalid MoonBit core archive layout in $core_archive from $core_url"
