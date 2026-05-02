@@ -83,7 +83,11 @@ jobs:
           TAG: ${{ needs.tagpr.outputs.tag }}
           REPO: ${{ github.repository }}
         run: |
-          gh release create "$TAG" *.tar.gz --generate-notes --latest -R "$REPO"
+          if gh release view "$TAG" -R "$REPO" >/dev/null 2>&1; then
+            gh release upload "$TAG" *.tar.gz --clobber -R "$REPO"
+          else
+            gh release create "$TAG" *.tar.gz --generate-notes --latest -R "$REPO"
+          fi
 
   docker:
     needs: [tagpr, build]
@@ -102,6 +106,11 @@ jobs:
           registry: ghcr.io
           username: ${{ github.actor }}
           password: ${{ github.token }}
+      - name: Extract version
+        id: meta
+        run: |
+          VERSION="${{ needs.tagpr.outputs.tag }}"
+          echo "version=${VERSION#v}" >> "$GITHUB_OUTPUT"
       - name: Build and push
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
@@ -109,5 +118,5 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            ghcr.io/${{ github.repository }}:${{ needs.tagpr.outputs.tag }}
+            ghcr.io/${{ github.repository }}:${{ steps.meta.outputs.version }}
             ghcr.io/${{ github.repository }}:latest
