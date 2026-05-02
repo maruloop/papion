@@ -1,4 +1,6 @@
 [tagpr]
 	vPrefix = true
+	# release = false is required: GitHub Release creation is handled by
+	# the publish job in release.yml. tagpr must not create it.
 	release = false
 	changelog = true
