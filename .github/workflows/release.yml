@@ -87,8 +87,9 @@ jobs:
           REPO: ${{ github.repository }}
         run: |
           if ! gh release view "$TAG" -R "$REPO" >/dev/null 2>&1; then
-            gh release create "$TAG" *.tar.gz --generate-notes --latest -R "$REPO"
+            gh release create "$TAG" --generate-notes --latest -R "$REPO"
           fi
+          gh release upload "$TAG" *.tar.gz --clobber -R "$REPO"
 
   docker:
     needs: [tagpr, build]
