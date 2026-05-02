@@ -4,3 +4,5 @@
 	# the publish job in release.yml. tagpr must not create it.
 	release = false
 	changelog = true
+	releaseBranch = main
+	versionFile = -
