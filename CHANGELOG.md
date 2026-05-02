@@ -1,0 +1,31 @@
+# Changelog
+
+## [v0.0.1](https://github.com/maruloop/papion/commits/v0.0.1) - 2026-05-02
+- Add ADR and Claude workstyle guide by @maruloop in https://github.com/maruloop/papion/pull/1
+- NO-ISSUE WS1: Add MoonBit core data types by @maruloop in https://github.com/maruloop/papion/pull/12
+- NO-ISSUE WS2: Add core/parser package by @maruloop in https://github.com/maruloop/papion/pull/13
+- NO-ISSUE WS3: Add core/config package by @maruloop in https://github.com/maruloop/papion/pull/14
+- NO-ISSUE WS4: Add core/rules package by @maruloop in https://github.com/maruloop/papion/pull/15
+- NO-ISSUE fix(readme): align JSON/human examples with actual formatter output by @maruloop in https://github.com/maruloop/papion/pull/22
+- Add GitHub Actions 2026 security roadmap context to ADR by @maruloop in https://github.com/maruloop/papion/pull/23
+- WS2 refactor: Parse action.yml YAML directly in core by @maruloop in https://github.com/maruloop/papion/pull/16
+- CI: make Core Tests fail on MoonBit warnings by @Copilot in https://github.com/maruloop/papion/pull/25
+- NO-ISSUE WS5: Add core/engine — scan orchestrator by @maruloop in https://github.com/maruloop/papion/pull/17
+- NO-ISSUE WS7: Add core/format — output formatting by @maruloop in https://github.com/maruloop/papion/pull/18
+- Align ADR with MoonBit native CLI architecture (preserve Go/WASM history with explicit transition decision and Docker fallback) by @Copilot in https://github.com/maruloop/papion/pull/29
+- NO-ISSUE docs: reframe CLI from Go+WASM to MoonBit native (Decision 18) by @maruloop in https://github.com/maruloop/papion/pull/30
+- WS6: core/cli — MoonBit native CLI host layer by @maruloop in https://github.com/maruloop/papion/pull/31
+- refactor(cli): remove C FFI stubs and make native build pure MoonBit by @maruloop in https://github.com/maruloop/papion/pull/33
+- WS8: cli/ — real host integrations and integration tests by @maruloop in https://github.com/maruloop/papion/pull/34
+- refactor(cli): split shared, native, and wasm host packages by @maruloop in https://github.com/maruloop/papion/pull/39
+- fix(native): percent-encode URL components and add retry/timeout (#35, #36) by @maruloop in https://github.com/maruloop/papion/pull/40
+- feat(cli): support GitHub URLs without explicit refs by @maruloop in https://github.com/maruloop/papion/pull/43
+- feat(native): resolve ambiguous tree URL refs via GitHub matching-refs API by @maruloop in https://github.com/maruloop/papion/pull/45
+- feat(rules): allow immutable releases and verify SHAs via API by @maruloop in https://github.com/maruloop/papion/pull/46
+- feat(engine): recursive transitive scanning via BFS by @Copilot in https://github.com/maruloop/papion/pull/50
+- chore(moonbit): bump to v0.9 by @maruloop in https://github.com/maruloop/papion/pull/58
+- refactor(core): deduplicate target formatting, HTTP fetch, and JSON parsing by @maruloop in https://github.com/maruloop/papion/pull/59
+- Include setup-moonbit action path in CI workflow path filters by @Copilot in https://github.com/maruloop/papion/pull/60
+- feat(native): cache ref-kind API lookups per scan invocation by @maruloop in https://github.com/maruloop/papion/pull/61
+- fix(ci): harden setup-moonbit action installs by @maruloop in https://github.com/maruloop/papion/pull/63
+- Add tagpr for automated immutable releases with changelog by @Copilot in https://github.com/maruloop/papion/pull/65
