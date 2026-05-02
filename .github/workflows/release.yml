@@ -11,21 +11,29 @@ permissions:
   packages: write
 
 concurrency:
-  group: release
-  cancel-in-progress: false
+  group: tagpr-${{ github.sha }}
+  cancel-in-progress: true
 
 jobs:
   tagpr:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     outputs:
-      tag: ${{ steps.tagpr.outputs.tag }}
+      tag: ${{ steps.resolve.outputs.tag }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - uses: Songmu/tagpr@9bbb945b2fb025126186661e27d55485e3fc6df6
         id: tagpr
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Resolve tag
+        id: resolve
+        run: |
+          TAG="${{ steps.tagpr.outputs.tag }}"
+          if [ -z "$TAG" ]; then
+            TAG=$(git tag --points-at HEAD | grep -E '^v[0-9]' | head -1)
+          fi
+          echo "tag=$TAG" >> "$GITHUB_OUTPUT"
 
   build:
     needs: tagpr
