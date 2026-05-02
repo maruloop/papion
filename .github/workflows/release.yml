@@ -11,7 +11,7 @@ permissions:
   packages: write
 
 concurrency:
-  group: tagpr-${{ github.sha }}
+  group: release
   cancel-in-progress: true
 
 jobs:
@@ -23,7 +23,7 @@ jobs:
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
         with:
-          fetch-tags: true
+          fetch-depth: 0
       - uses: Songmu/tagpr@9bbb945b2fb025126186661e27d55485e3fc6df6
         id: tagpr
         env:
@@ -94,7 +94,9 @@ jobs:
           TAG: ${{ needs.tagpr.outputs.tag }}
           REPO: ${{ github.repository }}
         run: |
-          if ! gh release view "$TAG" -R "$REPO" >/dev/null 2>&1; then
+          if gh release view "$TAG" -R "$REPO" >/dev/null 2>&1; then
+            gh release upload "$TAG" *.tar.gz --clobber -R "$REPO"
+          else
             gh release create "$TAG" *.tar.gz --generate-notes --latest -R "$REPO"
           fi
 
