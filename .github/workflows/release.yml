@@ -2,15 +2,36 @@ name: Release
 
 on:
   push:
-    tags:
-      - "v*"
+    branches: [main]
 
 permissions:
   contents: write
+  pull-requests: write
+  issues: read
   packages: write
 
 jobs:
+  tagpr:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    concurrency:
+      group: tagpr
+      cancel-in-progress: true
+    outputs:
+      tag: ${{ steps.tagpr.outputs.tag }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - uses: Songmu/tagpr@9bbb945b2fb025126186661e27d55485e3fc6df6
+        id: tagpr
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
   build:
+    needs: tagpr
+    if: needs.tagpr.outputs.tag != ''
+    concurrency:
+      group: release-${{ needs.tagpr.outputs.tag }}
+      cancel-in-progress: false
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     env:
@@ -28,6 +49,8 @@ jobs:
         working-directory: core
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          ref: ${{ needs.tagpr.outputs.tag }}
       - uses: ./.github/actions/setup-moonbit
         with:
           version: ${{ env.MOONBIT_VERSION }}
@@ -43,41 +66,44 @@ jobs:
           cp "$BIN" dist/papion
           chmod +x dist/papion
           tar -C dist -czf "$OUT" papion
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: papion-${{ matrix.target }}
           path: core/papion-${{ matrix.target }}.tar.gz
 
-  release:
-    needs: build
+  publish:
+    needs: [tagpr, build]
+    if: needs.tagpr.outputs.tag != ''
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
         with:
           merge-multiple: true
       - name: Create GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
-          TAG: ${{ github.ref_name }}
+          TAG: ${{ needs.tagpr.outputs.tag }}
           REPO: ${{ github.repository }}
         run: |
-          if gh release view "$TAG" -R "$REPO" >/dev/null 2>&1; then
-            gh release upload "$TAG" *.tar.gz --clobber -R "$REPO"
-          else
-            gh release create "$TAG" *.tar.gz --generate-notes -R "$REPO"
+          if ! gh release view "$TAG" -R "$REPO" >/dev/null 2>&1; then
+            gh release create "$TAG" --generate-notes --latest -R "$REPO"
           fi
+          gh release upload "$TAG" *.tar.gz --clobber -R "$REPO"
 
   docker:
-    needs: build
+    needs: [tagpr, build]
+    if: needs.tagpr.outputs.tag != ''
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-      - uses: docker/setup-qemu-action@v3
-      - uses: docker/setup-buildx-action@v3
+        with:
+          ref: ${{ needs.tagpr.outputs.tag }}
+      - uses: docker/setup-qemu-action@c7c53464625b32c7a7e944ae62b3e17d2b600130 # v3.7.0
+      - uses: docker/setup-buildx-action@8d2750c68a42422c14e847fe6c8ac0403b4cbd6f # v3.12.0
       - name: Login to GHCR
-        uses: docker/login-action@v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -85,10 +111,10 @@ jobs:
       - name: Extract version
         id: meta
         run: |
-          VERSION="${GITHUB_REF_NAME#v}"
-          echo "version=${VERSION}" >> "$GITHUB_OUTPUT"
+          VERSION="${{ needs.tagpr.outputs.tag }}"
+          echo "version=${VERSION#v}" >> "$GITHUB_OUTPUT"
       - name: Build and push
-        uses: docker/build-push-action@v6
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6.19.2
         with:
           context: .
           platforms: linux/amd64,linux/arm64
