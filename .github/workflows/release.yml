@@ -22,6 +22,8 @@ jobs:
       tag: ${{ steps.resolve.outputs.tag }}
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          fetch-tags: true
       - uses: Songmu/tagpr@9bbb945b2fb025126186661e27d55485e3fc6df6
         id: tagpr
         env:
