@@ -84,9 +84,7 @@ jobs:
           TAG: ${{ needs.tagpr.outputs.tag }}
           REPO: ${{ github.repository }}
         run: |
-          if gh release view "$TAG" -R "$REPO" >/dev/null 2>&1; then
-            gh release upload "$TAG" *.tar.gz --clobber -R "$REPO"
-          else
+          if ! gh release view "$TAG" -R "$REPO" >/dev/null 2>&1; then
             gh release create "$TAG" *.tar.gz --generate-notes --latest -R "$REPO"
           fi
 
