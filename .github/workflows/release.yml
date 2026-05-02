@@ -10,14 +10,13 @@ permissions:
   issues: read
   packages: write
 
-concurrency:
-  group: release
-  cancel-in-progress: true
-
 jobs:
   tagpr:
     runs-on: ubuntu-latest
     timeout-minutes: 10
+    concurrency:
+      group: tagpr
+      cancel-in-progress: true
     outputs:
       tag: ${{ steps.resolve.outputs.tag }}
     steps:
@@ -40,6 +39,9 @@ jobs:
   build:
     needs: tagpr
     if: needs.tagpr.outputs.tag != ''
+    concurrency:
+      group: release-${{ needs.tagpr.outputs.tag }}
+      cancel-in-progress: false
     runs-on: ${{ matrix.os }}
     timeout-minutes: 30
     env:
@@ -94,9 +96,7 @@ jobs:
           TAG: ${{ needs.tagpr.outputs.tag }}
           REPO: ${{ github.repository }}
         run: |
-          if gh release view "$TAG" -R "$REPO" >/dev/null 2>&1; then
-            gh release upload "$TAG" *.tar.gz --clobber -R "$REPO"
-          else
+          if ! gh release view "$TAG" -R "$REPO" >/dev/null 2>&1; then
             gh release create "$TAG" *.tar.gz --generate-notes --latest -R "$REPO"
           fi
 
