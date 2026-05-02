@@ -3,17 +3,196 @@ description: Install a MoonBit toolchain for CI
 inputs:
   version:
     description: MoonBit release version to install
-    required: false
-    default: ""
+    required: true
 runs:
   using: composite
   steps:
     - name: Install MoonBit CLI
       shell: bash
       run: |
-        if [ -n "${{ inputs.version }}" ]; then
-          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash -s -- "${{ inputs.version }}"
-        else
-          curl -fsSL https://cli.moonbitlang.com/install/unix.sh | bash
+        set -euo pipefail
+
+        make_temp_dir() {
+          local dir
+          if dir="$(mktemp -d 2>/dev/null)"; then
+            printf '%s\n' "$dir"
+            return 0
+          fi
+          mktemp -d -t papion-moonbit
+        }
+
+        validate_tar_archive() {
+          local archive="$1"
+          local validate_dir
+          validate_dir="$(make_temp_dir)"
+          if ! tar -tzf "$archive" > "$validate_dir/paths"; then
+            echo "::error::Failed to list archive paths in $archive"
+            rm -rf "$validate_dir"
+            return 1
+          fi
+          if ! tar -tvzf "$archive" > "$validate_dir/metadata"; then
+            echo "::error::Failed to inspect archive metadata in $archive"
+            rm -rf "$validate_dir"
+            return 1
+          fi
+
+          local entry
+          local normalized_entry
+          while IFS= read -r entry; do
+            normalized_entry="$entry"
+            while [[ "$normalized_entry" == ./* ]]; do
+              normalized_entry="${normalized_entry#./}"
+            done
+            case "$normalized_entry" in
+              /*|../*|*/../*|..|*/..)
+                echo "::error::Unsafe archive entry '$entry' in $archive"
+                rm -rf "$validate_dir"
+                return 1
+                ;;
+            esac
+          done < "$validate_dir/paths"
+
+          local metadata
+          local type
+          while IFS= read -r metadata; do
+            type="${metadata:0:1}"
+            case "$type" in
+              d|-|x|g|L|K)
+                ;;
+              *)
+                echo "::error::Unsupported archive entry type '$type' in $archive: $metadata"
+                rm -rf "$validate_dir"
+                return 1
+                ;;
+            esac
+          done < "$validate_dir/metadata"
+
+          rm -rf "$validate_dir"
+        }
+
+        reject_symlinks() {
+          local root="$1"
+          local label="$2"
+          local link
+          link="$(find "$root" -type l -print -quit)"
+          if [ -n "$link" ]; then
+            echo "::error::Unexpected symlink in $label: $link"
+            return 1
+          fi
+        }
+
+        version="${{ inputs.version }}"
+        if [ -z "$version" ]; then
+          echo "::error::setup-moonbit requires an explicit MoonBit version"
+          exit 1
         fi
-        echo "$HOME/.moon/bin" >> "$GITHUB_PATH"
+        case "$version" in
+          *[!A-Za-z0-9._+-]*|*..*)
+            echo "::error::Invalid MoonBit version: $version"
+            exit 1
+            ;;
+        esac
+        encoded_version="${version//+/%2B}"
+
+        case "$(uname -s)" in
+          Linux) os="linux" ;;
+          Darwin) os="darwin" ;;
+          *)
+            echo "::error::Unsupported OS: $(uname -s)"
+            exit 1
+            ;;
+        esac
+
+        case "$(uname -m)" in
+          x86_64|amd64) arch="x86_64" ;;
+          arm64|aarch64) arch="aarch64" ;;
+          *)
+            echo "::error::Unsupported architecture: $(uname -m)"
+            exit 1
+            ;;
+        esac
+
+        artifact="moonbit-${os}-${arch}.tar.gz"
+        archive_url="https://cli.moonbitlang.com/binaries/${encoded_version}/${artifact}"
+        checksum_url="${archive_url}.sha256"
+        core_archive="core-${version}.tar.gz"
+        core_url="https://cli.moonbitlang.com/cores/core-${encoded_version}.tar.gz"
+
+        tmpdir="$(make_temp_dir)"
+        trap 'rm -rf "$tmpdir"' EXIT
+
+        curl -fsSL --retry 3 -o "$tmpdir/$artifact" "$archive_url"
+        curl -fsSL --retry 3 -o "$tmpdir/${artifact}.sha256" "$checksum_url"
+        curl -fsSL --retry 3 -o "$tmpdir/$core_archive" "$core_url"
+
+        checksum_file="$tmpdir/${artifact}.sha256"
+        expected_sha="$(awk 'NR == 1 { print $1 }' "$checksum_file")"
+        checksum_target="$(awk 'NR == 1 { print $2 }' "$checksum_file")"
+        checksum_target="${checksum_target#\*}"
+        if [[ ! "$expected_sha" =~ ^[0-9a-fA-F]{64}$ ]]; then
+          echo "::error::Invalid sha256 content in $checksum_url"
+          echo "::error::expected a 64-character hex digest, got: ${expected_sha:-<empty>}"
+          exit 1
+        fi
+        if [ -n "$checksum_target" ] && [ "$checksum_target" != "$artifact" ]; then
+          echo "::error::Checksum file target mismatch in $checksum_url"
+          echo "::error::expected filename: $artifact"
+          echo "::error::checksum filename: $checksum_target"
+          exit 1
+        fi
+        actual_sha="$(shasum -a 256 "$tmpdir/$artifact" | awk '{ print $1 }')"
+        if [ "$actual_sha" != "$expected_sha" ]; then
+          echo "::error::MoonBit archive checksum verification failed for $artifact from $archive_url"
+          echo "::error::expected sha256: $expected_sha"
+          echo "::error::actual sha256:   $actual_sha"
+          exit 1
+        fi
+
+        extract_dir="$tmpdir/extract"
+        core_extract_dir="$tmpdir/core-extract"
+        install_root="$HOME/.moon"
+        bin_dir="$install_root/bin"
+        lib_dir="$install_root/lib"
+        mkdir -p "$extract_dir"
+        mkdir -p "$core_extract_dir"
+        validate_tar_archive "$tmpdir/$artifact"
+        tar -xzf "$tmpdir/$artifact" -C "$extract_dir"
+
+        install_src="$extract_dir"
+        if [ ! -e "$install_src/bin/moon" ]; then
+          bin_dir_match="$(find "$extract_dir" -mindepth 1 -maxdepth 2 -type d -path '*/bin' -print -quit)"
+          if [ -n "$bin_dir_match" ]; then
+            install_src="${bin_dir_match%/bin}"
+          fi
+        fi
+
+        if [ -z "$install_src" ] || [ ! -e "$install_src/bin/moon" ]; then
+          echo "::error::Could not locate extracted MoonBit toolchain in $artifact"
+          exit 1
+        fi
+        reject_symlinks "$install_src" "MoonBit toolchain"
+
+        rm -rf "$install_root"
+        mkdir -p "$install_root"
+        cp -R "$install_src"/. "$install_root"/
+        find "$bin_dir" -maxdepth 1 -type f -exec chmod +x {} +
+        if [ -e "$bin_dir/internal/tcc" ]; then
+          chmod +x "$bin_dir/internal/tcc"
+        fi
+
+        rm -rf "$lib_dir/core"
+        mkdir -p "$lib_dir"
+        validate_tar_archive "$tmpdir/$core_archive"
+        tar -xzf "$tmpdir/$core_archive" -C "$core_extract_dir"
+        if [ ! -d "$core_extract_dir/core" ] || [ ! -f "$core_extract_dir/core/moon.mod.json" ]; then
+          echo "::error::Invalid MoonBit core archive layout in $core_archive from $core_url"
+          exit 1
+        fi
+        reject_symlinks "$core_extract_dir/core" "MoonBit core archive"
+        cp -R "$core_extract_dir/core" "$lib_dir/core"
+
+        PATH="$bin_dir:$PATH" "$bin_dir/moon" -C "$lib_dir/core" bundle --warn-list -a --all
+        PATH="$bin_dir:$PATH" "$bin_dir/moon" -C "$lib_dir/core" bundle --warn-list -a --target wasm-gc --quiet
+
+        "$install_root/bin/moon" version
+        echo "$install_root/bin" >> "$GITHUB_PATH"
