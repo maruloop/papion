@@ -76,12 +76,27 @@ fn list_dir(path : String) -> Result[Array[String], String] {
   if local_list_dir_ffi(c_string_bytes(path)) == 0 {
     return Err(error_string())
   }
-  let text = result_string()
-  if text.is_empty() {
-    Ok([])
-  } else {
-    Ok(text.split("\n").map(fn(part) { part.to_string() }).to_array())
+  let len = local_result_len_ffi()
+  if len == 0 {
+    return Ok([])
   }
+  let entries : Array[String] = []
+  let buf : Array[Byte] = []
+  for i = 0; i < len; i = i + 1 {
+    let b = local_result_byte_ffi(i).to_byte()
+    if b == b'\x00' {
+      if buf.length() > 0 {
+        entries.push(@utf8.decode_lossy(Bytes::from_array(buf)))
+        buf.clear()
+      }
+    } else {
+      buf.push(b)
+    }
+  }
+  if buf.length() > 0 {
+    entries.push(@utf8.decode_lossy(Bytes::from_array(buf)))
+  }
+  Ok(entries)
 }
 
 ///|

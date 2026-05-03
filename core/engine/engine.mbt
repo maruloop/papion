@@ -121,6 +121,7 @@ fn scan_impl(
   ) {
     @rules.classify_ref(git_ref)
   },
+  workflow_base_dir? : String,
 ) -> Result[@papion.ScanResult, String] {
   let policy = match policy.normalized() {
     Ok(p) => p
@@ -128,9 +129,13 @@ fn scan_impl(
   }
   let root_base_dir : String? = match target {
     @papion.Local({ path }) =>
-      match path.rev_find("/") {
-        Some(idx) => Some(path[:idx].to_string())
-        None => Some(".")
+      match workflow_base_dir {
+        Some(d) => Some(d)
+        None =>
+          match path.rev_find("/") {
+            Some(idx) => Some(path[:idx].to_string())
+            None => Some(".")
+          }
       }
     @papion.GitHub(_) => None
   }
@@ -242,7 +247,7 @@ fn scan_impl(
                         queue.push({
                           yaml_str: fetched_yaml,
                           depth: node.depth + 1,
-                          via: node.via,
+                          via: Some("via \{rel_path}"),
                           base_dir: Some(child_base_dir),
                         })
                       }
@@ -307,6 +312,7 @@ pub fn scan_workflow(
   ) {
     @rules.classify_ref(git_ref)
   },
+  workflow_base_dir? : String,
 ) -> Result[@papion.ScanResult, String] {
   scan_impl(
     target,
@@ -316,5 +322,6 @@ pub fn scan_workflow(
     Workflow,
     fetch_local~,
     resolve_ref_kind~,
+    workflow_base_dir?=workflow_base_dir,
   )
 }

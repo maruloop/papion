@@ -10,13 +10,30 @@
 #include <unistd.h>
 
 static char *papion_local_result_buf = NULL;
+static size_t papion_local_result_buf_len = 0;
 static char *papion_local_error_buf = NULL;
 
-static void papion_local_replace(char **slot, const char *value) {
-  if (*slot != NULL) {
-    free(*slot);
+static void papion_local_replace_err(const char *value) {
+  if (papion_local_error_buf != NULL) {
+    free(papion_local_error_buf);
   }
-  *slot = strdup(value == NULL ? "" : value);
+  papion_local_error_buf = strdup(value == NULL ? "" : value);
+}
+
+static void papion_local_replace_result(const char *value, size_t len) {
+  if (papion_local_result_buf != NULL) {
+    free(papion_local_result_buf);
+  }
+  if (len == 0) {
+    papion_local_result_buf = strdup("");
+    papion_local_result_buf_len = 0;
+    return;
+  }
+  papion_local_result_buf = malloc(len);
+  if (papion_local_result_buf != NULL) {
+    memcpy(papion_local_result_buf, value, len);
+  }
+  papion_local_result_buf_len = (papion_local_result_buf != NULL) ? len : 0;
 }
 
 static void papion_local_set_errorf(const char *fmt, ...) {
@@ -25,15 +42,16 @@ static void papion_local_set_errorf(const char *fmt, ...) {
   char stack_buf[1024];
   vsnprintf(stack_buf, sizeof(stack_buf), fmt, args);
   va_end(args);
-  papion_local_replace(&papion_local_error_buf, stack_buf);
+  papion_local_replace_err(stack_buf);
 }
 
 static void papion_local_set_result(const char *value) {
-  papion_local_replace(&papion_local_result_buf, value);
+  size_t len = value == NULL ? 0 : strlen(value);
+  papion_local_replace_result(value, len);
 }
 
 int papion_local_result_len(void) {
-  return papion_local_result_buf == NULL ? 0 : (int)strlen(papion_local_result_buf);
+  return (int)papion_local_result_buf_len;
 }
 
 int papion_local_error_len(void) {
@@ -44,8 +62,7 @@ int papion_local_result_byte(int index) {
   if (papion_local_result_buf == NULL || index < 0) {
     return 0;
   }
-  size_t len = strlen(papion_local_result_buf);
-  if ((size_t)index >= len) {
+  if ((size_t)index >= papion_local_result_buf_len) {
     return 0;
   }
   return (unsigned char)papion_local_result_buf[index];
@@ -134,14 +151,14 @@ int papion_local_list_dir(const char *path) {
       buffer = grown;
     }
     if (length != 0) {
-      buffer[length++] = '\n';
+      buffer[length++] = '\0';
     }
     memcpy(buffer + length, entry->d_name, name_len);
     length += name_len;
     buffer[length] = '\0';
   }
   closedir(dir);
-  papion_local_set_result(buffer);
+  papion_local_replace_result(buffer, length);
   free(buffer);
   return 1;
 }

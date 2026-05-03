@@ -35,13 +35,13 @@ fn build_fetch_local(
     Ok(p) => p
     Err(_) => path
   }
-  let root_dir = if read_utf8_file(root_abs) is Ok(_) {
-    match root_abs.rev_find("/") {
-      Some(idx) => root_abs[:idx].to_string()
-      None => "."
-    }
-  } else {
-    root_abs
+  let root_dir = match path_kind(root_abs) {
+    Ok(File) =>
+      match root_abs.rev_find("/") {
+        Some(idx) => root_abs[:idx].to_string()
+        None => "."
+      }
+    _ => root_abs
   }
   make_fetch_local(root_dir)
 }

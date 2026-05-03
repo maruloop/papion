@@ -306,10 +306,7 @@ pub fn extract_refs_from_workflow(
 ) -> Array[@papion.ParsedRef] {
   let refs = Array::new()
   for _, job in wf.jobs {
-    match job.uses {
-      None => ()
-      Some(uses_str) => collect_ref(refs, uses_str)
-    }
+    // job.uses is a reusable workflow ref — skip transitive scanning
     match job.steps {
       None => ()
       Some(steps) =>

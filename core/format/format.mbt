@@ -98,7 +98,7 @@ fn finding_to_json(f : @papion.Finding) -> Json {
 ///
 /// Target is serialized as a stable string: "owner/repo@ref" for GitHub or "local:<path>" for local.
 /// Level values are lowercase ("warn"/"fail").
-/// The top-level `ref` field contains the resolved target ref (GitHub scans only).
+/// The top-level `ref` field is present only for GitHub scans and contains the resolved git ref.
 /// Optional finding fields (context, suggestion) are omitted when absent.
 pub fn format_json(result : @papion.ScanResult) -> String {
   let root : Map[String, Json] = {

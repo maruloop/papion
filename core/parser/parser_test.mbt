@@ -351,11 +351,12 @@ test "parse_workflow_yml with reusable workflow and step uses" {
 }
 
 ///|
-test "extract_refs_from_workflow collects reusable workflows and steps" {
+test "extract_refs_from_workflow collects step refs but skips reusable workflow job refs" {
   let wf : @papion.WorkflowYml = {
     name: Some("CI"),
     jobs: {
       "call-reusable": {
+        // job.uses is a reusable workflow ref — not scanned transitively
         uses: Some("org/reusable/.github/workflows/build.yml@v1"),
         steps: None,
       },
@@ -370,7 +371,6 @@ test "extract_refs_from_workflow collects reusable workflows and steps" {
     },
   }
   let refs = extract_refs_from_workflow(wf)
-  // order depends on Map iteration; collect by variant for stable comparison
   let github_refs = refs.filter(fn(r) {
     match r {
       @papion.GitHub(_) => true
@@ -383,9 +383,10 @@ test "extract_refs_from_workflow collects reusable workflows and steps" {
       _ => false
     }
   })
-  assert_eq(github_refs.length(), 2)
+  // reusable workflow job ref is excluded; only step refs are collected
+  assert_eq(github_refs.length(), 1)
   assert_eq(local_refs.length(), 1)
   assert_eq(local_refs[0], @papion.LocalPath("./local/action"))
   // docker:// is skipped
-  assert_eq(refs.length(), 3)
+  assert_eq(refs.length(), 2)
 }

@@ -36,6 +36,29 @@ pub(all) struct LocalScanUnit {
 } derive(Debug, Eq)
 
 ///|
+fn parent_path(path : String) -> String? {
+  let trimmed = path.trim_end(chars="/")
+  match trimmed.rev_find("/") {
+    Some(idx) => Some(trimmed[:idx].to_string())
+    None => None
+  }
+}
+
+///|
+/// Compute the repo root for a workflow file assumed to live at
+/// <repo>/.github/workflows/<name>.yml — strip 3 levels.
+fn workflow_repo_root(abs_path : String) -> String? {
+  match parent_path(abs_path) {
+    None => None
+    Some(p1) =>
+      match parent_path(p1) {
+        None => None
+        Some(p2) => parent_path(p2)
+      }
+  }
+}
+
+///|
 fn aggregate_summary(results : Array[@papion.ScanResult]) -> @papion.Summary {
   let mut failures = 0
   let mut warnings = 0
@@ -176,7 +199,8 @@ pub fn run_with_host(
                   resolve_ref_kind~,
                 )
             }
-          Workflow =>
+          Workflow => {
+            let wf_base_dir = workflow_repo_root(unit.abs_path)
             match fetch_local {
               Some(fl) =>
                 @engine.scan_workflow(
@@ -186,6 +210,7 @@ pub fn run_with_host(
                   engine_fetch,
                   fetch_local=fl,
                   resolve_ref_kind~,
+                  workflow_base_dir?=wf_base_dir,
                 )
               None =>
                 @engine.scan_workflow(
@@ -194,8 +219,10 @@ pub fn run_with_host(
                   policy,
                   engine_fetch,
                   resolve_ref_kind~,
+                  workflow_base_dir?=wf_base_dir,
                 )
             }
+          }
         }
         match result {
           Ok(scan_result) => results.push(scan_result)

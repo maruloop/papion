@@ -287,7 +287,7 @@ test "scan rejects overlong policy patterns" {
 }
 
 ///|
-test "scan_workflow scans workflow steps and reusable workflow refs" {
+test "scan_workflow scans step refs and skips reusable workflow job refs" {
   let target : @papion.ScanTarget = Local({
     path: "/tmp/repo/.github/workflows/ci.yml",
   })
@@ -310,13 +310,10 @@ test "scan_workflow scans workflow steps and reusable workflow refs" {
     Err(e) => fail("unexpected error: \{e}")
     Ok(r) => {
       assert_eq(r.target, target)
-      assert_eq(r.summary.failures, 2)
-      assert_eq(r.findings.length(), 2)
-      assert_eq(
-        r.findings[0].target,
-        "org/reusable/.github/workflows/build.yml@v1",
-      )
-      assert_eq(r.findings[1].target, "actions/checkout@v4")
+      // reusable workflow job ref is not scanned; only the step ref produces a finding
+      assert_eq(r.summary.failures, 1)
+      assert_eq(r.findings.length(), 1)
+      assert_eq(r.findings[0].target, "actions/checkout@v4")
     }
   }
 }
