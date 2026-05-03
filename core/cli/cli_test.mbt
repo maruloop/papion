@@ -439,7 +439,7 @@ test "run_with_host uses resolved git ref from host fetch" {
       assert_true(captured_git_ref == Some("v4"))
       assert_true(captured_path == None)
       assert_eq(captured_allow_ref_fallback, false)
-      assert_true(outcome.output.contains("\"git_ref\":\"release/v1\""))
+      assert_true(outcome.output.contains("\"target\":\"actions/checkout@release/v1\""))
       assert_true(outcome.output.contains("\"ref\":\"release/v1\""))
     }
     Err(err) => fail(err.to_string())
@@ -477,7 +477,7 @@ test "run_with_host passes allow_ref_fallback for github tree urls" {
     Ok(outcome) => {
       assert_eq(captured_allow_ref_fallback, true)
       assert_true(captured_path == Some("v1/action"))
-      assert_true(outcome.output.contains("\"path\":\"action\""))
+      assert_true(outcome.output.contains("\"target\":\"actions/checkout/action@release/v1\""))
     }
     Err(err) => fail(err.to_string())
   }

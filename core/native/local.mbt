@@ -139,7 +139,10 @@ fn is_workflow_path(path : String) -> Bool {
 
 ///|
 fn classify_root_file(path : String) -> @cli.LocalScanKind {
-  if is_workflow_path(path) {
+  let name = basename(path)
+  if is_action_path(path) {
+    @cli.Action
+  } else if has_yaml_extension(path) {
     @cli.Workflow
   } else {
     @cli.Action
@@ -212,11 +215,14 @@ fn walk_dir(
             Err(err) => return Err(err)
           }
         }
-      Ok(File) =>
-        match maybe_collect_file(child, true, units, count) {
-          Ok(_) => ()
-          Err(err) => return Err(err)
+      Ok(File) => {
+        if local_is_symlink_ffi(c_string_bytes(child)) == 0 {
+          match maybe_collect_file(child, true, units, count) {
+            Ok(_) => ()
+            Err(err) => return Err(err)
+          }
         }
+      }
       Ok(Missing) | Err(_) => ()
     }
   }
@@ -244,7 +250,8 @@ pub fn read_local_target(
         Ok(_) => ()
         Err(err) => return Err(err)
       }
-    Ok(Missing) | Err(_) => return Err("local path does not exist: \{path}")
+    Ok(Missing) => return Err("local path does not exist: \{path}")
+    Err(err) => return Err("failed to access local path: \{err}")
   }
   if units.is_empty() {
     return Err("no workflow or action YAML files found under \{abs_path}")

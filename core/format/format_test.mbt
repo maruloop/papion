@@ -182,7 +182,7 @@ test "format_json zero findings" {
   }
   let output = format_json(result)
   let parsed = @json.parse(output)
-  assert_true(output.contains("GitHub"))
+  assert_true(get_str(parsed, "target") == Some("actions/checkout@v4"))
   assert_true(get_str(parsed, "ref") == Some("v4"))
   match parsed {
     Object(obj) =>
