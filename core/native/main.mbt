@@ -9,7 +9,7 @@ fn usage() -> String {
 ///|
 fn main {
   let args = @env.args()
-  let cli_args = if args.length() > 0 { args[1:].to_string() } else { [] }
+  let cli_args = if args.length() > 0 { args[1:].to_array() } else { [] }
   match run(cli_args) {
     Ok(outcome) => {
       println(outcome.output)
@@ -60,12 +60,23 @@ fn run(args : Array[String]) -> Result[@cli.RunOutcome, @cli.CliError] {
   } else {
     None
   }
-  @cli.run_with_host(
-    args,
-    load_config,
-    fetch_action_yml,
-    read_local_target,
-    fetch_local~,
-    resolve_ref_kind=cached_ref_kind_resolver(),
-  )
+  match fetch_local {
+    Some(fl) =>
+      @cli.run_with_host(
+        args,
+        load_config,
+        fetch_action_yml,
+        read_local_target,
+        fetch_local=fl,
+        resolve_ref_kind=cached_ref_kind_resolver(),
+      )
+    None =>
+      @cli.run_with_host(
+        args,
+        load_config,
+        fetch_action_yml,
+        read_local_target,
+        resolve_ref_kind=cached_ref_kind_resolver(),
+      )
+  }
 }
