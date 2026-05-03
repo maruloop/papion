@@ -139,7 +139,6 @@ fn is_workflow_path(path : String) -> Bool {
 
 ///|
 fn classify_root_file(path : String) -> @cli.LocalScanKind {
-  let name = basename(path)
   if is_action_path(path) {
     @cli.Action
   } else if has_yaml_extension(path) {
