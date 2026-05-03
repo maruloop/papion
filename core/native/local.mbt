@@ -31,6 +31,10 @@ extern "c" fn local_mkdir_p_ffi(path : Bytes) -> Int = "papion_local_mkdir_p"
 extern "c" fn local_write_file_ffi(path : Bytes, content : Bytes) -> Int = "papion_local_write_file"
 
 ///|
+#borrow(path)
+extern "c" fn local_path_kind_ffi(path : Bytes) -> Int = "papion_local_path_kind"
+
+///|
 fn decode_result(len : Int, byte_at : (Int) -> Int) -> String {
   let bytes : Array[Byte] = []
   for i = 0; i < len; i = i + 1 {
@@ -47,6 +51,23 @@ fn result_string() -> String {
 ///|
 fn error_string() -> String {
   decode_result(local_error_len_ffi(), local_error_byte_ffi)
+}
+
+///|
+priv enum PathKind {
+  Missing
+  File
+  Directory
+}
+
+///|
+fn path_kind(path : String) -> Result[PathKind, String] {
+  match local_path_kind_ffi(c_string_bytes(path)) {
+    0 => Ok(Missing)
+    1 => Ok(File)
+    2 => Ok(Directory)
+    _ => Err(error_string())
+  }
 }
 
 ///|
@@ -171,6 +192,7 @@ fn maybe_collect_file(
 }
 
 ///|
+// Skip all dotfiles except .github — the canonical scan target for Actions.
 fn should_skip_entry(name : String) -> Bool {
   name.has_prefix(".") && name != ".github"
 }
@@ -190,16 +212,18 @@ fn walk_dir(
       continue
     }
     let child = "\{dir}/\{entry}"
-    if list_dir(child) is Ok(_) {
-      match walk_dir(child, units, count) {
-        Ok(_) => ()
-        Err(err) => return Err(err)
-      }
-    } else {
-      match maybe_collect_file(child, true, units, count) {
-        Ok(_) => ()
-        Err(err) => return Err(err)
-      }
+    match path_kind(child) {
+      Ok(Directory) =>
+        match walk_dir(child, units, count) {
+          Ok(_) => ()
+          Err(err) => return Err(err)
+        }
+      Ok(File) =>
+        match maybe_collect_file(child, true, units, count) {
+          Ok(_) => ()
+          Err(err) => return Err(err)
+        }
+      Ok(Missing) | Err(_) => ()
     }
   }
   Ok(())
@@ -215,18 +239,19 @@ pub fn read_local_target(
   }
   let units : Array[@cli.LocalScanUnit] = []
   let count = Ref::new(0)
-  if read_utf8_file(abs_path) is Ok(_) {
-    match maybe_collect_file(abs_path, false, units, count) {
-      Ok(_) => ()
-      Err(err) => return Err(err)
-    }
-  } else if list_dir(abs_path) is Ok(_) {
-    match walk_dir(abs_path, units, count) {
-      Ok(_) => ()
-      Err(err) => return Err(err)
-    }
-  } else {
-    return Err("local path does not exist: \{path}")
+  match path_kind(abs_path) {
+    Ok(File) =>
+      match maybe_collect_file(abs_path, false, units, count) {
+        Ok(_) => ()
+        Err(err) => return Err(err)
+      }
+    Ok(Directory) =>
+      match walk_dir(abs_path, units, count) {
+        Ok(_) => ()
+        Err(err) => return Err(err)
+      }
+    Ok(Missing) | Err(_) =>
+      return Err("local path does not exist: \{path}")
   }
   if units.is_empty() {
     return Err("no workflow or action YAML files found under \{abs_path}")
