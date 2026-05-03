@@ -3,13 +3,13 @@ extern "C" fn c_exit(code : Int) -> Unit = "exit"
 
 ///|
 fn usage() -> String {
-  "usage: papion run org/repo[/path]@ref [--format human|json] [--fail-on warn|fail|none] [--config path]"
+  "usage: papion run <target> [--format human|json] [--fail-on warn|fail|none] [--config path]"
 }
 
 ///|
 fn main {
   let args = @env.args()
-  let cli_args = if args.length() > 0 { args[1:].to_array() } else { [] }
+  let cli_args = if args.length() > 0 { args[1:].to_owned() } else { [] }
   match run(cli_args) {
     Ok(outcome) => {
       println(outcome.output)
@@ -33,6 +33,7 @@ fn run(args : Array[String]) -> Result[@cli.RunOutcome, @cli.CliError] {
     args,
     load_config,
     fetch_action_yml,
+    read_local_target,
     resolve_ref_kind=cached_ref_kind_resolver(),
   )
 }

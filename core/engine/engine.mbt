@@ -7,6 +7,12 @@ priv struct ScanNode {
 }
 
 ///|
+priv enum RootKind {
+  Action
+  Workflow
+} derive(Eq)
+
+///|
 fn normalize_path_part(path : String?) -> String {
   match path {
     None => ""
@@ -32,8 +38,13 @@ fn action_ref_key(ref_ : @papion.ActionRef) -> String {
 
 ///|
 fn scan_target_key(target : @papion.ScanTarget) -> String {
-  let path_part = normalize_path_part(target.path)
-  "\{target.owner.to_lower()}/\{target.repo.to_lower()}\{path_part}@\{target.git_ref}"
+  match target {
+    @papion.GitHub({ owner, repo, git_ref, path }) => {
+      let path_part = normalize_path_part(path)
+      "\{owner.to_lower()}/\{repo.to_lower()}\{path_part}@\{git_ref}"
+    }
+    @papion.Local({ path }) => "local:\{path}"
+  }
 }
 
 ///|
@@ -60,11 +71,28 @@ fn scan_target_key(target : @papion.ScanTarget) -> String {
 ///
 /// Transitive findings carry a `context` field set to "via owner/repo@ref"
 /// identifying the immediate parent action where the dependency was found.
-pub fn scan(
+fn summarize_findings(
   target : @papion.ScanTarget,
-  action_yml_yaml : String,
+  findings : Array[@papion.Finding],
+) -> @papion.ScanResult {
+  let mut failures = 0
+  let mut warnings = 0
+  for f in findings {
+    match f.level {
+      Fail => failures = failures + 1
+      Warn => warnings = warnings + 1
+    }
+  }
+  { target, findings, summary: { failures, warnings } }
+}
+
+///|
+fn scan_impl(
+  target : @papion.ScanTarget,
+  root_yaml : String,
   policy : @papion.Policy,
   fetch_action_yml : (String, String, String, String?) -> Result[String, String],
+  root_kind : RootKind,
   resolve_ref_kind? : (String, String, String) -> @papion.RefKind = fn(
     _owner,
     _repo,
@@ -82,7 +110,7 @@ pub fn scan(
   let initial_key = scan_target_key(target)
   visited[initial_key] = true
   let queue : Array[ScanNode] = []
-  queue.push({ yaml_str: action_yml_yaml, depth: 0, via: None })
+  queue.push({ yaml_str: root_yaml, depth: 0, via: None })
   let mut scheduled_count = 1
   let mut i = 0
   let mut node_count = 0
@@ -91,63 +119,103 @@ pub fn scan(
     i = i + 1
     node_count = node_count + 1
     let is_root = node_count == 1
-    match @parser.parse_action_yml(node.yaml_str) {
-      Err(e) => if is_root { return Err(e) }
-      Ok(yml) => {
-        let refs = @parser.extract_refs(yml)
-        for ref_ in refs {
-          let ref_kind = if policy.sha_pinning {
-            resolve_ref_kind(ref_.owner, ref_.repo, ref_.git_ref)
-          } else {
-            Branch
-          }
-          let ref_findings = @rules.evaluate(ref_, ref_kind, policy)
-          for finding in ref_findings {
-            let with_context = match node.via {
-              None => finding
-              Some(v) => { ..finding, context: Some(v) }
-            }
-            all_findings.push(with_context)
-          }
-          let ref_key = action_ref_key(ref_)
-          match visited.get(ref_key) {
-            Some(_) => ()
-            None => {
-              visited[ref_key] = true
-              if node.depth < @papion.max_scan_depth &&
-                scheduled_count < @papion.max_scan_nodes {
-                scheduled_count = scheduled_count + 1
-                match
-                  fetch_action_yml(
-                    ref_.owner,
-                    ref_.repo,
-                    ref_.git_ref,
-                    ref_.path,
-                  ) {
-                  Ok(fetched_yaml) =>
-                    queue.push({
-                      yaml_str: fetched_yaml,
-                      depth: node.depth + 1,
-                      via: Some(
-                        "via \{ref_.owner}/\{ref_.repo}\{normalize_path_part(ref_.path)}@\{ref_.git_ref}",
-                      ),
-                    })
-                  Err(_) => ()
-                }
-              }
+    let refs = if is_root && root_kind == Workflow {
+      match @parser.parse_workflow_yml(node.yaml_str) {
+        Err(e) => return Err(e)
+        Ok(yml) => @parser.extract_refs_from_workflow(yml)
+      }
+    } else {
+      match @parser.parse_action_yml(node.yaml_str) {
+        Err(e) => if is_root { return Err(e) } else { [] }
+        Ok(yml) => @parser.extract_refs(yml)
+      }
+    }
+    for ref_ in refs {
+      let ref_kind = if policy.sha_pinning {
+        resolve_ref_kind(ref_.owner, ref_.repo, ref_.git_ref)
+      } else {
+        Branch
+      }
+      let ref_findings = @rules.evaluate(ref_, ref_kind, policy)
+      for finding in ref_findings {
+        let with_context = match node.via {
+          None => finding
+          Some(v) => { ..finding, context: Some(v) }
+        }
+        all_findings.push(with_context)
+      }
+      let ref_key = action_ref_key(ref_)
+      match visited.get(ref_key) {
+        Some(_) => ()
+        None => {
+          visited[ref_key] = true
+          if node.depth < @papion.max_scan_depth &&
+            scheduled_count < @papion.max_scan_nodes {
+            scheduled_count = scheduled_count + 1
+            match
+              fetch_action_yml(ref_.owner, ref_.repo, ref_.git_ref, ref_.path) {
+              Ok(fetched_yaml) =>
+                queue.push({
+                  yaml_str: fetched_yaml,
+                  depth: node.depth + 1,
+                  via: Some(
+                    "via \{ref_.owner}/\{ref_.repo}\{normalize_path_part(ref_.path)}@\{ref_.git_ref}",
+                  ),
+                })
+              Err(_) => ()
             }
           }
         }
       }
     }
   }
-  let mut failures = 0
-  let mut warnings = 0
-  for f in all_findings {
-    match f.level {
-      Fail => failures = failures + 1
-      Warn => warnings = warnings + 1
-    }
-  }
-  Ok({ target, findings: all_findings, summary: { failures, warnings } })
+  Ok(summarize_findings(target, all_findings))
+}
+
+///|
+pub fn scan(
+  target : @papion.ScanTarget,
+  action_yml_yaml : String,
+  policy : @papion.Policy,
+  fetch_action_yml : (String, String, String, String?) -> Result[String, String],
+  resolve_ref_kind? : (String, String, String) -> @papion.RefKind = fn(
+    _owner,
+    _repo,
+    git_ref,
+  ) {
+    @rules.classify_ref(git_ref)
+  },
+) -> Result[@papion.ScanResult, String] {
+  scan_impl(
+    target,
+    action_yml_yaml,
+    policy,
+    fetch_action_yml,
+    Action,
+    resolve_ref_kind~,
+  )
+}
+
+///|
+pub fn scan_workflow(
+  target : @papion.ScanTarget,
+  workflow_yaml : String,
+  policy : @papion.Policy,
+  fetch_action_yml : (String, String, String, String?) -> Result[String, String],
+  resolve_ref_kind? : (String, String, String) -> @papion.RefKind = fn(
+    _owner,
+    _repo,
+    git_ref,
+  ) {
+    @rules.classify_ref(git_ref)
+  },
+) -> Result[@papion.ScanResult, String] {
+  scan_impl(
+    target,
+    workflow_yaml,
+    policy,
+    fetch_action_yml,
+    Workflow,
+    resolve_ref_kind~,
+  )
 }

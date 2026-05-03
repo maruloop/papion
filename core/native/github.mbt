@@ -123,7 +123,7 @@ fn extract_matching_refs_field(
                 ),
               )
             }
-            refs.push(ref_name[expected_prefix.length():].to_string())
+            refs.push(ref_name[expected_prefix.length():].to_owned())
           }
           { "ref": _, .. } =>
             return Err(
@@ -175,7 +175,7 @@ fn github_contents_url(
     let enc_filename = filename
       .split("/")
       .map(fn(segment) {
-        @cli.percent_encode_path_component(segment.to_string())
+        @cli.percent_encode_path_component(segment.to_owned())
       })
       .to_array()
       .join("/")
@@ -258,7 +258,7 @@ fn github_matching_refs_url(
     let enc_prefix = prefix
       .split("/")
       .map(fn(segment) {
-        @cli.percent_encode_path_component(segment.to_string())
+        @cli.percent_encode_path_component(segment.to_owned())
       })
       .to_array()
       .join("/")
@@ -495,7 +495,7 @@ fn canonical_action_path(path : String?) -> String? {
   if normalized.is_empty() {
     None
   } else {
-    Some(normalized[0:normalized.length() - 1].to_string())
+    Some(normalized[0:normalized.length() - 1].to_owned())
   }
 }
 
@@ -512,7 +512,7 @@ fn select_best_matching_ref(
   let normalized_full_path = full_path
     .split("/")
     .filter(fn(segment) { !segment.is_empty() })
-    .map(fn(segment) { segment.to_string() })
+    .map(fn(segment) { segment.to_owned() })
     .to_array()
     .join("/")
   let mut best_ref : String? = None
@@ -532,7 +532,7 @@ fn select_best_matching_ref(
   let remaining = if normalized_full_path.length() == resolved_ref.length() {
     None
   } else {
-    let suffix = normalized_full_path[resolved_ref.length() + 1:].to_string()
+    let suffix = normalized_full_path[resolved_ref.length() + 1:].to_owned()
     if suffix.is_empty() {
       None
     } else {

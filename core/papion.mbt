@@ -108,6 +108,40 @@ pub impl Show for CompositeStep with output(self, logger) {
 }
 
 ///|
+pub(all) struct WorkflowYml {
+  name : String?
+  jobs : Map[String, WorkflowJob]
+} derive(Debug, Eq, ToJson, FromJson)
+
+///|
+pub impl Show for WorkflowYml with output(self, logger) {
+  logger.write_string(self.to_json().stringify())
+}
+
+///|
+pub(all) struct WorkflowJob {
+  uses : String?
+  steps : Array[WorkflowStep]?
+} derive(Debug, Eq, ToJson, FromJson)
+
+///|
+pub impl Show for WorkflowJob with output(self, logger) {
+  logger.write_string(self.to_json().stringify())
+}
+
+///|
+pub(all) struct WorkflowStep {
+  uses : String?
+  run : String?
+  name : String?
+} derive(Debug, Eq, ToJson, FromJson)
+
+///|
+pub impl Show for WorkflowStep with output(self, logger) {
+  logger.write_string(self.to_json().stringify())
+}
+
+///|
 pub(all) enum FindingLevel {
   Warn
   Fail
@@ -165,7 +199,7 @@ pub fn Policy::normalized(self : Policy) -> Result[Policy, String] {
 }
 
 ///|
-pub(all) struct ScanTarget {
+pub(all) struct GitHubScanTarget {
   owner : String
   repo : String
   git_ref : String
@@ -173,12 +207,28 @@ pub(all) struct ScanTarget {
 } derive(Debug, Eq, ToJson, FromJson)
 
 ///|
+pub(all) struct LocalScanTarget {
+  path : String
+} derive(Debug, Eq, ToJson, FromJson)
+
+///|
+pub(all) enum ScanTarget {
+  GitHub(GitHubScanTarget)
+  Local(LocalScanTarget)
+} derive(Debug, Eq, ToJson, FromJson)
+
+///|
 pub fn ScanTarget::format_target(self : ScanTarget) -> String {
-  let path_part = match self.path {
-    Some(p) => "/\{p}"
-    None => ""
+  match self {
+    GitHub({ owner, repo, git_ref, path }) => {
+      let path_part = match path {
+        Some(p) => "/\{p}"
+        None => ""
+      }
+      "\{owner}/\{repo}\{path_part}@\{git_ref}"
+    }
+    Local({ path }) => "local:\{path}"
   }
-  "\{self.owner}/\{self.repo}\{path_part}@\{self.git_ref}"
 }
 
 ///|

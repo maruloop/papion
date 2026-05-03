@@ -9,13 +9,18 @@ fn unreachable_fetch(
 }
 
 ///|
+fn github_target(
+  owner : String,
+  repo : String,
+  git_ref : String,
+  path? : String? = None,
+) -> @papion.ScanTarget {
+  GitHub({ owner, repo, git_ref, path })
+}
+
+///|
 test "scan unpinned ref produces sha-pinning failure" {
-  let target : @papion.ScanTarget = {
-    owner: "actions",
-    repo: "checkout",
-    git_ref: "v4",
-    path: None,
-  }
+  let target : @papion.ScanTarget = github_target("actions", "checkout", "v4")
   let yaml_str =
     #|name: My Action
     #|runs:
@@ -41,12 +46,9 @@ test "scan unpinned ref produces sha-pinning failure" {
 
 ///|
 test "scan pinned ref produces zero findings" {
-  let target : @papion.ScanTarget = {
-    owner: "actions",
-    repo: "checkout",
-    git_ref: "11bd71901bbe5b1630ceea73d27597364c9af683",
-    path: None,
-  }
+  let target : @papion.ScanTarget = github_target(
+    "actions", "checkout", "11bd71901bbe5b1630ceea73d27597364c9af683",
+  )
   let yaml_str =
     #|name: My Action
     #|runs:
@@ -71,12 +73,7 @@ test "scan pinned ref produces zero findings" {
 
 ///|
 test "scan disallowed action produces failure" {
-  let target : @papion.ScanTarget = {
-    owner: "actions",
-    repo: "checkout",
-    git_ref: "v4",
-    path: None,
-  }
+  let target : @papion.ScanTarget = github_target("actions", "checkout", "v4")
   let yaml_str =
     #|name: My Action
     #|runs:
@@ -100,12 +97,7 @@ test "scan disallowed action produces failure" {
 
 ///|
 test "scan allowed list restricts to listed actions" {
-  let target : @papion.ScanTarget = {
-    owner: "actions",
-    repo: "checkout",
-    git_ref: "v4",
-    path: None,
-  }
+  let target : @papion.ScanTarget = github_target("actions", "checkout", "v4")
   let yaml_str =
     #|name: My Action
     #|runs:
@@ -134,12 +126,7 @@ test "scan allowed list restricts to listed actions" {
 
 ///|
 test "scan node action produces zero findings" {
-  let target : @papion.ScanTarget = {
-    owner: "actions",
-    repo: "setup-node",
-    git_ref: "v4",
-    path: None,
-  }
+  let target : @papion.ScanTarget = github_target("actions", "setup-node", "v4")
   let yaml_str =
     #|name: Setup Node
     #|runs:
@@ -162,12 +149,7 @@ test "scan node action produces zero findings" {
 
 ///|
 test "scan multiple unpinned refs aggregates findings" {
-  let target : @papion.ScanTarget = {
-    owner: "my-org",
-    repo: "my-action",
-    git_ref: "main",
-    path: None,
-  }
+  let target : @papion.ScanTarget = github_target("my-org", "my-action", "main")
   let yaml_str =
     #|name: Multi Step
     #|runs:
@@ -192,12 +174,7 @@ test "scan multiple unpinned refs aggregates findings" {
 
 ///|
 test "scan invalid YAML returns error" {
-  let target : @papion.ScanTarget = {
-    owner: "actions",
-    repo: "checkout",
-    git_ref: "v4",
-    path: None,
-  }
+  let target : @papion.ScanTarget = github_target("actions", "checkout", "v4")
   let result = scan(
     target,
     ":\t bad\t:\n\t",
@@ -212,12 +189,9 @@ test "scan invalid YAML returns error" {
 
 ///|
 test "scan result target matches input" {
-  let target : @papion.ScanTarget = {
-    owner: "my-org",
-    repo: "my-action",
-    git_ref: "abc123",
-    path: None,
-  }
+  let target : @papion.ScanTarget = github_target(
+    "my-org", "my-action", "abc123",
+  )
   let yaml_str =
     #|name: My Action
     #|runs:
@@ -236,12 +210,7 @@ test "scan result target matches input" {
 
 ///|
 test "scan uses injected ref kind resolver" {
-  let target : @papion.ScanTarget = {
-    owner: "actions",
-    repo: "checkout",
-    git_ref: "v4",
-    path: None,
-  }
+  let target : @papion.ScanTarget = github_target("actions", "checkout", "v4")
   let yaml_str =
     #|name: My Action
     #|runs:
@@ -279,12 +248,7 @@ test "scan uses injected ref kind resolver" {
 
 ///|
 test "scan normalizes policy patterns before evaluation" {
-  let target : @papion.ScanTarget = {
-    owner: "actions",
-    repo: "checkout",
-    git_ref: "v4",
-    path: None,
-  }
+  let target : @papion.ScanTarget = github_target("actions", "checkout", "v4")
   let yaml_str =
     #|name: My Action
     #|runs:
@@ -305,12 +269,7 @@ test "scan normalizes policy patterns before evaluation" {
 
 ///|
 test "scan rejects overlong policy patterns" {
-  let target : @papion.ScanTarget = {
-    owner: "actions",
-    repo: "checkout",
-    git_ref: "v4",
-    path: None,
-  }
+  let target : @papion.ScanTarget = github_target("actions", "checkout", "v4")
   let long_pattern = String::make(@papion.max_policy_pattern_len + 1, 'a')
   let yaml_str =
     #|name: My Action
@@ -324,6 +283,89 @@ test "scan rejects overlong policy patterns" {
   match scan(target, yaml_str, policy, unreachable_fetch) {
     Err(_) => ()
     Ok(_) => fail("expected Err for overlong policy pattern")
+  }
+}
+
+///|
+test "scan_workflow scans workflow steps and reusable workflow refs" {
+  let target : @papion.ScanTarget = Local({
+    path: "/tmp/repo/.github/workflows/ci.yml",
+  })
+  let yaml_str =
+    #|name: CI
+    #|jobs:
+    #|  reusable:
+    #|    uses: org/reusable/.github/workflows/build.yml@v1
+    #|  scan:
+    #|    runs-on: ubuntu-latest
+    #|    steps:
+    #|      - uses: actions/checkout@v4
+  let result = scan_workflow(
+    target,
+    yaml_str,
+    @papion.Policy::default(),
+    unreachable_fetch,
+  )
+  match result {
+    Err(e) => fail("unexpected error: \{e}")
+    Ok(r) => {
+      assert_eq(r.target, target)
+      assert_eq(r.summary.failures, 2)
+      assert_eq(r.findings.length(), 2)
+      assert_eq(
+        r.findings[0].target,
+        "org/reusable/.github/workflows/build.yml@v1",
+      )
+      assert_eq(r.findings[1].target, "actions/checkout@v4")
+    }
+  }
+}
+
+///|
+test "scan_workflow recursively fetches transitive action refs" {
+  let target : @papion.ScanTarget = Local({
+    path: "/tmp/repo/.github/workflows/ci.yml",
+  })
+  let workflow_yaml =
+    #|name: CI
+    #|jobs:
+    #|  scan:
+    #|    runs-on: ubuntu-latest
+    #|    steps:
+    #|      - uses: org/composite-action@v1
+  let transitive_yaml =
+    #|name: Composite
+    #|runs:
+    #|  using: composite
+    #|  steps:
+    #|    - uses: actions/checkout@v4
+  let mut fetch_calls = 0
+  let result = scan_workflow(target, workflow_yaml, @papion.Policy::default(), fn(
+    owner,
+    repo,
+    git_ref,
+    path,
+  ) {
+    fetch_calls = fetch_calls + 1
+    if owner == "org" &&
+      repo == "composite-action" &&
+      git_ref == "v1" &&
+      path == None {
+      Ok(transitive_yaml)
+    } else {
+      Err("unexpected fetch")
+    }
+  })
+  match result {
+    Err(e) => fail("unexpected error: \{e}")
+    Ok(r) => {
+      assert_eq(fetch_calls, 2)
+      assert_eq(r.summary.failures, 2)
+      assert_eq(r.findings.length(), 2)
+      assert_eq(r.findings[0].target, "org/composite-action@v1")
+      assert_eq(r.findings[1].target, "actions/checkout@v4")
+      assert_true(r.findings[1].context == Some("via org/composite-action@v1"))
+    }
   }
 }
 
@@ -346,12 +388,7 @@ fn make_fetch_table(
 
 ///|
 test "scan reports direct and transitive findings" {
-  let target : @papion.ScanTarget = {
-    owner: "org",
-    repo: "action-a",
-    git_ref: "sha_a",
-    path: None,
-  }
+  let target : @papion.ScanTarget = github_target("org", "action-a", "sha_a")
   let a_yaml =
     #|name: Action A
     #|runs:
@@ -379,21 +416,16 @@ test "scan reports direct and transitive findings" {
       assert_eq(r.summary.failures, 2)
       assert_eq(r.findings.length(), 2)
       assert_eq(r.findings[0].target, "org/action-b@v1")
-      assert_eq(r.findings[0].context, None)
+      assert_true(r.findings[0].context == None)
       assert_eq(r.findings[1].target, "org/action-c@v1")
-      assert_eq(r.findings[1].context, Some("via org/action-b@v1"))
+      assert_true(r.findings[1].context == Some("via org/action-b@v1"))
     }
   }
 }
 
 ///|
 test "scan scans shared transitive dependency exactly once" {
-  let target : @papion.ScanTarget = {
-    owner: "org",
-    repo: "action-a",
-    git_ref: "v1",
-    path: None,
-  }
+  let target : @papion.ScanTarget = github_target("org", "action-a", "v1")
   let a_yaml =
     #|name: Action A
     #|runs:
@@ -451,12 +483,7 @@ test "scan scans shared transitive dependency exactly once" {
 
 ///|
 test "scan terminates on simple cycle A -> B -> A" {
-  let target : @papion.ScanTarget = {
-    owner: "org",
-    repo: "action-a",
-    git_ref: "v1",
-    path: None,
-  }
+  let target : @papion.ScanTarget = github_target("org", "action-a", "v1")
   let a_yaml =
     #|name: Action A
     #|runs:
@@ -478,21 +505,16 @@ test "scan terminates on simple cycle A -> B -> A" {
       assert_eq(r.summary.failures, 2)
       assert_eq(r.findings.length(), 2)
       assert_eq(r.findings[0].target, "org/action-b@v1")
-      assert_eq(r.findings[0].context, None)
+      assert_true(r.findings[0].context == None)
       assert_eq(r.findings[1].target, "org/action-a@v1")
-      assert_eq(r.findings[1].context, Some("via org/action-b@v1"))
+      assert_true(r.findings[1].context == Some("via org/action-b@v1"))
     }
   }
 }
 
 ///|
 test "scan terminates on longer cycle A -> B -> C -> A" {
-  let target : @papion.ScanTarget = {
-    owner: "org",
-    repo: "action-a",
-    git_ref: "v1",
-    path: None,
-  }
+  let target : @papion.ScanTarget = github_target("org", "action-a", "v1")
   let a_yaml =
     #|name: Action A
     #|runs:
@@ -523,7 +545,7 @@ test "scan terminates on longer cycle A -> B -> C -> A" {
       assert_eq(r.summary.failures, 3)
       assert_eq(r.findings.length(), 3)
       assert_eq(r.findings[2].target, "org/action-a@v1")
-      assert_eq(r.findings[2].context, Some("via org/action-c@v1"))
+      assert_true(r.findings[2].context == Some("via org/action-c@v1"))
     }
   }
 }
@@ -533,12 +555,7 @@ test "scan stops at max_scan_depth" {
   // Build a chain of max_scan_depth + 2 nodes: action-0 (target) through
   // action-(max+1). The guard should prevent fetching action-(max+1).
   let max = @papion.max_scan_depth
-  let target : @papion.ScanTarget = {
-    owner: "org",
-    repo: "action-0",
-    git_ref: "v1",
-    path: None,
-  }
+  let target : @papion.ScanTarget = github_target("org", "action-0", "v1")
   // Pre-build fetch table: action-k (for k=1..max) uses action-(k+1)
   let fetch_table : Map[String, String] = {}
   let mut idx = 1
@@ -577,12 +594,7 @@ test "scan stops at max_scan_depth" {
 
 ///|
 test "scan invalid root YAML returns error" {
-  let target : @papion.ScanTarget = {
-    owner: "org",
-    repo: "action-a",
-    git_ref: "v1",
-    path: None,
-  }
+  let target : @papion.ScanTarget = github_target("org", "action-a", "v1")
   let never_fetch = fn(
     _owner : String,
     _repo : String,
@@ -609,12 +621,7 @@ test "scan stops at max_scan_nodes for wide fan-out" {
   // scheduling beyond max_scan_nodes, so at most max_scan_nodes - 1 child fetch
   // attempts occur (root counts as node 1 in the traversal budget).
   let max = @papion.max_scan_nodes
-  let target : @papion.ScanTarget = {
-    owner: "org",
-    repo: "action-root",
-    git_ref: "v1",
-    path: None,
-  }
+  let target : @papion.ScanTarget = github_target("org", "action-root", "v1")
   let child_count = max + 5
   let mut root_yaml = "name: Root\nruns:\n  using: composite\n  steps:\n"
   let mut k = 0
@@ -648,12 +655,7 @@ test "scan stops at max_scan_nodes for wide fan-out" {
 ///|
 test "scan stops failed fetch attempts at max_scan_nodes for wide fan-out" {
   let max = @papion.max_scan_nodes
-  let target : @papion.ScanTarget = {
-    owner: "org",
-    repo: "action-root",
-    git_ref: "v1",
-    path: None,
-  }
+  let target : @papion.ScanTarget = github_target("org", "action-root", "v1")
   let child_count = max + 5
   let mut root_yaml = "name: Root\nruns:\n  using: composite\n  steps:\n"
   let mut k = 0
@@ -684,12 +686,7 @@ test "scan stops failed fetch attempts at max_scan_nodes for wide fan-out" {
 
 ///|
 test "scan case-insensitive dedup prevents repeated fetch" {
-  let target : @papion.ScanTarget = {
-    owner: "Org",
-    repo: "Action-A",
-    git_ref: "v1",
-    path: None,
-  }
+  let target : @papion.ScanTarget = github_target("Org", "Action-A", "v1")
   let a_yaml =
     #|name: Action A
     #|runs:
@@ -725,12 +722,7 @@ test "scan case-insensitive dedup prevents repeated fetch" {
 
 ///|
 test "scan normalizes root key for mixed-case root cycle" {
-  let target : @papion.ScanTarget = {
-    owner: "Org",
-    repo: "Action-A",
-    git_ref: "v1",
-    path: None,
-  }
+  let target : @papion.ScanTarget = github_target("Org", "Action-A", "v1")
   let a_yaml =
     #|name: Action A
     #|runs:
@@ -761,12 +753,7 @@ test "scan normalizes root key for mixed-case root cycle" {
 
 ///|
 test "scan skips resolver when sha_pinning disabled" {
-  let target : @papion.ScanTarget = {
-    owner: "org",
-    repo: "action-a",
-    git_ref: "v1",
-    path: None,
-  }
+  let target : @papion.ScanTarget = github_target("org", "action-a", "v1")
   let a_yaml =
     #|name: Action A
     #|runs:
@@ -811,12 +798,12 @@ test "scan skips resolver when sha_pinning disabled" {
 
 ///|
 test "scan root path participates in visited-key identity" {
-  let target : @papion.ScanTarget = {
-    owner: "org",
-    repo: "action-a",
-    git_ref: "v1",
-    path: Some("subdir"),
-  }
+  let target : @papion.ScanTarget = github_target(
+    "org",
+    "action-a",
+    "v1",
+    path=Some("subdir"),
+  )
   let root_yaml =
     #|name: Action A
     #|runs:
@@ -851,12 +838,12 @@ test "scan root path participates in visited-key identity" {
 
 ///|
 test "scan normalizes action paths in traversal keys" {
-  let target : @papion.ScanTarget = {
-    owner: "org",
-    repo: "action-a",
-    git_ref: "v1",
-    path: Some("subdir"),
-  }
+  let target : @papion.ScanTarget = github_target(
+    "org",
+    "action-a",
+    "v1",
+    path=Some("subdir"),
+  )
   let root_yaml =
     #|name: Action A
     #|runs:
@@ -891,12 +878,7 @@ test "scan normalizes action paths in traversal keys" {
 
 ///|
 test "scan normalizes action paths in transitive context" {
-  let target : @papion.ScanTarget = {
-    owner: "org",
-    repo: "action-a",
-    git_ref: "v1",
-    path: None,
-  }
+  let target : @papion.ScanTarget = github_target("org", "action-a", "v1")
   let root_yaml =
     #|name: Action A
     #|runs:
@@ -922,7 +904,7 @@ test "scan normalizes action paths in transitive context" {
     Err(e) => fail("unexpected error: \{e}")
     Ok(r) => {
       assert_eq(r.findings.length(), 2)
-      assert_eq(r.findings[1].context, Some("via org/action-b/subdir@v1"))
+      assert_true(r.findings[1].context == Some("via org/action-b/subdir@v1"))
     }
   }
 }

@@ -235,7 +235,7 @@ test "parse_action_yml yaml integer description coercion" {
     #|  using: node20
   let result = parse_action_yml(yaml_str)
   match result {
-    Ok(yml) => assert_eq(yml.description, Some("42"))
+    Ok(yml) => assert_true(yml.description == Some("42"))
     Err(e) => fail("expected Ok but got Err: \{e}")
   }
 }
@@ -303,4 +303,73 @@ test "extract_refs from node action returns empty" {
   }
   let refs = extract_refs(yml)
   assert_eq(refs, [])
+}
+
+///|
+test "parse_workflow_yml with reusable workflow and step uses" {
+  let yaml_str =
+    #|name: CI
+    #|jobs:
+    #|  call-reusable:
+    #|    uses: org/reusable/.github/workflows/build.yml@v1
+    #|  scan:
+    #|    runs-on: ubuntu-latest
+    #|    steps:
+    #|      - uses: actions/checkout@v4
+    #|      - run: echo hi
+  let result = parse_workflow_yml(yaml_str)
+  assert_eq(
+    result,
+    Ok({
+      name: Some("CI"),
+      jobs: {
+        "call-reusable": {
+          uses: Some("org/reusable/.github/workflows/build.yml@v1"),
+          steps: None,
+        },
+        "scan": {
+          uses: None,
+          steps: Some([
+            { uses: Some("actions/checkout@v4"), run: None, name: None },
+            { uses: None, run: Some("echo hi"), name: None },
+          ]),
+        },
+      },
+    }),
+  )
+}
+
+///|
+test "extract_refs_from_workflow collects reusable workflows and steps" {
+  let wf : @papion.WorkflowYml = {
+    name: Some("CI"),
+    jobs: {
+      "call-reusable": {
+        uses: Some("org/reusable/.github/workflows/build.yml@v1"),
+        steps: None,
+      },
+      "scan": {
+        uses: None,
+        steps: Some([
+          { uses: Some("actions/checkout@v4"), run: None, name: None },
+          { uses: Some("./local/action"), run: None, name: None },
+          { uses: Some("docker://alpine:3.20"), run: None, name: None },
+        ]),
+      },
+    },
+  }
+  let refs = extract_refs_from_workflow(wf)
+  assert_eq(refs.length(), 2)
+  assert_eq(refs[0], {
+    owner: "org",
+    repo: "reusable",
+    git_ref: "v1",
+    path: Some(".github/workflows/build.yml"),
+  })
+  assert_eq(refs[1], {
+    owner: "actions",
+    repo: "checkout",
+    git_ref: "v4",
+    path: None,
+  })
 }

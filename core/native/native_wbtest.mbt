@@ -298,7 +298,7 @@ test "select_best_matching_ref returns exact ref with no remaining path" {
   match select_best_matching_ref(["v4"], "v4", None) {
     Ok((ref_name, remaining)) => {
       assert_eq(ref_name, "v4")
-      assert_eq(remaining, None)
+      assert_true(remaining == None)
     }
     Err(e) => fail("expected Ok but got Err: \{e}")
   }
@@ -314,7 +314,7 @@ test "select_best_matching_ref picks longest matching ref" {
     ) {
     Ok((ref_name, remaining)) => {
       assert_eq(ref_name, "release/v1")
-      assert_eq(remaining, Some("action"))
+      assert_true(remaining == Some("action"))
     }
     Err(e) => fail("expected Ok but got Err: \{e}")
   }
@@ -342,7 +342,7 @@ test "select_best_matching_ref normalizes leading slash path" {
     select_best_matching_ref(["release/v1"], "release", Some("/v1/action")) {
     Ok((ref_name, remaining)) => {
       assert_eq(ref_name, "release/v1")
-      assert_eq(remaining, Some("action"))
+      assert_true(remaining == Some("action"))
     }
     Err(e) => fail("expected Ok but got Err: \{e}")
   }
@@ -354,7 +354,7 @@ test "select_best_matching_ref normalizes double slash path" {
     select_best_matching_ref(["release/v1"], "release", Some("v1//action")) {
     Ok((ref_name, remaining)) => {
       assert_eq(ref_name, "release/v1")
-      assert_eq(remaining, Some("action"))
+      assert_true(remaining == Some("action"))
     }
     Err(e) => fail("expected Ok but got Err: \{e}")
   }
@@ -365,7 +365,7 @@ test "select_best_matching_ref normalizes trailing slash path to none" {
   match select_best_matching_ref(["v4"], "v4", Some("/")) {
     Ok((ref_name, remaining)) => {
       assert_eq(ref_name, "v4")
-      assert_eq(remaining, None)
+      assert_true(remaining == None)
     }
     Err(e) => fail("expected Ok but got Err: \{e}")
   }
@@ -381,6 +381,7 @@ test "run config error fires before fetch" {
       fetch_called = true
       Err("fetch_action_yml should not be called before config loading")
     },
+    read_local_target,
   )
   match result {
     Err(@cli.RuntimeError(_)) => ()
@@ -404,10 +405,39 @@ test "run parse_args error on --config propagates before fetch" {
       fetch_called = true
       Ok(("", "unused", None))
     },
+    read_local_target,
   )
   assert_eq(result, Err(@cli.ArgError("missing value for --config")))
   assert_eq(load_config_called, false)
   assert_eq(fetch_called, false)
+}
+
+///|
+test "read_local_target reads local workflow and action roots" {
+  guard @env.current_dir() is Some(cwd) else {
+    fail("expected current working directory")
+  }
+  let root = "\{cwd}/../.github"
+  let abs_root = match resolve_abs_path(root) {
+    Ok(path) => path
+    Err(err) => fail(err)
+  }
+  let units = match read_local_target(root) {
+    Ok(units) => units
+    Err(err) => fail(err)
+  }
+  assert_eq(units.length(), 4)
+  assert_true(units[0].kind == @cli.Action || units[0].kind == @cli.Workflow)
+  assert_true(
+    units
+    .map(fn(unit) { unit.abs_path })
+    .contains(abs_root + "/actions/setup-moonbit/action.yml"),
+  )
+  assert_true(
+    units
+    .map(fn(unit) { unit.abs_path })
+    .contains(abs_root + "/workflows/release.yml"),
+  )
 }
 
 // Helpers for resolve_ref_kind_impl tests

@@ -1,14 +1,26 @@
 ///|
+fn github_target(
+  owner : String,
+  repo : String,
+  git_ref? : String? = None,
+  path? : String? = None,
+  allow_ref_fallback? : Bool = false,
+) -> RunTarget {
+  GitHub({ owner, repo, git_ref, path, allow_ref_fallback })
+}
+
+///|
+fn no_local_target(_path : String) -> Result[Array[LocalScanUnit], String] {
+  Err("unexpected local read")
+}
+
+///|
 test "parse_args run owner repo ref" {
   let result = parse_args(["run", "actions/checkout@v4"])
   assert_eq(
     result,
     Ok({
-      owner: "actions",
-      repo: "checkout",
-      path: None,
-      git_ref: Some("v4"),
-      allow_ref_fallback: false,
+      target: github_target("actions", "checkout", git_ref=Some("v4")),
       format: Human,
       fail_on: Fail,
       config: None,
@@ -35,11 +47,12 @@ test "parse_args run with path" {
   assert_eq(
     result,
     Ok({
-      owner: "maruloop",
-      repo: "papion",
-      path: Some("action"),
-      git_ref: Some("v1"),
-      allow_ref_fallback: false,
+      target: github_target(
+        "maruloop",
+        "papion",
+        git_ref=Some("v1"),
+        path=Some("action"),
+      ),
       format: Human,
       fail_on: Fail,
       config: None,
@@ -53,11 +66,7 @@ test "parse_args json format" {
   assert_eq(
     result,
     Ok({
-      owner: "actions",
-      repo: "checkout",
-      path: None,
-      git_ref: Some("v4"),
-      allow_ref_fallback: false,
+      target: github_target("actions", "checkout", git_ref=Some("v4")),
       format: Json,
       fail_on: Fail,
       config: None,
@@ -71,11 +80,7 @@ test "parse_args fail_on warn" {
   assert_eq(
     result,
     Ok({
-      owner: "actions",
-      repo: "checkout",
-      path: None,
-      git_ref: Some("v4"),
-      allow_ref_fallback: false,
+      target: github_target("actions", "checkout", git_ref=Some("v4")),
       format: Human,
       fail_on: Warn,
       config: None,
@@ -89,11 +94,7 @@ test "parse_args fail_on none" {
   assert_eq(
     result,
     Ok({
-      owner: "actions",
-      repo: "checkout",
-      path: None,
-      git_ref: Some("v4"),
-      allow_ref_fallback: false,
+      target: github_target("actions", "checkout", git_ref=Some("v4")),
       format: Human,
       fail_on: NoneLevel,
       config: None,
@@ -107,11 +108,7 @@ test "parse_args short flag -f for format" {
   assert_eq(
     result,
     Ok({
-      owner: "actions",
-      repo: "checkout",
-      path: None,
-      git_ref: Some("v4"),
-      allow_ref_fallback: false,
+      target: github_target("actions", "checkout", git_ref=Some("v4")),
       format: Json,
       fail_on: Fail,
       config: None,
@@ -125,11 +122,7 @@ test "parse_args short flag -F for fail-on" {
   assert_eq(
     result,
     Ok({
-      owner: "actions",
-      repo: "checkout",
-      path: None,
-      git_ref: Some("v4"),
-      allow_ref_fallback: false,
+      target: github_target("actions", "checkout", git_ref=Some("v4")),
       format: Human,
       fail_on: Warn,
       config: None,
@@ -155,11 +148,7 @@ test "parse_args run owner repo without ref" {
   assert_eq(
     result,
     Ok({
-      owner: "actions",
-      repo: "checkout",
-      path: None,
-      git_ref: None,
-      allow_ref_fallback: false,
+      target: github_target("actions", "checkout"),
       format: Human,
       fail_on: Fail,
       config: None,
@@ -173,11 +162,7 @@ test "parse_args run github url without ref" {
   assert_eq(
     result,
     Ok({
-      owner: "actions",
-      repo: "checkout",
-      path: None,
-      git_ref: None,
-      allow_ref_fallback: false,
+      target: github_target("actions", "checkout"),
       format: Human,
       fail_on: Fail,
       config: None,
@@ -193,11 +178,7 @@ test "parse_args run github url ignores query and fragment" {
   assert_eq(
     result,
     Ok({
-      owner: "actions",
-      repo: "checkout",
-      path: None,
-      git_ref: None,
-      allow_ref_fallback: false,
+      target: github_target("actions", "checkout"),
       format: Human,
       fail_on: Fail,
       config: None,
@@ -211,11 +192,7 @@ test "parse_args run github url strips trailing dot git" {
   assert_eq(
     result,
     Ok({
-      owner: "actions",
-      repo: "checkout",
-      path: None,
-      git_ref: None,
-      allow_ref_fallback: false,
+      target: github_target("actions", "checkout"),
       format: Human,
       fail_on: Fail,
       config: None,
@@ -231,11 +208,13 @@ test "parse_args run github tree url with ref and path" {
   assert_eq(
     result,
     Ok({
-      owner: "actions",
-      repo: "checkout",
-      path: Some("action"),
-      git_ref: Some("v6.0.2"),
-      allow_ref_fallback: true,
+      target: github_target(
+        "actions",
+        "checkout",
+        git_ref=Some("v6.0.2"),
+        path=Some("action"),
+        allow_ref_fallback=true,
+      ),
       format: Human,
       fail_on: Fail,
       config: None,
@@ -251,11 +230,55 @@ test "parse_args run github tree url decodes percent-escaped ref and path" {
   assert_eq(
     result,
     Ok({
-      owner: "actions",
-      repo: "checkout",
-      path: Some("sub dir"),
-      git_ref: Some("release/v1"),
-      allow_ref_fallback: true,
+      target: github_target(
+        "actions",
+        "checkout",
+        git_ref=Some("release/v1"),
+        path=Some("sub dir"),
+        allow_ref_fallback=true,
+      ),
+      format: Human,
+      fail_on: Fail,
+      config: None,
+    }),
+  )
+}
+
+///|
+test "parse_args local action path" {
+  let result = parse_args(["run", "./action/action.yml"])
+  assert_eq(
+    result,
+    Ok({
+      target: Local({ path: "./action/action.yml" }),
+      format: Human,
+      fail_on: Fail,
+      config: None,
+    }),
+  )
+}
+
+///|
+test "parse_args local workflow path" {
+  let result = parse_args(["run", "../repo/.github/workflows/release.yml"])
+  assert_eq(
+    result,
+    Ok({
+      target: Local({ path: "../repo/.github/workflows/release.yml" }),
+      format: Human,
+      fail_on: Fail,
+      config: None,
+    }),
+  )
+}
+
+///|
+test "parse_args local absolute path" {
+  let result = parse_args(["run", "/tmp/repo/.github"])
+  assert_eq(
+    result,
+    Ok({
+      target: Local({ path: "/tmp/repo/.github" }),
       format: Human,
       fail_on: Fail,
       config: None,
@@ -312,9 +335,17 @@ test "parse_args split_target error missing owner" {
 }
 
 ///|
-test "parse_args split_target error empty owner" {
+test "parse_args absolute path is treated as local target" {
   let result = parse_args(["run", "/repo@v1"])
-  assert_eq(result, Err(ArgError("owner is empty")))
+  assert_eq(
+    result,
+    Ok({
+      target: Local({ path: "/repo@v1" }),
+      format: Human,
+      fail_on: Fail,
+      config: None,
+    }),
+  )
 }
 
 ///|
@@ -364,6 +395,7 @@ test "run_with_host propagates arg error before host calls" {
       fetch_called = true
       Ok(("", "unused", None))
     },
+    no_local_target,
   )
   assert_eq(result, Err(ArgError("missing command and target")))
   assert_eq(load_config_called, false)
@@ -398,17 +430,16 @@ test "run_with_host uses resolved git ref from host fetch" {
         ),
       )
     },
+    no_local_target,
   )
   match result {
     Ok(outcome) => {
       assert_eq(captured_owner, "actions")
       assert_eq(captured_repo, "checkout")
-      assert_eq(captured_git_ref, Some("v4"))
-      assert_eq(captured_path, None)
+      assert_true(captured_git_ref == Some("v4"))
+      assert_true(captured_path == None)
       assert_eq(captured_allow_ref_fallback, false)
-      assert_true(
-        outcome.output.contains("\"target\":\"actions/checkout@release/v1\""),
-      )
+      assert_true(outcome.output.contains("\"git_ref\":\"release/v1\""))
       assert_true(outcome.output.contains("\"ref\":\"release/v1\""))
     }
     Err(err) => fail(err.to_string())
@@ -440,16 +471,13 @@ test "run_with_host passes allow_ref_fallback for github tree urls" {
         ),
       )
     },
+    no_local_target,
   )
   match result {
     Ok(outcome) => {
       assert_eq(captured_allow_ref_fallback, true)
-      assert_eq(captured_path, Some("v1/action"))
-      assert_true(
-        outcome.output.contains(
-          "\"target\":\"actions/checkout/action@release/v1\"",
-        ),
-      )
+      assert_true(captured_path == Some("v1/action"))
+      assert_true(outcome.output.contains("\"path\":\"action\""))
     }
     Err(err) => fail(err.to_string())
   }
@@ -479,6 +507,7 @@ test "run_with_host passes custom ref kind resolver into engine" {
         ),
       )
     },
+    no_local_target,
     resolve_ref_kind=fn(owner, repo, git_ref) {
       resolver_called = true
       resolved_owner = owner
