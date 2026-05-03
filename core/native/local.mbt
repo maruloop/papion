@@ -215,14 +215,13 @@ fn walk_dir(
             Err(err) => return Err(err)
           }
         }
-      Ok(File) => {
+      Ok(File) =>
         if local_is_symlink_ffi(c_string_bytes(child)) == 0 {
           match maybe_collect_file(child, true, units, count) {
             Ok(_) => ()
             Err(err) => return Err(err)
           }
         }
-      }
       Ok(Missing) | Err(_) => ()
     }
   }

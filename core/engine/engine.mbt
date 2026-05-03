@@ -39,7 +39,9 @@ fn normalize_path_part(path : String?) -> String {
 /// case does not bypass dedup or cycle detection.
 fn action_ref_key(ref_ : @papion.ActionRef) -> VisitedKey {
   let path_part = normalize_path_part(ref_.path)
-  GitHub("\{ref_.owner.to_lower()}/\{ref_.repo.to_lower()}\{path_part}@\{ref_.git_ref}")
+  GitHub(
+    "\{ref_.owner.to_lower()}/\{ref_.repo.to_lower()}\{path_part}@\{ref_.git_ref}",
+  )
 }
 
 ///|
