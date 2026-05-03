@@ -145,6 +145,7 @@ int papion_local_list_dir(const char *path) {
     papion_local_set_errorf("failed to allocate directory buffer");
     return 0;
   }
+  errno = 0;
   struct dirent *entry;
   while ((entry = readdir(dir)) != NULL) {
     if (strcmp(entry->d_name, ".") == 0 || strcmp(entry->d_name, "..") == 0) {
@@ -170,6 +171,13 @@ int papion_local_list_dir(const char *path) {
     memcpy(buffer + length, entry->d_name, name_len);
     length += name_len;
     buffer[length++] = '\0';
+    errno = 0;
+  }
+  if (errno != 0) {
+    free(buffer);
+    closedir(dir);
+    papion_local_set_errorf("error reading directory %s: %s", path, strerror(errno));
+    return 0;
   }
   closedir(dir);
   int ok = papion_local_replace_result(buffer, length);

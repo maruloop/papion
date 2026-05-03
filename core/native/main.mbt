@@ -61,20 +61,26 @@ fn build_fetch_local(
         Some(d) => d
         None => "."
       }
-      // Only widen to repo root for workflow files.
+      // Widen to repo root for workflow files (3 levels: file → workflows →
+      // .github → repo). For action files widen one extra level beyond the
+      // direct parent so that in-checkout ../sibling refs remain resolvable.
+      // Guard against empty or "/" boundaries in both cases.
       if is_workflow_path(root_abs) {
         let p2 = strip_path_component(direct_parent)
         let p3 = match p2 {
           Some(d) => strip_path_component(d)
           None => None
         }
-        // Reject empty or root boundaries that would disable the guard.
         match p3 {
           Some(repo_root) if repo_root != "" && repo_root != "/" => repo_root
           _ => direct_parent
         }
       } else {
-        direct_parent
+        match strip_path_component(direct_parent) {
+          Some(grandparent) if grandparent != "" && grandparent != "/" =>
+            grandparent
+          _ => direct_parent
+        }
       }
     }
     _ => {

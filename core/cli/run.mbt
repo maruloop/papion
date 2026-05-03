@@ -96,7 +96,7 @@ fn format_results(
 ) -> RunOutcome {
   let output = match output_format {
     Human =>
-      if results.length() == 1 && !force_array {
+      if results.length() == 1 {
         @format.format_human(results[0])
       } else {
         let buf = StringBuilder::new()

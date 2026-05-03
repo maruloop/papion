@@ -272,10 +272,25 @@ fn parse_owner_repo_path(
 }
 
 ///|
+fn is_windows_path(target : String) -> Bool {
+  // Drive-letter paths: C:\... or C:/...
+  if target.length() >= 3 &&
+    target[1:2].to_string() == ":" &&
+    (target[2:3].to_string() == "\\" || target[2:3].to_string() == "/") {
+    let drive = target[0:1].to_string()
+    return (drive >= "A" && drive <= "Z") || (drive >= "a" && drive <= "z")
+  }
+  false
+}
+
+///|
 fn parse_target(target : String) -> Result[RunTarget, String] {
   if target.has_prefix("./") ||
     target.has_prefix("../") ||
-    target.has_prefix("/") {
+    target.has_prefix("/") ||
+    target.has_prefix(".\\") ||
+    target.has_prefix("..\\") ||
+    is_windows_path(target) {
     return Ok(Local({ path: target }))
   }
   if target.has_prefix("https://github.com/") ||

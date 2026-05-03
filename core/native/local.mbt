@@ -206,12 +206,6 @@ fn maybe_collect_file(
 }
 
 ///|
-// Skip all dotfiles except .github — the canonical scan target for Actions.
-fn should_skip_entry(name : String) -> Bool {
-  name.has_prefix(".") && name != ".github"
-}
-
-///|
 fn walk_dir(
   dir : String,
   units : Array[@cli.LocalScanUnit],
@@ -222,9 +216,6 @@ fn walk_dir(
     Err(err) => return Err(err)
   }
   for entry in entries {
-    if should_skip_entry(entry) {
-      continue
-    }
     let child = "\{dir}/\{entry}"
     match path_kind(child) {
       Ok(Directory) =>
@@ -241,7 +232,8 @@ fn walk_dir(
             Err(err) => return Err(err)
           }
         }
-      Ok(Missing) | Err(_) => ()
+      Ok(Missing) => ()
+      Err(err) => return Err(err)
     }
   }
   Ok(())
