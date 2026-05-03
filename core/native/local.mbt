@@ -311,7 +311,7 @@ pub fn make_fetch_local(
       let candidates = [abs_path + "/action.yml", abs_path + "/action.yaml"]
       let mut found : String? = None
       for candidate in candidates {
-        if read_utf8_file(candidate) is Ok(_) {
+        if path_kind(candidate) is Ok(File) {
           found = Some(candidate)
           break
         }

@@ -45,16 +45,34 @@ fn parent_path(path : String) -> String? {
 }
 
 ///|
-/// Compute the repo root for a workflow file assumed to live at
-/// <repo>/.github/workflows/<name>.yml — strip 3 levels.
+/// Compute the repo root for a workflow file at <repo>/.github/workflows/<name>.yml.
+/// Returns None for workflow files not under .github/workflows so the engine
+/// defaults to the workflow file's own directory instead of an incorrect base.
 fn workflow_repo_root(abs_path : String) -> String? {
   match parent_path(abs_path) {
     None => None
-    Some(p1) =>
-      match parent_path(p1) {
-        None => None
-        Some(p2) => parent_path(p2)
+    Some(workflows_dir) => {
+      let wf_name = match workflows_dir.rev_find("/") {
+        Some(idx) => workflows_dir[idx + 1:].to_string()
+        None => workflows_dir
       }
+      if wf_name != "workflows" {
+        return None
+      }
+      match parent_path(workflows_dir) {
+        None => None
+        Some(github_dir) => {
+          let gh_name = match github_dir.rev_find("/") {
+            Some(idx) => github_dir[idx + 1:].to_string()
+            None => github_dir
+          }
+          if gh_name != ".github" {
+            return None
+          }
+          parent_path(github_dir)
+        }
+      }
+    }
   }
 }
 

@@ -78,12 +78,32 @@ fn build_fetch_local(
       }
     }
     _ => {
-      // For .github directory targets, workflow refs resolve from repo root.
+      // Widen to repo root for directory targets where workflow uses: ./...
+      // refs resolve from repo root rather than the target directory itself.
+      // Both .github and .github/workflows targets need this treatment.
       let name = basename(root_abs)
       if name == ".github" {
         match strip_path_component(root_abs) {
           Some(parent) => parent
           None => root_abs
+        }
+      } else if name == "workflows" {
+        // Could be <repo>/.github/workflows — check grandparent is .github.
+        let grandparent_name = match strip_path_component(root_abs) {
+          Some(p) => Some(basename(p))
+          None => None
+        }
+        if grandparent_name == Some(".github") {
+          match strip_path_component(root_abs) {
+            Some(p) =>
+              match strip_path_component(p) {
+                Some(repo_root) => repo_root
+                None => root_abs
+              }
+            None => root_abs
+          }
+        } else {
+          root_abs
         }
       } else {
         root_abs
