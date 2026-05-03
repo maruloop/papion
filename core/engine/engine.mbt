@@ -119,12 +119,11 @@ fn scan_impl(
     Err(e) => return Err(e)
   }
   let root_base_dir : String? = match target {
-    @papion.Local({ path }) => {
+    @papion.Local({ path }) =>
       match path.rev_find("/") {
         Some(idx) => Some(path[:idx].to_string())
         None => Some(".")
       }
-    }
     @papion.GitHub(_) => None
   }
   let all_findings : Array[@papion.Finding] = []
@@ -183,7 +182,10 @@ fn scan_impl(
                 scheduled_count = scheduled_count + 1
                 match
                   fetch_action_yml(
-                    ref_.owner, ref_.repo, ref_.git_ref, ref_.path,
+                    ref_.owner,
+                    ref_.repo,
+                    ref_.git_ref,
+                    ref_.path,
                   ) {
                   Ok(fetched_yaml) =>
                     queue.push({
@@ -200,10 +202,10 @@ fn scan_impl(
             }
           }
         }
-        @papion.LocalPath(rel_path) => {
+        @papion.LocalPath(rel_path) =>
           match node.base_dir {
             None => ()
-            Some(base_dir) => {
+            Some(base_dir) =>
               match fetch_local(base_dir, rel_path) {
                 Err(reason) => {
                   let finding : @papion.Finding = {
@@ -240,9 +242,7 @@ fn scan_impl(
                   }
                 }
               }
-            }
           }
-        }
       }
     }
   }

@@ -50,7 +50,9 @@ fn build_fetch_local(
 fn run(args : Array[String]) -> Result[@cli.RunOutcome, @cli.CliError] {
   let fetch_local = if args.length() >= 2 {
     let target = args[1]
-    if target.has_prefix("./") || target.has_prefix("../") || target.has_prefix("/") {
+    if target.has_prefix("./") ||
+      target.has_prefix("../") ||
+      target.has_prefix("/") {
       Some(build_fetch_local(target))
     } else {
       None

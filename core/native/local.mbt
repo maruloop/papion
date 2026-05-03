@@ -205,14 +205,13 @@ fn walk_dir(
     }
     let child = "\{dir}/\{entry}"
     match path_kind(child) {
-      Ok(Directory) => {
+      Ok(Directory) =>
         if local_is_symlink_ffi(c_string_bytes(child)) == 0 {
           match walk_dir(child, units, count) {
             Ok(_) => ()
             Err(err) => return Err(err)
           }
         }
-      }
       Ok(File) =>
         match maybe_collect_file(child, true, units, count) {
           Ok(_) => ()
@@ -245,8 +244,7 @@ pub fn read_local_target(
         Ok(_) => ()
         Err(err) => return Err(err)
       }
-    Ok(Missing) | Err(_) =>
-      return Err("local path does not exist: \{path}")
+    Ok(Missing) | Err(_) => return Err("local path does not exist: \{path}")
   }
   if units.is_empty() {
     return Err("no workflow or action YAML files found under \{abs_path}")
@@ -305,4 +303,3 @@ pub fn make_fetch_local(
     }
   }
 }
-

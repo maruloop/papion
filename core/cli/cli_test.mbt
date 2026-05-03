@@ -564,13 +564,7 @@ test "run_with_host local single-file json output is an array" {
     fn(_) { Ok(@papion.Policy::default()) },
     fn(_, _, _, _, _) { Err("unexpected github fetch") },
     fn(_path) {
-      Ok([
-        {
-          kind: Action,
-          abs_path: "/repo/action.yml",
-          yaml: action_yaml,
-        },
-      ])
+      Ok([{ kind: Action, abs_path: "/repo/action.yml", yaml: action_yaml }])
     },
   )
   match result {

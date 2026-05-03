@@ -1042,10 +1042,9 @@ test "scan local ref cycle terminates via visited-set" {
   )
   match result {
     Err(e) => fail("unexpected error: \{e}")
-    Ok(r) => {
+    Ok(r) =>
       // No GitHub findings, no unresolvable warnings — cycle terminates cleanly
       assert_eq(r.findings.length(), 0)
-    }
   }
 }
 
