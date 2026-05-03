@@ -235,6 +235,58 @@ pub fn read_local_target(
 }
 
 ///|
+/// Build the fetch_local callback for engine BFS traversal of local refs.
+///
+/// `root_abs` is the realpath of the original scan root directory (or the
+/// directory containing the root file). Any resolved path that does not start
+/// with `root_abs/` is rejected to prevent path-escape attacks.
+pub fn make_fetch_local(
+  root_abs : String,
+) -> (String, String) -> Result[(String, String), String] {
+  fn(base_dir : String, rel_path : String) -> Result[(String, String), String] {
+    let joined = "\{base_dir}/\{rel_path}"
+    let abs_path = match resolve_abs_path(joined) {
+      Ok(p) => p
+      Err(err) => return Err(err)
+    }
+    let prefix = if root_abs.has_suffix("/") {
+      root_abs
+    } else {
+      root_abs + "/"
+    }
+    guard abs_path == root_abs || abs_path.has_prefix(prefix) else {
+      return Err(
+        "local ref escapes scan root: \{rel_path} resolves to \{abs_path}",
+      )
+    }
+    let action_yml_path = if abs_path.has_suffix(".yml") ||
+      abs_path.has_suffix(".yaml") {
+      abs_path
+    } else {
+      let candidates = [abs_path + "/action.yml", abs_path + "/action.yaml"]
+      let mut found : String? = None
+      for candidate in candidates {
+        if read_utf8_file(candidate) is Ok(_) {
+          found = Some(candidate)
+          break
+        }
+      }
+      match found {
+        Some(p) => p
+        None =>
+          return Err(
+            "no action.yml or action.yaml found at local ref: \{abs_path}",
+          )
+      }
+    }
+    match read_utf8_file(action_yml_path) {
+      Ok(yaml) => Ok((action_yml_path, yaml))
+      Err(err) => Err(err)
+    }
+  }
+}
+
+///|
 pub fn make_temp_dir(prefix : String) -> Result[String, String] {
   if local_make_temp_dir_ffi(c_string_bytes(prefix)) == 0 {
     Err(error_string())

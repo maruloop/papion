@@ -60,6 +60,31 @@ pub impl Show for ActionRef with output(self, logger) {
 }
 
 ///|
+/// A parsed `uses:` value from a workflow step or composite action step.
+/// GitHub refs are resolved via the GitHub Contents API; local refs are
+/// resolved relative to the file that references them (Local-rooted scans only).
+pub(all) enum ParsedRef {
+  GitHub(ActionRef)
+  LocalPath(String)
+} derive(Debug, Eq)
+
+///|
+pub impl Show for ParsedRef with output(self, logger) {
+  match self {
+    GitHub(r) => {
+      logger.write_string("GitHub(")
+      r.output(logger)
+      logger.write_string(")")
+    }
+    LocalPath(p) => {
+      logger.write_string("LocalPath(")
+      p.output(logger)
+      logger.write_string(")")
+    }
+  }
+}
+
+///|
 pub(all) enum RefKind {
   Sha
   Tag

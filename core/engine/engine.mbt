@@ -4,6 +4,7 @@ priv struct ScanNode {
   yaml_str : String
   depth : Int
   via : String?
+  base_dir : String?
 }
 
 ///|
@@ -57,6 +58,11 @@ fn scan_target_key(target : @papion.ScanTarget) -> String {
 /// that action, or `Err(...)` if unavailable. Fetch errors are silently
 /// skipped; those nodes are marked visited but not enqueued.
 ///
+/// For Local-rooted scans, `fetch_local` resolves relative `uses: ./...`
+/// references. Given `(base_dir, rel_path)` it returns `(abs_path, yaml)` or
+/// `Err(reason)`. On error a Warn finding is emitted. Pass `None` for GitHub
+/// roots where local refs are unresolvable.
+///
 /// Traversal terminates when:
 /// - a visited node is encountered (cycle detection)
 /// - depth would exceed `@papion.max_scan_depth` (practical depth guard)
@@ -65,9 +71,10 @@ fn scan_target_key(target : @papion.ScanTarget) -> String {
 ///   to the queue, so the remaining already-queued nodes are drained without
 ///   further expansion (width guard)
 ///
-/// The visited-set key is "owner/repo[/path]@git_ref". Each node is processed
-/// at most once. Policy findings are generated for every reference, including
-/// repeated references to already-visited nodes.
+/// The visited-set key is "owner/repo[/path]@git_ref" for GitHub refs and
+/// "local:<abs_path>" for local refs. Each node is processed at most once.
+/// Policy findings are generated for every reference, including repeated
+/// references to already-visited nodes.
 ///
 /// Transitive findings carry a `context` field set to "via owner/repo@ref"
 /// identifying the immediate parent action where the dependency was found.
@@ -93,6 +100,12 @@ fn scan_impl(
   policy : @papion.Policy,
   fetch_action_yml : (String, String, String, String?) -> Result[String, String],
   root_kind : RootKind,
+  fetch_local? : (String, String) -> Result[(String, String), String] = fn(
+    _base_dir,
+    rel_path,
+  ) {
+    Err("local ref not resolvable from GitHub root: \{rel_path}")
+  },
   resolve_ref_kind? : (String, String, String) -> @papion.RefKind = fn(
     _owner,
     _repo,
@@ -105,12 +118,26 @@ fn scan_impl(
     Ok(p) => p
     Err(e) => return Err(e)
   }
+  let root_base_dir : String? = match target {
+    @papion.Local({ path }) => {
+      match path.rev_find("/") {
+        Some(idx) => Some(path[:idx].to_string())
+        None => Some(".")
+      }
+    }
+    @papion.GitHub(_) => None
+  }
   let all_findings : Array[@papion.Finding] = []
   let visited : Map[String, Bool] = {}
   let initial_key = scan_target_key(target)
   visited[initial_key] = true
   let queue : Array[ScanNode] = []
-  queue.push({ yaml_str: root_yaml, depth: 0, via: None })
+  queue.push({
+    yaml_str: root_yaml,
+    depth: 0,
+    via: None,
+    base_dir: root_base_dir,
+  })
   let mut scheduled_count = 1
   let mut i = 0
   let mut node_count = 0
@@ -130,39 +157,89 @@ fn scan_impl(
         Ok(yml) => @parser.extract_refs(yml)
       }
     }
-    for ref_ in refs {
-      let ref_kind = if policy.sha_pinning {
-        resolve_ref_kind(ref_.owner, ref_.repo, ref_.git_ref)
-      } else {
-        Branch
-      }
-      let ref_findings = @rules.evaluate(ref_, ref_kind, policy)
-      for finding in ref_findings {
-        let with_context = match node.via {
-          None => finding
-          Some(v) => { ..finding, context: Some(v) }
+    for parsed_ref in refs {
+      match parsed_ref {
+        @papion.GitHub(ref_) => {
+          let ref_kind = if policy.sha_pinning {
+            resolve_ref_kind(ref_.owner, ref_.repo, ref_.git_ref)
+          } else {
+            Branch
+          }
+          let ref_findings = @rules.evaluate(ref_, ref_kind, policy)
+          for finding in ref_findings {
+            let with_context = match node.via {
+              None => finding
+              Some(v) => { ..finding, context: Some(v) }
+            }
+            all_findings.push(with_context)
+          }
+          let ref_key = action_ref_key(ref_)
+          match visited.get(ref_key) {
+            Some(_) => ()
+            None => {
+              visited[ref_key] = true
+              if node.depth < @papion.max_scan_depth &&
+                scheduled_count < @papion.max_scan_nodes {
+                scheduled_count = scheduled_count + 1
+                match
+                  fetch_action_yml(
+                    ref_.owner, ref_.repo, ref_.git_ref, ref_.path,
+                  ) {
+                  Ok(fetched_yaml) =>
+                    queue.push({
+                      yaml_str: fetched_yaml,
+                      depth: node.depth + 1,
+                      via: Some(
+                        "via \{ref_.owner}/\{ref_.repo}\{normalize_path_part(ref_.path)}@\{ref_.git_ref}",
+                      ),
+                      base_dir: None,
+                    })
+                  Err(_) => ()
+                }
+              }
+            }
+          }
         }
-        all_findings.push(with_context)
-      }
-      let ref_key = action_ref_key(ref_)
-      match visited.get(ref_key) {
-        Some(_) => ()
-        None => {
-          visited[ref_key] = true
-          if node.depth < @papion.max_scan_depth &&
-            scheduled_count < @papion.max_scan_nodes {
-            scheduled_count = scheduled_count + 1
-            match
-              fetch_action_yml(ref_.owner, ref_.repo, ref_.git_ref, ref_.path) {
-              Ok(fetched_yaml) =>
-                queue.push({
-                  yaml_str: fetched_yaml,
-                  depth: node.depth + 1,
-                  via: Some(
-                    "via \{ref_.owner}/\{ref_.repo}\{normalize_path_part(ref_.path)}@\{ref_.git_ref}",
-                  ),
-                })
-              Err(_) => ()
+        @papion.LocalPath(rel_path) => {
+          match node.base_dir {
+            None => ()
+            Some(base_dir) => {
+              match fetch_local(base_dir, rel_path) {
+                Err(reason) => {
+                  let finding : @papion.Finding = {
+                    level: Warn,
+                    rule: "local-ref-unresolvable",
+                    target: rel_path,
+                    context: node.via,
+                    message: "local action reference could not be resolved: \{reason}",
+                    suggestion: None,
+                  }
+                  all_findings.push(finding)
+                }
+                Ok((abs_path, fetched_yaml)) => {
+                  let local_key = "local:\{abs_path}"
+                  match visited.get(local_key) {
+                    Some(_) => ()
+                    None => {
+                      visited[local_key] = true
+                      if node.depth < @papion.max_scan_depth &&
+                        scheduled_count < @papion.max_scan_nodes {
+                        scheduled_count = scheduled_count + 1
+                        let child_base_dir = match abs_path.rev_find("/") {
+                          Some(idx) => abs_path[:idx].to_string()
+                          None => "."
+                        }
+                        queue.push({
+                          yaml_str: fetched_yaml,
+                          depth: node.depth + 1,
+                          via: node.via,
+                          base_dir: Some(child_base_dir),
+                        })
+                      }
+                    }
+                  }
+                }
+              }
             }
           }
         }
@@ -178,6 +255,12 @@ pub fn scan(
   action_yml_yaml : String,
   policy : @papion.Policy,
   fetch_action_yml : (String, String, String, String?) -> Result[String, String],
+  fetch_local? : (String, String) -> Result[(String, String), String] = fn(
+    _base_dir,
+    rel_path,
+  ) {
+    Err("local ref not resolvable from GitHub root: \{rel_path}")
+  },
   resolve_ref_kind? : (String, String, String) -> @papion.RefKind = fn(
     _owner,
     _repo,
@@ -192,6 +275,7 @@ pub fn scan(
     policy,
     fetch_action_yml,
     Action,
+    fetch_local~,
     resolve_ref_kind~,
   )
 }
@@ -202,6 +286,12 @@ pub fn scan_workflow(
   workflow_yaml : String,
   policy : @papion.Policy,
   fetch_action_yml : (String, String, String, String?) -> Result[String, String],
+  fetch_local? : (String, String) -> Result[(String, String), String] = fn(
+    _base_dir,
+    rel_path,
+  ) {
+    Err("local ref not resolvable from GitHub root: \{rel_path}")
+  },
   resolve_ref_kind? : (String, String, String) -> @papion.RefKind = fn(
     _owner,
     _repo,
@@ -216,6 +306,7 @@ pub fn scan_workflow(
     policy,
     fetch_action_yml,
     Workflow,
+    fetch_local~,
     resolve_ref_kind~,
   )
 }

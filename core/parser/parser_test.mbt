@@ -256,22 +256,28 @@ test "extract_refs from composite action" {
   }
   let refs = extract_refs(yml)
   assert_eq(refs.length(), 2)
-  assert_eq(refs[0], {
-    owner: "actions",
-    repo: "checkout",
-    git_ref: "v4",
-    path: None,
-  })
-  assert_eq(refs[1], {
-    owner: "actions",
-    repo: "setup-node",
-    git_ref: "v4",
-    path: None,
-  })
+  assert_eq(
+    refs[0],
+    @papion.GitHub({
+      owner: "actions",
+      repo: "checkout",
+      git_ref: "v4",
+      path: None,
+    }),
+  )
+  assert_eq(
+    refs[1],
+    @papion.GitHub({
+      owner: "actions",
+      repo: "setup-node",
+      git_ref: "v4",
+      path: None,
+    }),
+  )
 }
 
 ///|
-test "extract_refs skips relative path steps" {
+test "extract_refs includes local path steps" {
   let yml : @papion.ActionYml = {
     name: "My Action",
     description: None,
@@ -280,18 +286,23 @@ test "extract_refs skips relative path steps" {
       steps: Some([
         { uses: Some("./local/action"), run: None, name: None },
         { uses: Some("actions/checkout@v4"), run: None, name: None },
-        { uses: Some("./another/local"), run: None, name: None },
+        { uses: Some("../another/local"), run: None, name: None },
       ]),
     },
   }
   let refs = extract_refs(yml)
-  assert_eq(refs.length(), 1)
-  assert_eq(refs[0], {
-    owner: "actions",
-    repo: "checkout",
-    git_ref: "v4",
-    path: None,
-  })
+  assert_eq(refs.length(), 3)
+  assert_eq(refs[0], @papion.LocalPath("./local/action"))
+  assert_eq(
+    refs[1],
+    @papion.GitHub({
+      owner: "actions",
+      repo: "checkout",
+      git_ref: "v4",
+      path: None,
+    }),
+  )
+  assert_eq(refs[2], @papion.LocalPath("../another/local"))
 }
 
 ///|
@@ -359,17 +370,22 @@ test "extract_refs_from_workflow collects reusable workflows and steps" {
     },
   }
   let refs = extract_refs_from_workflow(wf)
-  assert_eq(refs.length(), 2)
-  assert_eq(refs[0], {
-    owner: "org",
-    repo: "reusable",
-    git_ref: "v1",
-    path: Some(".github/workflows/build.yml"),
+  // order depends on Map iteration; collect by variant for stable comparison
+  let github_refs = refs.filter(fn(r) {
+    match r {
+      @papion.GitHub(_) => true
+      _ => false
+    }
   })
-  assert_eq(refs[1], {
-    owner: "actions",
-    repo: "checkout",
-    git_ref: "v4",
-    path: None,
+  let local_refs = refs.filter(fn(r) {
+    match r {
+      @papion.LocalPath(_) => true
+      _ => false
+    }
   })
+  assert_eq(github_refs.length(), 2)
+  assert_eq(local_refs.length(), 1)
+  assert_eq(local_refs[0], @papion.LocalPath("./local/action"))
+  // docker:// is skipped
+  assert_eq(refs.length(), 3)
 }

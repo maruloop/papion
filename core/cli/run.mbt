@@ -51,10 +51,11 @@ fn format_results(
   results : Array[@papion.ScanResult],
   fail_on : FailOnLevel,
   output_format : OutputFormat,
+  force_array : Bool,
 ) -> RunOutcome {
   let output = match output_format {
     Human =>
-      if results.length() == 1 {
+      if results.length() == 1 && !force_array {
         @format.format_human(results[0])
       } else {
         let buf = StringBuilder::new()
@@ -72,7 +73,7 @@ fn format_results(
         buf.to_string()
       }
     Json =>
-      if results.length() == 1 {
+      if results.length() == 1 && !force_array {
         @format.format_json(results[0])
       } else {
         "[" +
@@ -93,6 +94,7 @@ pub fn run_with_host(
     String,
   ],
   read_local_target : (String) -> Result[Array[LocalScanUnit], String],
+  fetch_local? : (String, String) -> Result[(String, String), String],
   resolve_ref_kind? : (String, String, String) -> @papion.RefKind = fn(
     _owner,
     _repo,
@@ -143,7 +145,7 @@ pub fn run_with_host(
         Ok(result) => result
         Err(err) => return Err(RuntimeError(err))
       }
-      Ok(format_results([result], options.fail_on, options.format))
+      Ok(format_results([result], options.fail_on, options.format, false))
     }
     Local({ path }) => {
       let units = match read_local_target(path) {
@@ -155,28 +157,52 @@ pub fn run_with_host(
         let target = @papion.Local({ path: unit.abs_path })
         let result = match unit.kind {
           Action =>
-            @engine.scan(
-              target,
-              unit.yaml,
-              policy,
-              engine_fetch,
-              resolve_ref_kind~,
-            )
+            match fetch_local {
+              Some(fl) =>
+                @engine.scan(
+                  target,
+                  unit.yaml,
+                  policy,
+                  engine_fetch,
+                  fetch_local=fl,
+                  resolve_ref_kind~,
+                )
+              None =>
+                @engine.scan(
+                  target,
+                  unit.yaml,
+                  policy,
+                  engine_fetch,
+                  resolve_ref_kind~,
+                )
+            }
           Workflow =>
-            @engine.scan_workflow(
-              target,
-              unit.yaml,
-              policy,
-              engine_fetch,
-              resolve_ref_kind~,
-            )
+            match fetch_local {
+              Some(fl) =>
+                @engine.scan_workflow(
+                  target,
+                  unit.yaml,
+                  policy,
+                  engine_fetch,
+                  fetch_local=fl,
+                  resolve_ref_kind~,
+                )
+              None =>
+                @engine.scan_workflow(
+                  target,
+                  unit.yaml,
+                  policy,
+                  engine_fetch,
+                  resolve_ref_kind~,
+                )
+            }
         }
         match result {
           Ok(scan_result) => results.push(scan_result)
           Err(err) => return Err(RuntimeError(err))
         }
       }
-      Ok(format_results(results, options.fail_on, options.format))
+      Ok(format_results(results, options.fail_on, options.format, true))
     }
   }
 }

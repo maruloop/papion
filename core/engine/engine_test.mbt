@@ -908,3 +908,173 @@ test "scan normalizes action paths in transitive context" {
     }
   }
 }
+
+// ---- local ref traversal tests ----
+
+///|
+fn local_target(path : String) -> @papion.ScanTarget {
+  @papion.Local({ path, })
+}
+
+///|
+/// Build a fetch_local callback from a table keyed by abs_path.
+fn make_local_fetch_table(
+  table : Map[String, String],
+) -> (String, String) -> Result[(String, String), String] {
+  fn(base_dir : String, rel_path : String) -> Result[(String, String), String] {
+    let abs_path = "\{base_dir}/\{rel_path}"
+    match table.get(abs_path) {
+      Some(yaml) => Ok((abs_path, yaml))
+      None => Err("local action not found: \{abs_path}")
+    }
+  }
+}
+
+///|
+test "scan_workflow traverses local composite and finds GitHub action" {
+  let target = local_target("/repo/.github/workflows/ci.yml")
+  let workflow_yaml =
+    #|name: CI
+    #|jobs:
+    #|  build:
+    #|    runs-on: ubuntu-latest
+    #|    steps:
+    #|      - uses: ./actions/my-action
+  let local_action_yaml =
+    #|name: My Action
+    #|runs:
+    #|  using: composite
+    #|  steps:
+    #|    - uses: actions/checkout@v4
+  let fetch_local = make_local_fetch_table({
+    "/repo/.github/workflows/./actions/my-action": local_action_yaml,
+  })
+  let result = scan_workflow(
+    target,
+    workflow_yaml,
+    @papion.Policy::default(),
+    unreachable_fetch,
+    fetch_local~,
+  )
+  match result {
+    Err(e) => fail("unexpected error: \{e}")
+    Ok(r) => {
+      assert_eq(r.findings.length(), 1)
+      assert_eq(r.findings[0].rule, "sha-pinning")
+      assert_eq(r.findings[0].target, "actions/checkout@v4")
+    }
+  }
+}
+
+///|
+test "scan_workflow emits Warn for unresolvable local ref" {
+  let target = local_target("/repo/.github/workflows/ci.yml")
+  let workflow_yaml =
+    #|name: CI
+    #|jobs:
+    #|  build:
+    #|    runs-on: ubuntu-latest
+    #|    steps:
+    #|      - uses: ./actions/missing
+  let fetch_local = fn(
+    _base_dir : String,
+    rel_path : String,
+  ) -> Result[(String, String), String] {
+    Err("not found: \{rel_path}")
+  }
+  let result = scan_workflow(
+    target,
+    workflow_yaml,
+    @papion.Policy::default(),
+    unreachable_fetch,
+    fetch_local~,
+  )
+  match result {
+    Err(e) => fail("unexpected error: \{e}")
+    Ok(r) => {
+      assert_eq(r.findings.length(), 1)
+      assert_eq(r.findings[0].level, Warn)
+      assert_eq(r.findings[0].rule, "local-ref-unresolvable")
+      assert_eq(r.findings[0].target, "./actions/missing")
+    }
+  }
+}
+
+///|
+test "scan local ref cycle terminates via visited-set" {
+  // a references b; b references /repo/abs/a/action.yml (same as root).
+  // The host resolves all relative paths to stable abs keys so the engine
+  // visited-set catches the cycle on the second visit to a.
+  let target = local_target("/repo/abs/a/action.yml")
+  let a_yaml =
+    #|name: A
+    #|runs:
+    #|  using: composite
+    #|  steps:
+    #|    - uses: ./b
+  let b_yaml =
+    #|name: B
+    #|runs:
+    #|  using: composite
+    #|  steps:
+    #|    - uses: ./a
+  let abs_b = "/repo/abs/b/action.yml"
+  let abs_a = "/repo/abs/a/action.yml"
+  let fetch_local = fn(
+    _base_dir : String,
+    rel_path : String,
+  ) -> Result[(String, String), String] {
+    if rel_path == "./b" {
+      Ok((abs_b, b_yaml))
+    } else if rel_path == "./a" {
+      // cycle back to a — same abs_path as root, visited set skips
+      Ok((abs_a, a_yaml))
+    } else {
+      Err("unexpected: \{rel_path}")
+    }
+  }
+  let result = scan(
+    target,
+    a_yaml,
+    @papion.Policy::default(),
+    unreachable_fetch,
+    fetch_local~,
+  )
+  match result {
+    Err(e) => fail("unexpected error: \{e}")
+    Ok(r) => {
+      // No GitHub findings, no unresolvable warnings — cycle terminates cleanly
+      assert_eq(r.findings.length(), 0)
+    }
+  }
+}
+
+///|
+test "scan local ref without base_dir (GitHub root) is silently skipped" {
+  // When the engine root is a GitHub target, local refs have no base_dir
+  // and the default fetch_local returns an error — but the engine only
+  // emits a warning when base_dir is Some(). GitHub roots have base_dir=None.
+  let target = github_target("org", "action-a", "v1")
+  let yaml_str =
+    #|name: My Action
+    #|runs:
+    #|  using: composite
+    #|  steps:
+    #|    - uses: ./local/step
+    #|    - uses: actions/checkout@v4
+  let result = scan(
+    target,
+    yaml_str,
+    @papion.Policy::default(),
+    unreachable_fetch,
+  )
+  match result {
+    Err(e) => fail("unexpected error: \{e}")
+    Ok(r) => {
+      // Only the GitHub ref produces a finding; local ref is silently ignored
+      assert_eq(r.findings.length(), 1)
+      assert_eq(r.findings[0].rule, "sha-pinning")
+      assert_eq(r.findings[0].target, "actions/checkout@v4")
+    }
+  }
+}

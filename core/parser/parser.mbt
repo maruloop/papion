@@ -265,15 +265,16 @@ fn workflow_step_from_yaml(
 }
 
 ///|
-fn collect_ref(refs : Array[@papion.ActionRef], uses_str : String) -> Unit {
-  if uses_str.has_prefix("./") ||
-    uses_str.has_prefix("../") ||
-    uses_str.has_prefix("/") ||
-    uses_str.has_prefix("docker://") {
+fn collect_ref(refs : Array[@papion.ParsedRef], uses_str : String) -> Unit {
+  if uses_str.has_prefix("/") || uses_str.has_prefix("docker://") {
+    return
+  }
+  if uses_str.has_prefix("./") || uses_str.has_prefix("../") {
+    refs.push(LocalPath(uses_str))
     return
   }
   match parse_action_ref(uses_str) {
-    Ok(r) => refs.push(r)
+    Ok(r) => refs.push(GitHub(r))
     Err(_) => ()
   }
 }
@@ -281,10 +282,10 @@ fn collect_ref(refs : Array[@papion.ActionRef], uses_str : String) -> Unit {
 ///|
 /// Extract all action references from the `uses:` fields of composite steps.
 ///
-/// Best-effort: relative path steps (./path) and unparseable refs are silently
-/// skipped. The caller receives all successfully parsed refs regardless of
-/// partial failures. Returns an empty array for non-composite actions.
-pub fn extract_refs(yml : @papion.ActionYml) -> Array[@papion.ActionRef] {
+/// Best-effort: unparseable refs are silently skipped. Local refs (./path) are
+/// included as ParsedRef::LocalPath. Returns an empty array for non-composite
+/// actions.
+pub fn extract_refs(yml : @papion.ActionYml) -> Array[@papion.ParsedRef] {
   let refs = Array::new()
   match yml.runs.steps {
     None => ()
@@ -302,7 +303,7 @@ pub fn extract_refs(yml : @papion.ActionYml) -> Array[@papion.ActionRef] {
 ///|
 pub fn extract_refs_from_workflow(
   wf : @papion.WorkflowYml,
-) -> Array[@papion.ActionRef] {
+) -> Array[@papion.ParsedRef] {
   let refs = Array::new()
   for _, job in wf.jobs {
     match job.uses {
