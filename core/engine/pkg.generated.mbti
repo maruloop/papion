@@ -6,7 +6,9 @@ import {
 }
 
 // Values
-pub fn scan(@papion.ScanTarget, String, @papion.Policy, (String, String, String, String?) -> Result[String, String], resolve_ref_kind? : (String, String, String) -> @papion.RefKind) -> Result[@papion.ScanResult, String]
+pub fn scan(@papion.ScanTarget, String, @papion.Policy, (String, String, String, String?) -> Result[String, String], fetch_local? : (String, String) -> Result[(String, String), String], resolve_ref_kind? : (String, String, String) -> @papion.RefKind) -> Result[@papion.ScanResult, String]
+
+pub fn scan_workflow(@papion.ScanTarget, String, @papion.Policy, (String, String, String, String?) -> Result[String, String], fetch_local? : (String, String) -> Result[(String, String), String], resolve_ref_kind? : (String, String, String) -> @papion.RefKind) -> Result[@papion.ScanResult, String]
 
 // Errors
 
