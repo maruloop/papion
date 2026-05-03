@@ -35,6 +35,10 @@ extern "c" fn local_write_file_ffi(path : Bytes, content : Bytes) -> Int = "papi
 extern "c" fn local_path_kind_ffi(path : Bytes) -> Int = "papion_local_path_kind"
 
 ///|
+#borrow(path)
+extern "c" fn local_is_symlink_ffi(path : Bytes) -> Int = "papion_local_is_symlink"
+
+///|
 fn decode_result(len : Int, byte_at : (Int) -> Int) -> String {
   let bytes : Array[Byte] = []
   for i = 0; i < len; i = i + 1 {
@@ -213,11 +217,14 @@ fn walk_dir(
     }
     let child = "\{dir}/\{entry}"
     match path_kind(child) {
-      Ok(Directory) =>
-        match walk_dir(child, units, count) {
-          Ok(_) => ()
-          Err(err) => return Err(err)
+      Ok(Directory) => {
+        if local_is_symlink_ffi(c_string_bytes(child)) == 0 {
+          match walk_dir(child, units, count) {
+            Ok(_) => ()
+            Err(err) => return Err(err)
+          }
         }
+      }
       Ok(File) =>
         match maybe_collect_file(child, true, units, count) {
           Ok(_) => ()

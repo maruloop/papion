@@ -90,6 +90,14 @@ int papion_local_path_kind(const char *path) {
   return 0;
 }
 
+int papion_local_is_symlink(const char *path) {
+  struct stat st;
+  if (lstat(path, &st) != 0) {
+    return 0;
+  }
+  return S_ISLNK(st.st_mode) ? 1 : 0;
+}
+
 int papion_local_list_dir(const char *path) {
   DIR *dir = opendir(path);
   if (dir == NULL) {
