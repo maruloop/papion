@@ -322,6 +322,6 @@ pub fn scan_workflow(
     Workflow,
     fetch_local~,
     resolve_ref_kind~,
-    workflow_base_dir?=workflow_base_dir,
+    workflow_base_dir?,
   )
 }
