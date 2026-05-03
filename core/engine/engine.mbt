@@ -14,6 +14,12 @@ priv enum RootKind {
 } derive(Eq)
 
 ///|
+priv enum VisitedKey {
+  GitHub(String)
+  Local(String)
+} derive(Eq, Hash)
+
+///|
 fn normalize_path_part(path : String?) -> String {
   match path {
     None => ""
@@ -29,22 +35,21 @@ fn normalize_path_part(path : String?) -> String {
 }
 
 ///|
-/// Build a visited-set key from an ActionRef.
 /// Owner and repo are lowercased so the same repo spelled with different
 /// case does not bypass dedup or cycle detection.
-fn action_ref_key(ref_ : @papion.ActionRef) -> String {
+fn action_ref_key(ref_ : @papion.ActionRef) -> VisitedKey {
   let path_part = normalize_path_part(ref_.path)
-  "\{ref_.owner.to_lower()}/\{ref_.repo.to_lower()}\{path_part}@\{ref_.git_ref}"
+  GitHub("\{ref_.owner.to_lower()}/\{ref_.repo.to_lower()}\{path_part}@\{ref_.git_ref}")
 }
 
 ///|
-fn scan_target_key(target : @papion.ScanTarget) -> String {
+fn scan_target_key(target : @papion.ScanTarget) -> VisitedKey {
   match target {
     @papion.GitHub({ owner, repo, git_ref, path }) => {
       let path_part = normalize_path_part(path)
-      "\{owner.to_lower()}/\{repo.to_lower()}\{path_part}@\{git_ref}"
+      GitHub("\{owner.to_lower()}/\{repo.to_lower()}\{path_part}@\{git_ref}")
     }
-    @papion.Local({ path }) => "local:\{path}"
+    @papion.Local({ path }) => Local(path)
   }
 }
 
@@ -71,8 +76,9 @@ fn scan_target_key(target : @papion.ScanTarget) -> String {
 ///   to the queue, so the remaining already-queued nodes are drained without
 ///   further expansion (width guard)
 ///
-/// The visited-set key is "owner/repo[/path]@git_ref" for GitHub refs and
-/// "local:<abs_path>" for local refs. Each node is processed at most once.
+/// The visited set uses `VisitedKey` — `GitHub(key_string)` for GitHub refs
+/// and `Local(abs_path)` for local refs — so the two namespaces cannot collide.
+/// Each node is processed at most once.
 /// Policy findings are generated for every reference, including repeated
 /// references to already-visited nodes.
 ///
@@ -127,7 +133,7 @@ fn scan_impl(
     @papion.GitHub(_) => None
   }
   let all_findings : Array[@papion.Finding] = []
-  let visited : Map[String, Bool] = {}
+  let visited : Map[VisitedKey, Bool] = {}
   let initial_key = scan_target_key(target)
   visited[initial_key] = true
   let queue : Array[ScanNode] = []
@@ -219,7 +225,7 @@ fn scan_impl(
                   all_findings.push(finding)
                 }
                 Ok((abs_path, fetched_yaml)) => {
-                  let local_key = "local:\{abs_path}"
+                  let local_key = Local(abs_path)
                   match visited.get(local_key) {
                     Some(_) => ()
                     None => {
