@@ -44,34 +44,51 @@ fn build_fetch_local(
     Ok(p) => p
     Err(_) => path
   }
-  // For a file target the escape-guard boundary must be the repo root, not
-  // just the file's parent directory. Workflow files live at
-  // <repo>/.github/workflows/<name>.yml and the engine resolves uses: ./...
-  // refs from the repo root; the boundary must contain that root or valid
-  // refs are rejected as escaping the scan root. Strip three path components
-  // (file → workflows → .github → repo root) and fall back to the file's
-  // direct parent when the path is too shallow.
+  // Compute the escape-guard boundary passed to make_fetch_local.
+  //
+  // For workflow file targets (.github/workflows/*.yml) the engine resolves
+  // uses: ./... refs from the repo root (three levels up from the file), so
+  // the boundary must be at least that wide. For action files the boundary
+  // is the file's direct parent — no wider.
+  //
+  // For directory targets the boundary is the directory itself, except when
+  // the target is a .github directory: workflows inside it resolve from the
+  // repo root (parent of .github), so use that parent as the boundary.
   let boundary = match path_kind(root_abs) {
     Ok(File) => {
       let p1 = strip_path_component(root_abs)
-      let p2 = match p1 {
-        Some(d) => strip_path_component(d)
-        None => None
+      let direct_parent = match p1 {
+        Some(d) => d
+        None => "."
       }
-      let p3 = match p2 {
-        Some(d) => strip_path_component(d)
-        None => None
-      }
-      match p3 {
-        Some(repo_root) => repo_root
-        None =>
-          match p1 {
-            Some(d) => d
-            None => "."
-          }
+      // Only widen to repo root for workflow files.
+      if is_workflow_path(root_abs) {
+        let p2 = strip_path_component(direct_parent)
+        let p3 = match p2 {
+          Some(d) => strip_path_component(d)
+          None => None
+        }
+        // Reject empty or root boundaries that would disable the guard.
+        match p3 {
+          Some(repo_root) if repo_root != "" && repo_root != "/" => repo_root
+          _ => direct_parent
+        }
+      } else {
+        direct_parent
       }
     }
-    _ => root_abs
+    _ => {
+      // For .github directory targets, workflow refs resolve from repo root.
+      let name = basename(root_abs)
+      if name == ".github" {
+        match strip_path_component(root_abs) {
+          Some(parent) => parent
+          None => root_abs
+        }
+      } else {
+        root_abs
+      }
+    }
   }
   make_fetch_local(boundary)
 }

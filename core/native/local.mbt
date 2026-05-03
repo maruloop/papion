@@ -153,13 +153,15 @@ fn is_workflow_path(path : String) -> Bool {
 }
 
 ///|
-fn classify_root_file(path : String) -> @cli.LocalScanKind {
+fn classify_root_file(path : String) -> Result[@cli.LocalScanKind, String] {
   if is_action_path(path) {
-    @cli.Action
+    Ok(@cli.Action)
   } else if has_yaml_extension(path) {
-    @cli.Workflow
+    Ok(@cli.Workflow)
   } else {
-    @cli.Action
+    Err(
+      "unsupported file target: \{basename(path)} (expected action.yml, action.yaml, or a .yml/.yaml workflow file)",
+    )
   }
 }
 
@@ -179,7 +181,10 @@ fn maybe_collect_file(
       None
     }
   } else {
-    Some(classify_root_file(path))
+    match classify_root_file(path) {
+      Ok(k) => Some(k)
+      Err(err) => return Err(err)
+    }
   }
   match kind {
     None => Ok(())
