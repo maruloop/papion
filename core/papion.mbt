@@ -66,8 +66,11 @@ pub impl Show for ActionRef with output(self, logger) {
 
 ///|
 /// A parsed `uses:` value from a workflow step or composite action step.
-/// GitHub refs are resolved via the GitHub Contents API; local refs are
-/// resolved relative to the file that references them (Local-rooted scans only).
+/// GitHub refs are resolved via the GitHub Contents API. Local refs are
+/// resolved by the host's `fetch_local` callback (Local-rooted scans only).
+/// The resolution base directory depends on context: composite action steps
+/// resolve relative to the action file's directory; workflow steps resolve
+/// relative to the repository root (parent of `.github`).
 pub(all) enum ParsedRef {
   GitHub(ActionRef)
   LocalPath(String)

@@ -28,6 +28,15 @@ fn main {
 }
 
 ///|
+fn strip_path_component(path : String) -> String? {
+  let trimmed = path.trim_end(chars="/")
+  match trimmed.rev_find("/") {
+    Some(idx) => Some(trimmed[:idx].to_string())
+    None => None
+  }
+}
+
+///|
 fn build_fetch_local(
   path : String,
 ) -> (String, String) -> Result[(String, String), String] {
@@ -35,15 +44,36 @@ fn build_fetch_local(
     Ok(p) => p
     Err(_) => path
   }
-  let root_dir = match path_kind(root_abs) {
-    Ok(File) =>
-      match root_abs.rev_find("/") {
-        Some(idx) => root_abs[:idx].to_string()
-        None => "."
+  // For a file target the escape-guard boundary must be the repo root, not
+  // just the file's parent directory. Workflow files live at
+  // <repo>/.github/workflows/<name>.yml and the engine resolves uses: ./...
+  // refs from the repo root; the boundary must contain that root or valid
+  // refs are rejected as escaping the scan root. Strip three path components
+  // (file → workflows → .github → repo root) and fall back to the file's
+  // direct parent when the path is too shallow.
+  let boundary = match path_kind(root_abs) {
+    Ok(File) => {
+      let p1 = strip_path_component(root_abs)
+      let p2 = match p1 {
+        Some(d) => strip_path_component(d)
+        None => None
       }
+      let p3 = match p2 {
+        Some(d) => strip_path_component(d)
+        None => None
+      }
+      match p3 {
+        Some(repo_root) => repo_root
+        None =>
+          match p1 {
+            Some(d) => d
+            None => "."
+          }
+      }
+    }
     _ => root_abs
   }
-  make_fetch_local(root_dir)
+  make_fetch_local(boundary)
 }
 
 ///|

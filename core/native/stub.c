@@ -13,27 +13,41 @@ static char *papion_local_result_buf = NULL;
 static size_t papion_local_result_buf_len = 0;
 static char *papion_local_error_buf = NULL;
 
+static const char papion_oom_msg[] = "out of memory";
+
 static void papion_local_replace_err(const char *value) {
-  if (papion_local_error_buf != NULL) {
+  if (papion_local_error_buf != NULL &&
+      papion_local_error_buf != (char *)papion_oom_msg) {
     free(papion_local_error_buf);
   }
   papion_local_error_buf = strdup(value == NULL ? "" : value);
+  if (papion_local_error_buf == NULL) {
+    // strdup failed; point at the static OOM string so callers always see
+    // a non-NULL error buffer rather than a silent empty error.
+    papion_local_error_buf = (char *)papion_oom_msg;
+  }
 }
 
-static void papion_local_replace_result(const char *value, size_t len) {
-  if (papion_local_result_buf != NULL) {
+// Returns 1 on success, 0 on allocation failure. On failure the error buffer
+// is set to a static OOM message and the result buffer is cleared.
+static int papion_local_replace_result(const char *value, size_t len) {
+  if (papion_local_result_buf != NULL &&
+      papion_local_result_buf != (char *)papion_oom_msg) {
     free(papion_local_result_buf);
   }
+  papion_local_result_buf = NULL;
+  papion_local_result_buf_len = 0;
   if (len == 0) {
-    papion_local_result_buf = strdup("");
-    papion_local_result_buf_len = 0;
-    return;
+    return 1;
   }
   papion_local_result_buf = malloc(len);
-  if (papion_local_result_buf != NULL) {
-    memcpy(papion_local_result_buf, value, len);
+  if (papion_local_result_buf == NULL) {
+    papion_local_replace_err(papion_oom_msg);
+    return 0;
   }
-  papion_local_result_buf_len = (papion_local_result_buf != NULL) ? len : 0;
+  memcpy(papion_local_result_buf, value, len);
+  papion_local_result_buf_len = len;
+  return 1;
 }
 
 static void papion_local_set_errorf(const char *fmt, ...) {
@@ -45,9 +59,9 @@ static void papion_local_set_errorf(const char *fmt, ...) {
   papion_local_replace_err(stack_buf);
 }
 
-static void papion_local_set_result(const char *value) {
+static int papion_local_set_result(const char *value) {
   size_t len = value == NULL ? 0 : strlen(value);
-  papion_local_replace_result(value, len);
+  return papion_local_replace_result(value, len);
 }
 
 int papion_local_result_len(void) {
@@ -85,7 +99,9 @@ int papion_local_realpath(const char *path) {
     papion_local_set_errorf("failed to resolve %s: %s", path, strerror(errno));
     return 0;
   }
-  papion_local_set_result(resolved);
+  if (!papion_local_set_result(resolved)) {
+    return 0;
+  }
   return 1;
 }
 
@@ -158,9 +174,9 @@ int papion_local_list_dir(const char *path) {
     buffer[length] = '\0';
   }
   closedir(dir);
-  papion_local_replace_result(buffer, length);
+  int ok = papion_local_replace_result(buffer, length);
   free(buffer);
-  return 1;
+  return ok;
 }
 
 int papion_local_make_temp_dir(const char *prefix) {
@@ -171,7 +187,9 @@ int papion_local_make_temp_dir(const char *prefix) {
     papion_local_set_errorf("failed to create temp dir for %s: %s", prefix, strerror(errno));
     return 0;
   }
-  papion_local_set_result(made);
+  if (!papion_local_set_result(made)) {
+    return 0;
+  }
   return 1;
 }
 

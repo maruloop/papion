@@ -275,9 +275,11 @@ pub fn read_local_target(
 ///|
 /// Build the fetch_local callback for engine BFS traversal of local refs.
 ///
-/// `root_abs` is the realpath of the original scan root directory (or the
-/// directory containing the root file). Any resolved path that does not start
-/// with `root_abs/` is rejected to prevent path-escape attacks.
+/// `root_abs` is the directory used as the escape-guard boundary: any resolved
+/// path that is not `root_abs` itself or under `root_abs/` is rejected to
+/// prevent path-escape attacks. For workflow files this should be the repo root
+/// (parent of `.github`), not the `.github/workflows` directory, because the
+/// engine resolves `uses: ./...` refs relative to the repo root.
 pub fn make_fetch_local(
   root_abs : String,
 ) -> (String, String) -> Result[(String, String), String] {
