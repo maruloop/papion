@@ -552,3 +552,60 @@ test "exit_code_for fail_on warn clean" {
 test "exit_code_for fail_on none ignores findings" {
   assert_eq(exit_code_for({ failures: 2, warnings: 3 }, NoneLevel), 0)
 }
+
+///|
+test "run_with_host local single-file json output is an array" {
+  let action_yaml =
+    #|name: My Action
+    #|runs:
+    #|  using: node20
+  let result = run_with_host(
+    ["run", "./action.yml", "--format", "json"],
+    fn(_) { Ok(@papion.Policy::default()) },
+    fn(_, _, _, _, _) { Err("unexpected github fetch") },
+    fn(_path) {
+      Ok([
+        {
+          kind: Action,
+          abs_path: "/repo/action.yml",
+          yaml: action_yaml,
+        },
+      ])
+    },
+  )
+  match result {
+    Ok(outcome) => assert_true(outcome.output.has_prefix("["))
+    Err(err) => fail(err.to_string())
+  }
+}
+
+///|
+test "run_with_host local multi-file json output is an array" {
+  let action_yaml =
+    #|name: My Action
+    #|runs:
+    #|  using: node20
+  let result = run_with_host(
+    ["run", "./.github", "--format", "json"],
+    fn(_) { Ok(@papion.Policy::default()) },
+    fn(_, _, _, _, _) { Err("unexpected github fetch") },
+    fn(_path) {
+      Ok([
+        {
+          kind: Action,
+          abs_path: "/repo/.github/action.yml",
+          yaml: action_yaml,
+        },
+        {
+          kind: Action,
+          abs_path: "/repo/.github/actions/other/action.yml",
+          yaml: action_yaml,
+        },
+      ])
+    },
+  )
+  match result {
+    Ok(outcome) => assert_true(outcome.output.has_prefix("["))
+    Err(err) => fail(err.to_string())
+  }
+}
