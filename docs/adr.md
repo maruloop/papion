@@ -611,6 +611,46 @@ The traversal logic lives in the engine (core layer) with a callback injection p
 
 ---
 
+## Decision 21: Local scan targets
+
+### Options
+
+* Keep `papion run` limited to GitHub repository coordinates
+* Add local file and directory roots while preserving GitHub recursion for transitive dependencies
+
+### Decision
+
+Adopt **local scan targets** for the CLI and native host.
+
+`papion run` accepts:
+
+* `./.github`
+* `./path/to/action.yml`
+* `./path/to/workflow.yml`
+
+`ScanTarget` becomes a sum type:
+
+```text
+GitHub({ owner, repo, git_ref, path? })
+Local({ path })
+```
+
+### Rationale
+
+* Users need to scan a checkout before pushing or publishing.
+* CI jobs need a direct way to scan local workflow and action files without a root GitHub fetch.
+* Workflow YAML is a first-class scan root because `uses:` references often live there, not only in `action.yml`.
+* The core engine should keep recursive dependency behavior unchanged for transitive references.
+
+### Consequences
+
+* Host integrations now resolve local paths, walk directories, and read local YAML before calling core.
+* Core stays I/O-free: it receives a fully-resolved `ScanTarget::Local { path }` plus the YAML string for that root.
+* Engine dispatch must distinguish action roots from workflow roots while sharing the same recursive GitHub fetch callback for transitive `uses:` references.
+* Directory scans treat `**/workflows/*.{yml,yaml}` and `**/action.{yml,yaml}` as scan roots.
+
+---
+
 ## Final Architecture Summary
 
 Papion is:
