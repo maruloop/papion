@@ -19,18 +19,6 @@ extern "c" fn local_result_byte_ffi(index : Int) -> Int = "papion_local_result_b
 extern "c" fn local_error_byte_ffi(index : Int) -> Int = "papion_local_error_byte"
 
 ///|
-#borrow(prefix)
-extern "c" fn local_make_temp_dir_ffi(prefix : Bytes) -> Int = "papion_local_make_temp_dir"
-
-///|
-#borrow(path)
-extern "c" fn local_mkdir_p_ffi(path : Bytes) -> Int = "papion_local_mkdir_p"
-
-///|
-#borrow(path, content)
-extern "c" fn local_write_file_ffi(path : Bytes, content : Bytes) -> Int = "papion_local_write_file"
-
-///|
 #borrow(path)
 extern "c" fn local_path_kind_ffi(path : Bytes) -> Int = "papion_local_path_kind"
 
@@ -318,35 +306,3 @@ pub fn make_fetch_local(
   }
 }
 
-///|
-pub fn make_temp_dir(prefix : String) -> Result[String, String] {
-  if local_make_temp_dir_ffi(c_string_bytes(prefix)) == 0 {
-    Err(error_string())
-  } else {
-    Ok(result_string())
-  }
-}
-
-///|
-pub fn mkdir_p(path : String) -> Result[Unit, String] {
-  if local_mkdir_p_ffi(c_string_bytes(path)) == 0 {
-    Err(error_string())
-  } else {
-    Ok(())
-  }
-}
-
-///|
-pub fn write_utf8_file(path : String, content : String) -> Result[Unit, String] {
-  let bytes = @utf8.encode(content).to_array()
-  let c_bytes : Array[Byte] = []
-  for b in bytes {
-    c_bytes.push(b)
-  }
-  c_bytes.push(0)
-  if local_write_file_ffi(c_string_bytes(path), Bytes::from_array(c_bytes)) == 0 {
-    Err(error_string())
-  } else {
-    Ok(())
-  }
-}
