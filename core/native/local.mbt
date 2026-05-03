@@ -168,9 +168,9 @@ fn maybe_collect_file(
     None => Ok(())
     Some(kind) => {
       count.val = count.val + 1
-      if count.val > @papion.max_scan_nodes {
+      if count.val > @papion.max_local_root_files {
         return Err(
-          "local scan exceeded maximum root file count of \{@papion.max_scan_nodes}",
+          "local scan exceeded maximum root file count of \{@papion.max_local_root_files}",
         )
       }
       let yaml = match read_utf8_file(path) {

@@ -16,6 +16,11 @@ pub let max_scan_depth : Int = 10
 pub let max_scan_nodes : Int = 100
 
 ///|
+/// Maximum number of local YAML files collected during a local directory scan.
+/// Separate from max_scan_nodes so tuning one does not silently affect the other.
+pub let max_local_root_files : Int = 200
+
+///|
 pub fn cli_user_agent() -> String {
   "papion/\{version} (+https://github.com/maruloop/papion)"
 }
