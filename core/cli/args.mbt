@@ -144,17 +144,17 @@ fn parse_github_url_segments(url : String) -> Result[Array[String], String] {
   } else {
     return Err("not a GitHub URL")
   }
-  let rest_with_suffix = url[prefix.length():].to_owned()
+  let rest_with_suffix = url[prefix.length():].to_string()
   let rest_without_query = match rest_with_suffix.find("?") {
-    Some(idx) => rest_with_suffix[:idx].to_owned()
+    Some(idx) => rest_with_suffix[:idx].to_string()
     None => rest_with_suffix
   }
   let rest_without_fragment = match rest_without_query.find("#") {
-    Some(idx) => rest_without_query[:idx].to_owned()
+    Some(idx) => rest_without_query[:idx].to_string()
     None => rest_without_query
   }
   let rest = rest_without_fragment.trim(chars="/")
-  let raw_segments = rest.split("/").map(fn(s) { s.to_owned() }).to_array()
+  let raw_segments = rest.split("/").map(fn(s) { s.to_string() }).to_array()
   let segments : Array[String] = []
   for raw_segment in raw_segments {
     match percent_decode_url_path_segment(raw_segment) {
@@ -168,7 +168,7 @@ fn parse_github_url_segments(url : String) -> Result[Array[String], String] {
     return Err("invalid GitHub URL: expected https://github.com/owner/repo")
   }
   if segments[1].has_suffix(".git") {
-    segments[1] = segments[1][:segments[1].length() - 4].to_owned()
+    segments[1] = segments[1][:segments[1].length() - 4].to_string()
     if segments[1].is_empty() {
       return Err("invalid GitHub URL: repo is empty")
     }
@@ -227,11 +227,11 @@ fn parse_owner_repo_path(
   match s.find("/") {
     None => Err("invalid target: expected owner/repo")
     Some(slash1) => {
-      let owner = s[:slash1].to_owned()
+      let owner = s[:slash1].to_string()
       if owner.is_empty() {
         return Err("owner is empty")
       }
-      let rest = s[slash1 + 1:].to_owned()
+      let rest = s[slash1 + 1:].to_string()
       match rest.find("/") {
         None => {
           if rest.is_empty() {
@@ -248,8 +248,8 @@ fn parse_owner_repo_path(
           )
         }
         Some(slash2) => {
-          let repo = rest[:slash2].to_owned()
-          let path = rest[slash2 + 1:].to_owned()
+          let repo = rest[:slash2].to_string()
+          let path = rest[slash2 + 1:].to_string()
           if repo.is_empty() {
             return Err("repo is empty")
           }
@@ -292,11 +292,11 @@ fn parse_target(target : String) -> Result[RunTarget, String] {
   } else {
     match target.rev_find("@") {
       Some(at_pos) => {
-        let git_ref = target[at_pos + 1:].to_owned()
+        let git_ref = target[at_pos + 1:].to_string()
         if git_ref.is_empty() {
           return Err("missing ref after '@'")
         }
-        parse_owner_repo_path(target[:at_pos].to_owned(), Some(git_ref))
+        parse_owner_repo_path(target[:at_pos].to_string(), Some(git_ref))
       }
       None => parse_owner_repo_path(target, None)
     }

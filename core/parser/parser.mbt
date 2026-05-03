@@ -9,24 +9,24 @@ pub fn parse_action_ref(uses : String) -> Result[@papion.ActionRef, String] {
   guard uses.find("@") is Some(at_idx) else {
     return Err("missing '@' in uses string: \"" + uses + "\"")
   }
-  let before_at = uses[0:at_idx].to_owned()
-  let git_ref = uses[at_idx + 1:].to_owned()
+  let before_at = uses[0:at_idx].to_string()
+  let git_ref = uses[at_idx + 1:].to_string()
   guard !git_ref.is_empty() else {
     return Err("empty ref in uses string: \"" + uses + "\"")
   }
   guard before_at.find("/") is Some(slash1) else {
     return Err("invalid format in uses string: \"" + uses + "\"")
   }
-  let owner = before_at[0:slash1].to_owned()
+  let owner = before_at[0:slash1].to_string()
   guard !owner.is_empty() else {
     return Err("empty owner in uses string: \"" + uses + "\"")
   }
-  let rest = before_at[slash1 + 1:].to_owned()
+  let rest = before_at[slash1 + 1:].to_string()
   let (repo, path) = match rest.find("/") {
     None => (rest, None)
     Some(slash2) => {
-      let repo_str = rest[0:slash2].to_owned()
-      let path_str = rest[slash2 + 1:].to_owned()
+      let repo_str = rest[0:slash2].to_string()
+      let path_str = rest[slash2 + 1:].to_string()
       guard !path_str.is_empty() else {
         return Err("empty path in uses string: \"" + uses + "\"")
       }

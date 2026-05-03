@@ -67,7 +67,7 @@ fn list_dir(path : String) -> Result[Array[String], String] {
   if text.is_empty() {
     Ok([])
   } else {
-    Ok(text.split("\n").map(fn(part) { part.to_owned() }).to_array())
+    Ok(text.split("\n").map(fn(part) { part.to_string() }).to_array())
   }
 }
 
@@ -88,8 +88,8 @@ fn read_utf8_file(path : String) -> Result[String, String] {
 fn basename(path : String) -> String {
   let trimmed = path.trim(chars="/")
   match trimmed.rev_find("/") {
-    Some(idx) => trimmed[idx + 1:].to_owned()
-    None => trimmed.to_owned()
+    Some(idx) => trimmed[idx + 1:].to_string()
+    None => trimmed.to_string()
   }
 }
 
@@ -99,9 +99,9 @@ fn parent_dir_name(path : String) -> String? {
   match trimmed.rev_find("/") {
     None => None
     Some(end_idx) => {
-      let parent = trimmed[:end_idx].to_owned()
+      let parent = trimmed[:end_idx].to_string()
       match parent.rev_find("/") {
-        Some(start_idx) => Some(parent[start_idx + 1:].to_owned())
+        Some(start_idx) => Some(parent[start_idx + 1:].to_string())
         None => if parent.is_empty() { None } else { Some(parent) }
       }
     }
