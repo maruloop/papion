@@ -306,7 +306,8 @@ pub fn extract_refs_from_workflow(
 ) -> Array[@papion.ParsedRef] {
   let refs = Array::new()
   for _, job in wf.jobs {
-    // job.uses is a reusable workflow ref — skip transitive scanning
+    // job.uses is a reusable-workflow ref, not an action ref; papion does not
+    // scan reusable workflows transitively, so these refs are not collected.
     match job.steps {
       None => ()
       Some(steps) =>

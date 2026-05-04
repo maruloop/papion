@@ -215,6 +215,7 @@ fn walk_dir(
     Ok(entries) => entries
     Err(err) => return Err(err)
   }
+  entries.sort()
   for entry in entries {
     let child = "\{dir}/\{entry}"
     match path_kind(child) {

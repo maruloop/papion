@@ -49,7 +49,8 @@ fn build_fetch_local(
   // For workflow file targets (.github/workflows/*.yml) the engine resolves
   // uses: ./... refs from the repo root (three levels up from the file), so
   // the boundary must be at least that wide. For action files the boundary
-  // is the file's direct parent — no wider.
+  // is widened one extra level beyond the direct parent (i.e. grandparent)
+  // so that in-checkout ../sibling refs remain resolvable.
   //
   // For directory targets the boundary is the directory itself, except when
   // the target is a .github directory: workflows inside it resolve from the
@@ -121,17 +122,10 @@ fn build_fetch_local(
 
 ///|
 fn run(args : Array[String]) -> Result[@cli.RunOutcome, @cli.CliError] {
-  let fetch_local = if args.length() >= 2 {
-    let target = args[1]
-    if target.has_prefix("./") ||
-      target.has_prefix("../") ||
-      target.has_prefix("/") {
-      Some(build_fetch_local(target))
-    } else {
-      None
-    }
-  } else {
-    None
+  let parsed = @cli.parse_args(args)
+  let fetch_local = match parsed {
+    Ok({ target: Local({ path }), .. }) => Some(build_fetch_local(path))
+    _ => None
   }
   match fetch_local {
     Some(fl) =>
