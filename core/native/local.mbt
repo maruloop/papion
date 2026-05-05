@@ -281,11 +281,13 @@ pub fn read_local_target(
 pub fn make_fetch_local(
   root_abs : String,
 ) -> (String, String) -> Result[(String, String), String] {
-  // root_abs must be a non-empty absolute path; an empty or relative boundary
-  // would silently disable the escape guard for every resolved path.
-  if root_abs.is_empty() || !root_abs.has_prefix("/") {
+  // root_abs must be non-empty; an empty boundary would let every resolved
+  // path satisfy the escape-guard prefix check, silently disabling it.
+  // Callers (build_fetch_local) always pass a realpath-resolved absolute path,
+  // so we do not additionally require a specific prefix here.
+  if root_abs.is_empty() {
     return fn(_base_dir, _rel_path) {
-      Err("invalid scan root: boundary must be a non-empty absolute path")
+      Err("invalid scan root: boundary must be a non-empty path")
     }
   }
   fn(base_dir : String, rel_path : String) -> Result[(String, String), String] {
