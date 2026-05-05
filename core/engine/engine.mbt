@@ -171,6 +171,22 @@ fn scan_impl(
     }
     for parsed_ref in refs {
       match parsed_ref {
+        @papion.ReusableWorkflow(ref_) => {
+          // Evaluate pin policy for the call site but do not fetch or recurse.
+          let ref_kind = if policy.sha_pinning {
+            resolve_ref_kind(ref_.owner, ref_.repo, ref_.git_ref)
+          } else {
+            Branch
+          }
+          let ref_findings = @rules.evaluate(ref_, ref_kind, policy)
+          for finding in ref_findings {
+            let with_context = match node.via {
+              None => finding
+              Some(v) => { ..finding, context: Some(v) }
+            }
+            all_findings.push(with_context)
+          }
+        }
         @papion.GitHub(ref_) => {
           let ref_kind = if policy.sha_pinning {
             resolve_ref_kind(ref_.owner, ref_.repo, ref_.git_ref)

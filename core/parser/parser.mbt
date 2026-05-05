@@ -308,10 +308,15 @@ pub fn extract_refs_from_workflow(
   for _, job in wf.jobs {
     // job.uses is a reusable-workflow call (owner/repo/.github/workflows/f.yml@ref).
     // Papion does not recurse into reusable workflows, but the call site's own
-    // ref is subject to the same pin policy as any other uses:, so collect it.
+    // ref is subject to the same pin policy as any other uses:, so collect it
+    // as ReusableWorkflow so the engine evaluates the pin without fetching it.
     match job.uses {
       None => ()
-      Some(uses_str) => collect_ref(refs, uses_str)
+      Some(uses_str) =>
+        match parse_action_ref(uses_str) {
+          Ok(r) => refs.push(@papion.ReusableWorkflow(r))
+          Err(_) => ()
+        }
     }
     match job.steps {
       None => ()

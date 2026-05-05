@@ -378,14 +378,21 @@ test "extract_refs_from_workflow collects step refs and reusable workflow job re
       _ => false
     }
   })
+  let reusable_refs = refs.filter(fn(r) {
+    match r {
+      @papion.ReusableWorkflow(_) => true
+      _ => false
+    }
+  })
   let local_refs = refs.filter(fn(r) {
     match r {
       @papion.LocalPath(_) => true
       _ => false
     }
   })
-  // reusable workflow job ref + step ref both collected as GitHub refs
-  assert_eq(github_refs.length(), 2)
+  // step ref is GitHub; job.uses is ReusableWorkflow (not GitHub)
+  assert_eq(github_refs.length(), 1)
+  assert_eq(reusable_refs.length(), 1)
   assert_eq(local_refs.length(), 1)
   assert_eq(local_refs[0], @papion.LocalPath("./local/action"))
   // docker:// is skipped

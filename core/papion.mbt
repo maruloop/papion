@@ -74,6 +74,9 @@ pub impl Show for ActionRef with output(self, logger) {
 pub(all) enum ParsedRef {
   GitHub(ActionRef)
   LocalPath(String)
+  // Reusable workflow call (job.uses). The ref is evaluated for pin policy
+  // but the workflow is not fetched or recursed into.
+  ReusableWorkflow(ActionRef)
 } derive(Debug, Eq)
 
 ///|
@@ -87,6 +90,11 @@ pub impl Show for ParsedRef with output(self, logger) {
     LocalPath(p) => {
       logger.write_string("LocalPath(")
       p.output(logger)
+      logger.write_string(")")
+    }
+    ReusableWorkflow(r) => {
+      logger.write_string("ReusableWorkflow(")
+      r.output(logger)
       logger.write_string(")")
     }
   }
