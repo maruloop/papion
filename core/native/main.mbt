@@ -31,7 +31,14 @@ fn main {
 fn strip_path_component(path : String) -> String? {
   let trimmed = path.trim_end(chars="/")
   match trimmed.rev_find("/") {
-    Some(idx) => Some(trimmed[:idx].to_string())
+    Some(idx) => {
+      let parent = trimmed[:idx].to_string()
+      if parent.is_empty() {
+        None
+      } else {
+        Some(parent)
+      }
+    }
     None => None
   }
 }
@@ -49,23 +56,20 @@ fn build_fetch_local(
   // For workflow file targets (.github/workflows/*.yml) the engine resolves
   // uses: ./... refs from the repo root (three levels up from the file), so
   // the boundary must be at least that wide. For action files the boundary
-  // is widened one extra level beyond the direct parent (i.e. grandparent)
-  // so that in-checkout ../sibling refs remain resolvable.
+  // is the file's direct parent — action steps use ./relative refs that stay
+  // within the same directory tree, not ../sibling refs that cross checkouts.
   //
   // For directory targets the boundary is the directory itself, except when
   // the target is a .github directory: workflows inside it resolve from the
   // repo root (parent of .github), so use that parent as the boundary.
   let boundary = match path_kind(root_abs) {
     Ok(File) => {
-      let p1 = strip_path_component(root_abs)
-      let direct_parent = match p1 {
+      let direct_parent = match strip_path_component(root_abs) {
         Some(d) => d
         None => "."
       }
       // Widen to repo root for workflow files (3 levels: file → workflows →
-      // .github → repo). For action files widen one extra level beyond the
-      // direct parent so that in-checkout ../sibling refs remain resolvable.
-      // Guard against empty or "/" boundaries in both cases.
+      // .github → repo). For action files the boundary is the direct parent.
       if is_workflow_path(root_abs) {
         let p2 = strip_path_component(direct_parent)
         let p3 = match p2 {
@@ -73,15 +77,11 @@ fn build_fetch_local(
           None => None
         }
         match p3 {
-          Some(repo_root) if repo_root != "" && repo_root != "/" => repo_root
+          Some(repo_root) if repo_root != "/" => repo_root
           _ => direct_parent
         }
       } else {
-        match strip_path_component(direct_parent) {
-          Some(grandparent) if grandparent != "" && grandparent != "/" =>
-            grandparent
-          _ => direct_parent
-        }
+        direct_parent
       }
     }
     _ => {

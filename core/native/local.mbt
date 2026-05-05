@@ -281,6 +281,13 @@ pub fn read_local_target(
 pub fn make_fetch_local(
   root_abs : String,
 ) -> (String, String) -> Result[(String, String), String] {
+  // root_abs must be a non-empty absolute path; an empty or relative boundary
+  // would silently disable the escape guard for every resolved path.
+  if root_abs.is_empty() || !root_abs.has_prefix("/") {
+    return fn(_base_dir, _rel_path) {
+      Err("invalid scan root: boundary must be a non-empty absolute path")
+    }
+  }
   fn(base_dir : String, rel_path : String) -> Result[(String, String), String] {
     let joined = "\{base_dir}/\{rel_path}"
     let abs_path = match resolve_abs_path(joined) {
