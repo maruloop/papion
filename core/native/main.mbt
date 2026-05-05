@@ -70,17 +70,20 @@ fn build_fetch_local(
         Some(d) => d
         None => root_abs
       }
-      // Widen to repo root for workflow files (3 levels: file → workflows →
-      // .github → repo). For action files the boundary is the direct parent.
-      if is_workflow_path(root_abs) {
-        let p2 = strip_path_component(direct_parent)
-        let p3 = match p2 {
-          Some(d) => strip_path_component(d)
-          None => None
-        }
-        match p3 {
-          Some(repo_root) if repo_root != "/" => repo_root
-          _ => direct_parent
+      // Widen to repo root only for actual .github/workflows files (3 levels:
+      // file → workflows → .github → repo). Check the full ancestry so that
+      // YAML files in arbitrary directories named "workflows" don't get the
+      // wider boundary. For all other files the boundary is the direct parent.
+      let workflows_dir = direct_parent
+      let github_dir = strip_path_component(workflows_dir)
+      let is_github_workflow = has_yaml_extension(root_abs) &&
+        basename(workflows_dir) == "workflows" &&
+        github_dir is Some(gd) &&
+        basename(gd) == ".github"
+      if is_github_workflow {
+        match strip_path_component(github_dir.unwrap()) {
+          Some(repo_root) => repo_root
+          None => direct_parent
         }
       } else {
         direct_parent
