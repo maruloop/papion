@@ -41,8 +41,10 @@ fn parent_path(path : String) -> String? {
   match trimmed.rev_find("/") {
     Some(idx) => {
       let parent = trimmed[:idx].to_string()
+      // For root-level entries like /.github, parent is ""; return "/" so that
+      // workflow_repo_root stays anchored to the filesystem root.
       if parent.is_empty() {
-        None
+        Some("/")
       } else {
         Some(parent)
       }

@@ -33,8 +33,10 @@ fn strip_path_component(path : String) -> String? {
   match trimmed.rev_find("/") {
     Some(idx) => {
       let parent = trimmed[:idx].to_string()
+      // For root-level entries like /file, parent is ""; preserve "/" so that
+      // boundary computations stay anchored to the filesystem root.
       if parent.is_empty() {
-        None
+        Some("/")
       } else {
         Some(parent)
       }
