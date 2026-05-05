@@ -39,7 +39,14 @@ pub(all) struct LocalScanUnit {
 fn parent_path(path : String) -> String? {
   let trimmed = path.trim_end(chars="/")
   match trimmed.rev_find("/") {
-    Some(idx) => Some(trimmed[:idx].to_string())
+    Some(idx) => {
+      let parent = trimmed[:idx].to_string()
+      if parent.is_empty() {
+        None
+      } else {
+        Some(parent)
+      }
+    }
     None => None
   }
 }

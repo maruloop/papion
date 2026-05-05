@@ -66,7 +66,7 @@ fn build_fetch_local(
     Ok(File) => {
       let direct_parent = match strip_path_component(root_abs) {
         Some(d) => d
-        None => "."
+        None => root_abs
       }
       // Widen to repo root for workflow files (3 levels: file → workflows →
       // .github → repo). For action files the boundary is the direct parent.
