@@ -933,6 +933,70 @@ fn make_local_fetch_table(
 }
 
 ///|
+test "scan auto-derives repo root for action under .github/actions/<name>/" {
+  // Action at /repo/.github/actions/my-action/action.yml
+  // Local step uses: ./shared — should resolve against /repo, not the action dir.
+  let target = local_target("/repo/.github/actions/my-action/action.yml")
+  let root_yaml =
+    #|name: My Action
+    #|runs:
+    #|  using: composite
+    #|  steps:
+    #|    - uses: ./shared
+  let shared_yaml =
+    #|name: Shared
+    #|runs:
+    #|  using: composite
+    #|  steps:
+    #|    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+  let fetch_local = make_local_fetch_table({ "/repo/./shared": shared_yaml })
+  let result = scan(
+    target,
+    root_yaml,
+    @papion.Policy::default(),
+    unreachable_fetch,
+    fetch_local~,
+  )
+  match result {
+    Err(e) => fail("unexpected error: \{e}")
+    Ok(r) => assert_eq(r.findings.length(), 0)
+  }
+}
+
+///|
+test "scan falls back to action dir for action outside .github/actions/" {
+  // Action at /repo/custom-actions/lint/action.yml — no canonical ancestry,
+  // so base_dir falls back to /repo/custom-actions/lint (the file's parent).
+  let target = local_target("/repo/custom-actions/lint/action.yml")
+  let root_yaml =
+    #|name: Lint
+    #|runs:
+    #|  using: composite
+    #|  steps:
+    #|    - uses: ./helpers/setup
+  let helper_yaml =
+    #|name: Setup
+    #|runs:
+    #|  using: composite
+    #|  steps:
+    #|    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+  let fetch_local = make_local_fetch_table({
+    "/repo/custom-actions/lint/./helpers/setup": helper_yaml,
+  })
+  let result = scan(
+    target,
+    root_yaml,
+    @papion.Policy::default(),
+    unreachable_fetch,
+    fetch_local~,
+  )
+  match result {
+    Err(e) => fail("unexpected error: \{e}")
+    Ok(r) => assert_eq(r.findings.length(), 0)
+  }
+}
+
+///|
 test "scan_workflow traverses local composite and finds GitHub action" {
   let target = local_target("/repo/.github/workflows/ci.yml")
   let workflow_yaml =

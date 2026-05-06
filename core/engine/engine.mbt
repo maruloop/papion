@@ -32,6 +32,41 @@ fn parent_dir(path : String) -> String? {
 }
 
 ///|
+/// Returns the repo root for an action at <root>/.github/actions/<name>/action.yml.
+/// Returns None when the path does not follow that convention.
+fn action_root_dir(path : String) -> String? {
+  match parent_dir(path) {
+    None => None
+    Some(action_dir) =>
+      match parent_dir(action_dir) {
+        None => None
+        Some(actions_dir) => {
+          let actions_name = match actions_dir.rev_find("/") {
+            Some(idx) => actions_dir[idx + 1:].to_string()
+            None => actions_dir
+          }
+          if actions_name != "actions" {
+            return None
+          }
+          match parent_dir(actions_dir) {
+            None => None
+            Some(github_dir) => {
+              let gh_name = match github_dir.rev_find("/") {
+                Some(idx) => github_dir[idx + 1:].to_string()
+                None => github_dir
+              }
+              if gh_name != ".github" {
+                return None
+              }
+              parent_dir(github_dir)
+            }
+          }
+        }
+      }
+  }
+}
+
+///|
 /// Returns the repo root for a workflow at <root>/.github/workflows/<name>.yml.
 /// Returns None when the path does not follow that convention.
 fn workflow_root_dir(path : String) -> String? {
@@ -165,6 +200,7 @@ fn scan_impl(
     @rules.classify_ref(git_ref)
   },
   workflow_base_dir? : String,
+  scan_base_dir? : String,
 ) -> Result[@papion.ScanResult, String] {
   let policy = match policy.normalized() {
     Ok(p) => p
@@ -189,9 +225,21 @@ fn scan_impl(
                 }
             }
           } else {
-            match parent_dir(path) {
+            // For action scans: explicit scan_base_dir takes precedence.
+            // Otherwise infer the repo root for actions under the canonical
+            // .github/actions/<name>/action.yml layout. Falls back to the
+            // file's own parent for actions at arbitrary locations.
+            match scan_base_dir {
               Some(d) => Some(d)
-              None => Some(".")
+              None =>
+                match action_root_dir(path) {
+                  Some(root) => Some(root)
+                  None =>
+                    match parent_dir(path) {
+                      Some(d) => Some(d)
+                      None => Some(".")
+                    }
+                }
             }
           }
       }
@@ -355,6 +403,7 @@ pub fn scan(
   ) {
     @rules.classify_ref(git_ref)
   },
+  scan_base_dir? : String,
 ) -> Result[@papion.ScanResult, String] {
   scan_impl(
     target,
@@ -364,6 +413,7 @@ pub fn scan(
     Action,
     fetch_local~,
     resolve_ref_kind~,
+    scan_base_dir?,
   )
 }
 
