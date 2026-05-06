@@ -606,3 +606,94 @@ test "cached_ref_kind_resolver_with: owner/repo case-insensitive" {
   assert_eq(r1, Sha)
   assert_eq(r2, Sha)
 }
+
+///|
+fn stub_fetch_action_yml(
+  _owner : String,
+  _repo : String,
+  git_ref : String?,
+  path : String?,
+  _allow_ref_fallback : Bool,
+) -> Result[(String, String, String?), String] {
+  let resolved_ref = match git_ref {
+    Some(r) => r
+    None => "main"
+  }
+  Ok(
+    ("name: stub\nruns:\n  using: composite\n  steps: []\n", resolved_ref, path),
+  )
+}
+
+///|
+fn scenario_repo_root(scenario_path : String) -> String? {
+  match resolve_abs_path(scenario_path) {
+    Ok(abs) => find_git_root(abs)
+    Err(_) => None
+  }
+}
+
+///|
+test "integration: local workflow -> local composite -> remote action (zero findings)" {
+  guard @env.current_dir() is Some(cwd) else {
+    fail("expected current working directory")
+  }
+  let scenario = "\{cwd}/native/testdata/scenarios/wf-to-composite-to-remote/.github/workflows/ci.yml"
+  let fl = build_fetch_local(scenario)
+  let repo_root = scenario_repo_root(scenario)
+  let result = @cli.run_with_host(
+    ["run", scenario, "--fail-on", "warn"],
+    fn(_) { Ok(@papion.Policy::default()) },
+    stub_fetch_action_yml,
+    read_local_target,
+    fetch_local=fl,
+    repo_root?,
+  )
+  match result {
+    Err(e) => fail("unexpected error: \{e}")
+    Ok(outcome) => assert_eq(outcome.exit_code, 0)
+  }
+}
+
+///|
+test "integration: local workflow -> remote action (zero findings)" {
+  guard @env.current_dir() is Some(cwd) else {
+    fail("expected current working directory")
+  }
+  let scenario = "\{cwd}/native/testdata/scenarios/wf-to-remote/.github/workflows/ci.yml"
+  let fl = build_fetch_local(scenario)
+  let repo_root = scenario_repo_root(scenario)
+  let result = @cli.run_with_host(
+    ["run", scenario, "--fail-on", "warn"],
+    fn(_) { Ok(@papion.Policy::default()) },
+    stub_fetch_action_yml,
+    read_local_target,
+    fetch_local=fl,
+    repo_root?,
+  )
+  match result {
+    Err(e) => fail("unexpected error: \{e}")
+    Ok(outcome) => assert_eq(outcome.exit_code, 0)
+  }
+}
+
+///|
+test "integration: local composite -> local composite -> remote action (zero findings)" {
+  guard @env.current_dir() is Some(cwd) else {
+    fail("expected current working directory")
+  }
+  let scenario = "\{cwd}/native/testdata/scenarios/composite-chain/first/action.yml"
+  let fl = build_fetch_local(scenario)
+  let repo_root = scenario_repo_root(scenario)
+  let result = @cli.run_with_host(
+    ["run", scenario, "--fail-on", "warn"],
+    fn(_) { Ok(@papion.Policy::default()) },
+    stub_fetch_action_yml,
+    read_local_target,
+    fetch_local=fl,
+    repo_root?,
+  )
+  match result {
+    Err(e) => fail("unexpected error: \{e}")
+    Ok(outcome) => assert_eq(outcome.exit_code, 0)
+  }
+}
