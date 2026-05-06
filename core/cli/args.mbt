@@ -47,12 +47,66 @@ pub impl Show for FailOnLevel with output(self, logger) {
 }
 
 ///|
-pub(all) struct RunOptions {
+pub(all) struct GitHubRunTarget {
   owner : String
   repo : String
   path : String?
   git_ref : String?
   allow_ref_fallback : Bool
+} derive(Debug, Eq)
+
+///|
+pub(all) struct LocalRunTarget {
+  path : String
+} derive(Debug, Eq)
+
+///|
+pub(all) enum RunTarget {
+  GitHub(GitHubRunTarget)
+  Local(LocalRunTarget)
+} derive(Debug, Eq)
+
+///|
+pub impl Show for RunTarget with output(self, logger) {
+  match self {
+    GitHub(target) => {
+      logger.write_string("GitHub(owner: ")
+      target.owner.output(logger)
+      logger.write_string(", repo: ")
+      target.repo.output(logger)
+      logger.write_string(", path: ")
+      match target.path {
+        None => logger.write_string("None")
+        Some(path) => {
+          logger.write_string("Some(")
+          path.output(logger)
+          logger.write_string(")")
+        }
+      }
+      logger.write_string(", git_ref: ")
+      match target.git_ref {
+        None => logger.write_string("None")
+        Some(git_ref) => {
+          logger.write_string("Some(")
+          git_ref.output(logger)
+          logger.write_string(")")
+        }
+      }
+      logger.write_string(", allow_ref_fallback: ")
+      target.allow_ref_fallback.output(logger)
+      logger.write_string(")")
+    }
+    Local(target) => {
+      logger.write_string("Local(path: ")
+      target.path.output(logger)
+      logger.write_string(")")
+    }
+  }
+}
+
+///|
+pub(all) struct RunOptions {
+  target : RunTarget
   format : OutputFormat
   fail_on : FailOnLevel
   config : String?
@@ -70,16 +124,8 @@ pub impl Show for RunOptions with output(self, logger) {
       }
     }
   }
-  logger.write_string("RunOptions(owner: ")
-  self.owner.output(logger)
-  logger.write_string(", repo: ")
-  self.repo.output(logger)
-  logger.write_string(", path: ")
-  output_option_string(self.path)
-  logger.write_string(", git_ref: ")
-  output_option_string(self.git_ref)
-  logger.write_string(", allow_ref_fallback: ")
-  self.allow_ref_fallback.output(logger)
+  logger.write_string("RunOptions(target: ")
+  self.target.output(logger)
   logger.write_string(", format: ")
   self.format.output(logger)
   logger.write_string(", fail_on: ")
@@ -87,15 +133,6 @@ pub impl Show for RunOptions with output(self, logger) {
   logger.write_string(", config: ")
   output_option_string(self.config)
   logger.write_string(")")
-}
-
-///|
-priv struct ParsedTarget {
-  owner : String
-  repo : String
-  path : String?
-  git_ref : String?
-  allow_ref_fallback : Bool
 }
 
 ///|
@@ -140,7 +177,7 @@ fn parse_github_url_segments(url : String) -> Result[Array[String], String] {
 }
 
 ///|
-fn parse_repo_target(segments : Array[String]) -> Result[ParsedTarget, String] {
+fn parse_repo_target(segments : Array[String]) -> Result[RunTarget, String] {
   if segments.length() > 2 {
     if segments[2] == "blob" {
       return Err(
@@ -151,38 +188,42 @@ fn parse_repo_target(segments : Array[String]) -> Result[ParsedTarget, String] {
       return Err("invalid GitHub URL: expected repository root URL")
     }
   }
-  Ok({
-    owner: segments[0],
-    repo: segments[1],
-    path: None,
-    git_ref: None,
-    allow_ref_fallback: false,
-  })
+  Ok(
+    GitHub({
+      owner: segments[0],
+      repo: segments[1],
+      path: None,
+      git_ref: None,
+      allow_ref_fallback: false,
+    }),
+  )
 }
 
 ///|
-fn parse_tree_target(segments : Array[String]) -> Result[ParsedTarget, String] {
+fn parse_tree_target(segments : Array[String]) -> Result[RunTarget, String] {
   if segments.length() < 4 || segments[3].is_empty() {
     return Err("invalid GitHub URL: expected /tree/ref after owner/repo")
   }
-  Ok({
-    owner: segments[0],
-    repo: segments[1],
-    path: if segments.length() > 4 {
-      Some(segments[4:].join("/"))
-    } else {
-      None
-    },
-    git_ref: Some(segments[3]),
-    allow_ref_fallback: true,
-  })
+  Ok(
+    GitHub({
+      owner: segments[0],
+      repo: segments[1],
+      path: if segments.length() > 4 {
+        Some(segments[4:].join("/"))
+      } else {
+        None
+      },
+      git_ref: Some(segments[3]),
+      allow_ref_fallback: true,
+    }),
+  )
 }
 
 ///|
 fn parse_owner_repo_path(
   s : String,
   git_ref : String?,
-) -> Result[ParsedTarget, String] {
+) -> Result[RunTarget, String] {
   match s.find("/") {
     None => Err("invalid target: expected owner/repo")
     Some(slash1) => {
@@ -196,13 +237,15 @@ fn parse_owner_repo_path(
           if rest.is_empty() {
             return Err("repo is empty")
           }
-          Ok({
-            owner,
-            repo: rest,
-            path: None,
-            git_ref,
-            allow_ref_fallback: false,
-          })
+          Ok(
+            GitHub({
+              owner,
+              repo: rest,
+              path: None,
+              git_ref,
+              allow_ref_fallback: false,
+            }),
+          )
         }
         Some(slash2) => {
           let repo = rest[:slash2].to_string()
@@ -213,13 +256,15 @@ fn parse_owner_repo_path(
           if path.is_empty() {
             return Err("path is empty")
           }
-          Ok({
-            owner,
-            repo,
-            path: Some(path),
-            git_ref,
-            allow_ref_fallback: false,
-          })
+          Ok(
+            GitHub({
+              owner,
+              repo,
+              path: Some(path),
+              git_ref,
+              allow_ref_fallback: false,
+            }),
+          )
         }
       }
     }
@@ -227,7 +272,27 @@ fn parse_owner_repo_path(
 }
 
 ///|
-fn parse_target(target : String) -> Result[ParsedTarget, String] {
+fn is_windows_path(target : String) -> Bool {
+  // Drive-letter paths: C:\... or C:/...
+  if target.length() >= 3 &&
+    target[1:2].to_string() == ":" &&
+    (target[2:3].to_string() == "\\" || target[2:3].to_string() == "/") {
+    let drive = target[0:1].to_string()
+    return (drive >= "A" && drive <= "Z") || (drive >= "a" && drive <= "z")
+  }
+  false
+}
+
+///|
+fn parse_target(target : String) -> Result[RunTarget, String] {
+  if target.has_prefix("./") ||
+    target.has_prefix("../") ||
+    target.has_prefix("/") ||
+    target.has_prefix(".\\") ||
+    target.has_prefix("..\\") ||
+    is_windows_path(target) {
+    return Ok(Local({ path: target }))
+  }
   if target.has_prefix("https://github.com/") ||
     target.has_prefix("http://github.com/") {
     let segments = match parse_github_url_segments(target) {
@@ -321,14 +386,5 @@ pub fn parse_args(args : Array[String]) -> Result[RunOptions, CliError] {
       _ => return Err(ArgError("unknown flag: \"\{flag}\""))
     }
   }
-  Ok({
-    owner: target.owner,
-    repo: target.repo,
-    path: target.path,
-    git_ref: target.git_ref,
-    allow_ref_fallback: target.allow_ref_fallback,
-    format,
-    fail_on,
-    config,
-  })
+  Ok({ target, format, fail_on, config })
 }

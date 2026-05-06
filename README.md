@@ -73,6 +73,21 @@ cp ./_build/native/debug/build/native/native.exe ../papion
 papion run org/repo[/path]@ref
 ```
 
+Local targets are also supported:
+
+```sh
+papion run ./.github
+papion run ./.github/workflows/release.yml
+papion run ./action/action.yml
+```
+
+Strings starting with `./`, `../`, or `/` are treated as local paths. Local scans still recurse through transitive `uses:` references via GitHub, so the root file is local but nested action dependencies are fetched the same way as repository scans.
+
+**JSON output shape for local scans differs from GitHub scans in two ways:**
+
+- The output is always a JSON array, even when only a single file was scanned. GitHub scans return a single object.
+- Local scan result objects omit the top-level `ref` field (which is only meaningful for GitHub scans where a ref was resolved).
+
 **Examples:**
 
 ```sh
@@ -87,6 +102,12 @@ papion run maruloop/papion/action@v1
 
 # Scan a specific version
 papion run actions/setup-go@v5.0.0
+
+# Scan a local workflow file
+papion run ./.github/workflows/release.yml
+
+# Scan every workflow and action under a local .github directory
+papion run ./.github
 
 # Use a custom config file
 papion run actions/checkout@v4 --config path/to/papion.toml

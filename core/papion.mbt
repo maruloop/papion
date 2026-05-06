@@ -16,6 +16,11 @@ pub let max_scan_depth : Int = 10
 pub let max_scan_nodes : Int = 100
 
 ///|
+/// Maximum number of local YAML files collected during a local directory scan.
+/// Separate from max_scan_nodes so tuning one does not silently affect the other.
+pub let max_local_root_files : Int = 200
+
+///|
 pub fn cli_user_agent() -> String {
   "papion/\{version} (+https://github.com/maruloop/papion)"
 }
@@ -57,6 +62,42 @@ pub fn ActionRef::format_ref(self : ActionRef) -> String {
 ///|
 pub impl Show for ActionRef with output(self, logger) {
   logger.write_string(self.to_json().stringify())
+}
+
+///|
+/// A parsed `uses:` value from a workflow step or composite action step.
+/// GitHub refs are resolved via the GitHub Contents API. Local refs are
+/// resolved by the host's `fetch_local` callback (Local-rooted scans only).
+/// The resolution base directory depends on context: composite action steps
+/// resolve relative to the action file's directory; workflow steps resolve
+/// relative to the repository root (parent of `.github`).
+pub(all) enum ParsedRef {
+  GitHub(ActionRef)
+  LocalPath(String)
+  // Reusable workflow call (job.uses). The ref is evaluated for pin policy
+  // but the workflow is not fetched or recursed into.
+  ReusableWorkflow(ActionRef)
+} derive(Debug, Eq)
+
+///|
+pub impl Show for ParsedRef with output(self, logger) {
+  match self {
+    GitHub(r) => {
+      logger.write_string("GitHub(")
+      r.output(logger)
+      logger.write_string(")")
+    }
+    LocalPath(p) => {
+      logger.write_string("LocalPath(")
+      p.output(logger)
+      logger.write_string(")")
+    }
+    ReusableWorkflow(r) => {
+      logger.write_string("ReusableWorkflow(")
+      r.output(logger)
+      logger.write_string(")")
+    }
+  }
 }
 
 ///|
@@ -104,6 +145,40 @@ pub(all) struct CompositeStep {
 
 ///|
 pub impl Show for CompositeStep with output(self, logger) {
+  logger.write_string(self.to_json().stringify())
+}
+
+///|
+pub(all) struct WorkflowYml {
+  name : String?
+  jobs : Map[String, WorkflowJob]
+} derive(Debug, Eq, ToJson, FromJson)
+
+///|
+pub impl Show for WorkflowYml with output(self, logger) {
+  logger.write_string(self.to_json().stringify())
+}
+
+///|
+pub(all) struct WorkflowJob {
+  uses : String?
+  steps : Array[WorkflowStep]?
+} derive(Debug, Eq, ToJson, FromJson)
+
+///|
+pub impl Show for WorkflowJob with output(self, logger) {
+  logger.write_string(self.to_json().stringify())
+}
+
+///|
+pub(all) struct WorkflowStep {
+  uses : String?
+  run : String?
+  name : String?
+} derive(Debug, Eq, ToJson, FromJson)
+
+///|
+pub impl Show for WorkflowStep with output(self, logger) {
   logger.write_string(self.to_json().stringify())
 }
 
@@ -165,7 +240,7 @@ pub fn Policy::normalized(self : Policy) -> Result[Policy, String] {
 }
 
 ///|
-pub(all) struct ScanTarget {
+pub(all) struct GitHubScanTarget {
   owner : String
   repo : String
   git_ref : String
@@ -173,12 +248,28 @@ pub(all) struct ScanTarget {
 } derive(Debug, Eq, ToJson, FromJson)
 
 ///|
+pub(all) struct LocalScanTarget {
+  path : String
+} derive(Debug, Eq, ToJson, FromJson)
+
+///|
+pub(all) enum ScanTarget {
+  GitHub(GitHubScanTarget)
+  Local(LocalScanTarget)
+} derive(Debug, Eq, ToJson, FromJson)
+
+///|
 pub fn ScanTarget::format_target(self : ScanTarget) -> String {
-  let path_part = match self.path {
-    Some(p) => "/\{p}"
-    None => ""
+  match self {
+    GitHub({ owner, repo, git_ref, path }) => {
+      let path_part = match path {
+        Some(p) => "/\{p}"
+        None => ""
+      }
+      "\{owner}/\{repo}\{path_part}@\{git_ref}"
+    }
+    Local({ path }) => "local:\{path}"
   }
-  "\{self.owner}/\{self.repo}\{path_part}@\{self.git_ref}"
 }
 
 ///|

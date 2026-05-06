@@ -4,7 +4,7 @@ fn make_target(
   repo : String,
   git_ref : String,
 ) -> @papion.ScanTarget {
-  { owner, repo, git_ref, path: None }
+  @papion.GitHub({ owner, repo, git_ref, path: None })
 }
 
 ///|
@@ -182,8 +182,8 @@ test "format_json zero findings" {
   }
   let output = format_json(result)
   let parsed = @json.parse(output)
-  assert_eq(get_str(parsed, "target"), Some("actions/checkout@v4"))
-  assert_eq(get_str(parsed, "ref"), Some("v4"))
+  assert_true(get_str(parsed, "target") == Some("actions/checkout@v4"))
+  assert_true(get_str(parsed, "ref") == Some("v4"))
   match parsed {
     Object(obj) =>
       match obj.get("findings") {
@@ -196,8 +196,8 @@ test "format_json zero findings" {
     Object(obj) =>
       match obj.get("summary") {
         Some(s) => {
-          assert_eq(get_num(s, "failures"), Some(0.0))
-          assert_eq(get_num(s, "warnings"), Some(0.0))
+          assert_true(get_num(s, "failures") == Some(0.0))
+          assert_true(get_num(s, "warnings") == Some(0.0))
         }
         _ => fail("expected summary")
       }
@@ -227,12 +227,12 @@ test "format_json finding with all fields" {
       match obj.get("findings") {
         Some(Array(arr)) => {
           assert_eq(arr.length(), 1)
-          assert_eq(get_str(arr[0], "level"), Some("warn"))
-          assert_eq(get_str(arr[0], "rule"), Some("sha-pinning"))
-          assert_eq(get_str(arr[0], "target"), Some("actions/checkout@v4"))
-          assert_eq(get_str(arr[0], "context"), Some("step context"))
-          assert_eq(get_str(arr[0], "message"), Some("not pinned"))
-          assert_eq(get_str(arr[0], "suggestion"), Some("pin to sha"))
+          assert_true(get_str(arr[0], "level") == Some("warn"))
+          assert_true(get_str(arr[0], "rule") == Some("sha-pinning"))
+          assert_true(get_str(arr[0], "target") == Some("actions/checkout@v4"))
+          assert_true(get_str(arr[0], "context") == Some("step context"))
+          assert_true(get_str(arr[0], "message") == Some("not pinned"))
+          assert_true(get_str(arr[0], "suggestion") == Some("pin to sha"))
         }
         _ => fail("expected findings array")
       }
@@ -263,7 +263,7 @@ test "format_json finding omits absent optional fields" {
         Some(Array(arr)) =>
           match arr[0] {
             Object(finding_obj) => {
-              assert_eq(get_str(arr[0], "level"), Some("fail"))
+              assert_true(get_str(arr[0], "level") == Some("fail"))
               match finding_obj.get("context") {
                 None => ()
                 Some(_) => fail("expected no context field")

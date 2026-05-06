@@ -15,7 +15,7 @@ pub fn percent_decode_url_path_segment(String) -> Result[String, String]
 
 pub fn percent_encode_path_component(String) -> String
 
-pub fn run_with_host(Array[String], (String?) -> Result[@papion.Policy, String], (String, String, String?, String?, Bool) -> Result[(String, String, String?), String], resolve_ref_kind? : (String, String, String) -> @papion.RefKind) -> Result[RunOutcome, CliError]
+pub fn run_with_host(Array[String], (String?) -> Result[@papion.Policy, String], (String, String, String?, String?, Bool) -> Result[(String, String, String?), String], (String) -> Result[Array[LocalScanUnit], String], fetch_local? : (String, String) -> Result[(String, String), String], resolve_ref_kind? : (String, String, String) -> @papion.RefKind) -> Result[RunOutcome, CliError]
 
 // Errors
 
@@ -33,6 +33,29 @@ pub(all) enum FailOnLevel {
 } derive(Eq, @debug.Debug)
 pub impl Show for FailOnLevel
 
+pub(all) struct GitHubRunTarget {
+  owner : String
+  repo : String
+  path : String?
+  git_ref : String?
+  allow_ref_fallback : Bool
+} derive(Eq, @debug.Debug)
+
+pub(all) struct LocalRunTarget {
+  path : String
+} derive(Eq, @debug.Debug)
+
+pub(all) enum LocalScanKind {
+  Action
+  Workflow
+} derive(Eq, @debug.Debug)
+
+pub(all) struct LocalScanUnit {
+  kind : LocalScanKind
+  abs_path : String
+  yaml : String
+} derive(Eq, @debug.Debug)
+
 pub(all) enum OutputFormat {
   Human
   Json
@@ -40,11 +63,7 @@ pub(all) enum OutputFormat {
 pub impl Show for OutputFormat
 
 pub(all) struct RunOptions {
-  owner : String
-  repo : String
-  path : String?
-  git_ref : String?
-  allow_ref_fallback : Bool
+  target : RunTarget
   format : OutputFormat
   fail_on : FailOnLevel
   config : String?
@@ -56,6 +75,12 @@ pub(all) struct RunOutcome {
   output : String
 } derive(Eq, @debug.Debug)
 pub impl Show for RunOutcome
+
+pub(all) enum RunTarget {
+  GitHub(GitHubRunTarget)
+  Local(LocalRunTarget)
+} derive(Eq, @debug.Debug)
+pub impl Show for RunTarget
 
 // Type aliases
 

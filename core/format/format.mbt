@@ -96,19 +96,22 @@ fn finding_to_json(f : @papion.Finding) -> Json {
 ///|
 /// Format a ScanResult as JSON.
 ///
-/// Target is serialized as "owner/repo@ref".
+/// Target is serialized as a stable string: "owner/repo@ref" for GitHub or "local:<path>" for local.
 /// Level values are lowercase ("warn"/"fail").
-/// The top-level `ref` field always contains the resolved target ref.
+/// The top-level `ref` field is present only for GitHub scans and contains the resolved git ref.
 /// Optional finding fields (context, suggestion) are omitted when absent.
 pub fn format_json(result : @papion.ScanResult) -> String {
   let root : Map[String, Json] = {
     "target": Json::string(result.target.format_target()),
-    "ref": Json::string(result.target.git_ref),
     "findings": Json::array(result.findings.map(finding_to_json)),
     "summary": Json::object({
       "failures": Json::number(result.summary.failures.to_double()),
       "warnings": Json::number(result.summary.warnings.to_double()),
     }),
+  }
+  match result.target {
+    @papion.GitHub({ git_ref, .. }) => root["ref"] = Json::string(git_ref)
+    @papion.Local(_) => ()
   }
   Json::object(root).stringify()
 }

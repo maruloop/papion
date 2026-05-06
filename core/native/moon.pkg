@@ -17,10 +17,12 @@ supported_targets = "+native+llvm"
 
 options(
   "is-main": true,
+  "native-stub": [ "stub.c" ],
   targets: {
     "config.mbt": [ "native", "llvm" ],
     "fileio.mbt": [ "native", "llvm" ],
     "github.mbt": [ "native", "llvm" ],
+    "local.mbt": [ "native", "llvm" ],
     "main.mbt": [ "native", "llvm" ],
     "native_wbtest.mbt": [ "native", "llvm" ],
   },

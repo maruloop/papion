@@ -175,12 +175,20 @@ test "ActionYml json roundtrip - composite action" {
 
 ///|
 test "ScanTarget json roundtrip" {
-  let t : @papion.ScanTarget = {
+  let t : @papion.ScanTarget = GitHub({
     owner: "actions",
     repo: "checkout",
     git_ref: "v4",
     path: Some("subdir/action"),
-  }
+  })
+  let json = @json.parse(t.to_json().stringify())
+  let back : @papion.ScanTarget = @json.from_json(json)
+  assert_eq(t, back)
+}
+
+///|
+test "ScanTarget local json roundtrip" {
+  let t : @papion.ScanTarget = Local({ path: "/tmp/workflow.yml" })
   let json = @json.parse(t.to_json().stringify())
   let back : @papion.ScanTarget = @json.from_json(json)
   assert_eq(t, back)
@@ -207,12 +215,12 @@ test "ScanResult json roundtrip" {
     ),
   }
   let r : @papion.ScanResult = {
-    target: {
+    target: GitHub({
       owner: "actions",
       repo: "checkout",
       git_ref: "v4",
       path: Some("subdir/action"),
-    },
+    }),
     findings: [finding],
     summary: { failures: 0, warnings: 1 },
   }

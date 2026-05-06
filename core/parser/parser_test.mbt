@@ -235,7 +235,7 @@ test "parse_action_yml yaml integer description coercion" {
     #|  using: node20
   let result = parse_action_yml(yaml_str)
   match result {
-    Ok(yml) => assert_eq(yml.description, Some("42"))
+    Ok(yml) => assert_true(yml.description == Some("42"))
     Err(e) => fail("expected Ok but got Err: \{e}")
   }
 }
@@ -256,22 +256,28 @@ test "extract_refs from composite action" {
   }
   let refs = extract_refs(yml)
   assert_eq(refs.length(), 2)
-  assert_eq(refs[0], {
-    owner: "actions",
-    repo: "checkout",
-    git_ref: "v4",
-    path: None,
-  })
-  assert_eq(refs[1], {
-    owner: "actions",
-    repo: "setup-node",
-    git_ref: "v4",
-    path: None,
-  })
+  assert_eq(
+    refs[0],
+    @papion.GitHub({
+      owner: "actions",
+      repo: "checkout",
+      git_ref: "v4",
+      path: None,
+    }),
+  )
+  assert_eq(
+    refs[1],
+    @papion.GitHub({
+      owner: "actions",
+      repo: "setup-node",
+      git_ref: "v4",
+      path: None,
+    }),
+  )
 }
 
 ///|
-test "extract_refs skips relative path steps" {
+test "extract_refs includes local path steps" {
   let yml : @papion.ActionYml = {
     name: "My Action",
     description: None,
@@ -280,18 +286,23 @@ test "extract_refs skips relative path steps" {
       steps: Some([
         { uses: Some("./local/action"), run: None, name: None },
         { uses: Some("actions/checkout@v4"), run: None, name: None },
-        { uses: Some("./another/local"), run: None, name: None },
+        { uses: Some("../another/local"), run: None, name: None },
       ]),
     },
   }
   let refs = extract_refs(yml)
-  assert_eq(refs.length(), 1)
-  assert_eq(refs[0], {
-    owner: "actions",
-    repo: "checkout",
-    git_ref: "v4",
-    path: None,
-  })
+  assert_eq(refs.length(), 3)
+  assert_eq(refs[0], @papion.LocalPath("./local/action"))
+  assert_eq(
+    refs[1],
+    @papion.GitHub({
+      owner: "actions",
+      repo: "checkout",
+      git_ref: "v4",
+      path: None,
+    }),
+  )
+  assert_eq(refs[2], @papion.LocalPath("../another/local"))
 }
 
 ///|
@@ -303,4 +314,87 @@ test "extract_refs from node action returns empty" {
   }
   let refs = extract_refs(yml)
   assert_eq(refs, [])
+}
+
+///|
+test "parse_workflow_yml with reusable workflow and step uses" {
+  let yaml_str =
+    #|name: CI
+    #|jobs:
+    #|  call-reusable:
+    #|    uses: org/reusable/.github/workflows/build.yml@v1
+    #|  scan:
+    #|    runs-on: ubuntu-latest
+    #|    steps:
+    #|      - uses: actions/checkout@v4
+    #|      - run: echo hi
+  let result = parse_workflow_yml(yaml_str)
+  assert_eq(
+    result,
+    Ok({
+      name: Some("CI"),
+      jobs: {
+        "call-reusable": {
+          uses: Some("org/reusable/.github/workflows/build.yml@v1"),
+          steps: None,
+        },
+        "scan": {
+          uses: None,
+          steps: Some([
+            { uses: Some("actions/checkout@v4"), run: None, name: None },
+            { uses: None, run: Some("echo hi"), name: None },
+          ]),
+        },
+      },
+    }),
+  )
+}
+
+///|
+test "extract_refs_from_workflow collects step refs and reusable workflow job refs" {
+  let wf : @papion.WorkflowYml = {
+    name: Some("CI"),
+    jobs: {
+      "call-reusable": {
+        // job.uses is a reusable workflow call; its ref is collected so the
+        // pin policy is enforced, but the workflow is not recursed into.
+        uses: Some("org/reusable/.github/workflows/build.yml@v1"),
+        steps: None,
+      },
+      "scan": {
+        uses: None,
+        steps: Some([
+          { uses: Some("actions/checkout@v4"), run: None, name: None },
+          { uses: Some("./local/action"), run: None, name: None },
+          { uses: Some("docker://alpine:3.20"), run: None, name: None },
+        ]),
+      },
+    },
+  }
+  let refs = extract_refs_from_workflow(wf)
+  let github_refs = refs.filter(fn(r) {
+    match r {
+      @papion.GitHub(_) => true
+      _ => false
+    }
+  })
+  let reusable_refs = refs.filter(fn(r) {
+    match r {
+      @papion.ReusableWorkflow(_) => true
+      _ => false
+    }
+  })
+  let local_refs = refs.filter(fn(r) {
+    match r {
+      @papion.LocalPath(_) => true
+      _ => false
+    }
+  })
+  // step ref is GitHub; job.uses is ReusableWorkflow (not GitHub)
+  assert_eq(github_refs.length(), 1)
+  assert_eq(reusable_refs.length(), 1)
+  assert_eq(local_refs.length(), 1)
+  assert_eq(local_refs[0], @papion.LocalPath("./local/action"))
+  // docker:// is skipped
+  assert_eq(refs.length(), 3)
 }

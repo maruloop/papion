@@ -9,6 +9,8 @@ import {
 // Values
 pub fn cli_user_agent() -> String
 
+pub let max_local_root_files : Int
+
 pub let max_policy_pattern_len : Int
 
 pub let max_scan_depth : Int
@@ -59,6 +61,24 @@ pub(all) enum FindingLevel {
 } derive(Eq, ToJson, @debug.Debug, @json.FromJson)
 pub impl Show for FindingLevel
 
+pub(all) struct GitHubScanTarget {
+  owner : String
+  repo : String
+  git_ref : String
+  path : String?
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
+
+pub(all) struct LocalScanTarget {
+  path : String
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
+
+pub(all) enum ParsedRef {
+  GitHub(ActionRef)
+  LocalPath(String)
+  ReusableWorkflow(ActionRef)
+} derive(Eq, @debug.Debug)
+pub impl Show for ParsedRef
+
 pub(all) struct Policy {
   sha_pinning : Bool
   allowed : Array[String]
@@ -89,11 +109,9 @@ pub(all) struct ScanResult {
 } derive(Eq, ToJson, @debug.Debug, @json.FromJson)
 pub impl Show for ScanResult
 
-pub(all) struct ScanTarget {
-  owner : String
-  repo : String
-  git_ref : String
-  path : String?
+pub(all) enum ScanTarget {
+  GitHub(GitHubScanTarget)
+  Local(LocalScanTarget)
 } derive(Eq, ToJson, @debug.Debug, @json.FromJson)
 pub fn ScanTarget::format_target(Self) -> String
 pub impl Show for ScanTarget
@@ -103,6 +121,25 @@ pub(all) struct Summary {
   warnings : Int
 } derive(Eq, ToJson, @debug.Debug, @json.FromJson)
 pub impl Show for Summary
+
+pub(all) struct WorkflowJob {
+  uses : String?
+  steps : Array[WorkflowStep]?
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
+pub impl Show for WorkflowJob
+
+pub(all) struct WorkflowStep {
+  uses : String?
+  run : String?
+  name : String?
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
+pub impl Show for WorkflowStep
+
+pub(all) struct WorkflowYml {
+  name : String?
+  jobs : Map[String, WorkflowJob]
+} derive(Eq, ToJson, @debug.Debug, @json.FromJson)
+pub impl Show for WorkflowYml
 
 // Type aliases
 

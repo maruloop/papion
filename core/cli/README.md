@@ -15,14 +15,15 @@ This package split keeps native-only dependencies out of the shared CLI package.
 Supported command:
 
 ```text
-papion run org/repo[/path]@ref [--format human|json] [--fail-on warn|fail|none] [--config path]
+papion run <target> [--format human|json] [--fail-on warn|fail|none] [--config path]
 ```
 
 Rules:
 
-- `org/repo[/path]@ref` is parsed by the shared CLI package.
-- `path` is propagated into `@papion.ScanTarget` so the reported root target and root traversal identity match the action that was actually fetched.
-- `ScanTarget` passed to the engine is `{ owner, repo, git_ref, path }`.
+- `<target>` is either `org/repo[/path]@ref`, a GitHub repository URL, or a local path starting with `./`, `../`, or `/`.
+- GitHub paths are parsed by the shared CLI package and propagated into `@papion.ScanTarget::GitHub` so the reported root target and root traversal identity match the action that was actually fetched.
+- Local paths are parsed by the shared CLI package into `RunTarget::Local { path }` without touching the filesystem.
+- Native host code resolves local paths, walks directories, reads YAML, and passes absolute paths into `@papion.ScanTarget::Local`.
 - `--format` defaults to `human`.
 - `--fail-on` defaults to `fail`.
 - `--config` is optional. When omitted, default policy is used.
@@ -34,6 +35,7 @@ Rules:
 
 - Fetch `{path/}action.yml` (fallback: `{path/}action.yaml`) from `https://api.github.com/repos/{owner}/{repo}/contents/{path/}action.yml?ref={git_ref}`, where `path/` is omitted for repository-root actions.
 - Decode the GitHub `content` field from base64 to raw action YAML bytes, then decode bytes as UTF-8.
+- Resolve local paths and expand directory roots into workflow and action scan units.
 - Load TOML config directly into `@papion.Policy`.
 - Print formatted scan output and exit with the selected status code.
 
