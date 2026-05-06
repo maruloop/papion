@@ -256,15 +256,15 @@ fn scan_impl(
                       if node.depth < @papion.max_scan_depth &&
                         scheduled_count < @papion.max_scan_nodes {
                         scheduled_count = scheduled_count + 1
-                        let child_base_dir = match abs_path.rev_find("/") {
-                          Some(idx) => abs_path[:idx].to_string()
-                          None => "."
-                        }
+                        // Local refs inside composite actions resolve relative
+                        // to the repo root, not the action's own directory.
+                        // Propagate root_base_dir so the anchor stays correct
+                        // across an arbitrary chain of local → local hops.
                         queue.push({
                           yaml_str: fetched_yaml,
                           depth: node.depth + 1,
                           via: Some("via \{rel_path}"),
-                          base_dir: Some(child_base_dir),
+                          base_dir: root_base_dir,
                         })
                       }
                     }

@@ -969,6 +969,55 @@ test "scan_workflow traverses local composite and finds GitHub action" {
 }
 
 ///|
+test "scan_workflow resolves nested local refs relative to repo root not action dir" {
+  // Verifies that a local composite action which itself uses another local ref
+  // resolves that ref relative to the repo root (workflow_base_dir), not
+  // relative to the composite action's own directory.
+  let target = local_target("/repo/.github/workflows/ci.yml")
+  let workflow_yaml =
+    #|name: CI
+    #|jobs:
+    #|  build:
+    #|    runs-on: ubuntu-latest
+    #|    steps:
+    #|      - uses: ./actions/first
+  let first_action_yaml =
+    #|name: First
+    #|runs:
+    #|  using: composite
+    #|  steps:
+    #|    - uses: ./actions/second
+  let second_action_yaml =
+    #|name: Second
+    #|runs:
+    #|  using: composite
+    #|  steps:
+    #|    - uses: actions/checkout@v4
+  let fetch_local = make_local_fetch_table({
+    // Keys use /repo (repo root / workflow_base_dir) as base_dir for all hops.
+    "/repo/./actions/first": first_action_yaml,
+    "/repo/./actions/second": second_action_yaml,
+  })
+  let result = scan_workflow(
+    target,
+    workflow_yaml,
+    @papion.Policy::default(),
+    unreachable_fetch,
+    fetch_local~,
+    workflow_base_dir="/repo",
+  )
+  match result {
+    Err(e) => fail("unexpected error: \{e}")
+    Ok(r) => {
+      // second action's step produces the sha-pinning finding
+      assert_eq(r.findings.length(), 1)
+      assert_eq(r.findings[0].rule, "sha-pinning")
+      assert_eq(r.findings[0].target, "actions/checkout@v4")
+    }
+  }
+}
+
+///|
 test "scan_workflow emits Warn for unresolvable local ref" {
   let target = local_target("/repo/.github/workflows/ci.yml")
   let workflow_yaml =
