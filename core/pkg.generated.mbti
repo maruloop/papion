@@ -75,6 +75,7 @@ pub(all) struct LocalScanTarget {
 pub(all) enum ParsedRef {
   GitHub(ActionRef)
   LocalPath(String)
+  ReusableWorkflow(ActionRef)
 } derive(Eq, @debug.Debug)
 pub impl Show for ParsedRef
 
