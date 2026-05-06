@@ -240,6 +240,14 @@ int papion_local_write_file(const char *path, const char *content) {
   return 1;
 }
 
+int papion_local_rename(const char *old_path, const char *new_path) {
+  if (rename(old_path, new_path) != 0) {
+    papion_local_set_errorf("failed to rename %s to %s: %s", old_path, new_path, strerror(errno));
+    return 0;
+  }
+  return 1;
+}
+
 int papion_local_find_git_root(const char *start_path) {
   char current[PATH_MAX];
   if (realpath(start_path, current) == NULL) {

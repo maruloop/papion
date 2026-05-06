@@ -20,11 +20,6 @@ jobs:
       - uses: ./.github/actions/setup-moonbit
         with:
           version: ${{ env.MOONBIT_VERSION }}
-      - name: Init scenario git roots for native integration tests
-        run: |
-          git init native/testdata/scenarios/wf-to-composite-to-remote
-          git init native/testdata/scenarios/wf-to-remote
-          git init native/testdata/scenarios/composite-chain
       - run: moon update
       - run: moon fmt --check
       - run: moon test --deny-warn

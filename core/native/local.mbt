@@ -31,6 +31,10 @@ extern "c" fn local_is_symlink_ffi(path : Bytes) -> Int = "papion_local_is_symli
 extern "c" fn local_find_git_root_ffi(path : Bytes) -> Int = "papion_local_find_git_root"
 
 ///|
+#borrow(old_path, new_path)
+extern "c" fn local_rename_ffi(old_path : Bytes, new_path : Bytes) -> Int = "papion_local_rename"
+
+///|
 fn decode_result(len : Int, byte_at : (Int) -> Int) -> String {
   let bytes : Array[Byte] = []
   for i = 0; i < len; i = i + 1 {
@@ -72,6 +76,15 @@ fn resolve_abs_path(path : String) -> Result[String, String] {
     Err(error_string())
   } else {
     Ok(result_string())
+  }
+}
+
+///|
+fn rename_path(old_path : String, new_path : String) -> Result[Unit, String] {
+  if local_rename_ffi(c_string_bytes(old_path), c_string_bytes(new_path)) == 0 {
+    Err(error_string())
+  } else {
+    Ok(())
   }
 }
 
