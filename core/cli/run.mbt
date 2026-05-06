@@ -174,9 +174,33 @@ pub fn run_with_host(
     }
   }
   match options.target {
-    GitHub({ owner, repo, path, git_ref, allow_ref_fallback }) => {
+    GitHubRepo({ owner, repo, path, git_ref }) => {
       let (action_yml, resolved_git_ref, resolved_path) = match
-        fetch_action_yml(owner, repo, git_ref, path, allow_ref_fallback) {
+        fetch_action_yml(owner, repo, git_ref, path, false) {
+        Ok(result) => result
+        Err(err) => return Err(RuntimeError(err))
+      }
+      let result = match
+        @engine.scan(
+          @papion.GitHub({
+            owner,
+            repo,
+            git_ref: resolved_git_ref,
+            path: resolved_path,
+          }),
+          action_yml,
+          policy,
+          engine_fetch,
+          resolve_ref_kind~,
+        ) {
+        Ok(result) => result
+        Err(err) => return Err(RuntimeError(err))
+      }
+      Ok(format_results([result], options.fail_on, options.format, false))
+    }
+    GitHubTree({ owner, repo, path, git_ref }) => {
+      let (action_yml, resolved_git_ref, resolved_path) = match
+        fetch_action_yml(owner, repo, Some(git_ref), path, true) {
         Ok(result) => result
         Err(err) => return Err(RuntimeError(err))
       }

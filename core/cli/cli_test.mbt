@@ -1,12 +1,21 @@
 ///|
-fn github_target(
+fn github_repo_target(
   owner : String,
   repo : String,
   git_ref? : String? = None,
   path? : String? = None,
-  allow_ref_fallback? : Bool = false,
 ) -> RunTarget {
-  GitHub({ owner, repo, git_ref, path, allow_ref_fallback })
+  GitHubRepo({ owner, repo, git_ref, path })
+}
+
+///|
+fn github_tree_target(
+  owner : String,
+  repo : String,
+  git_ref : String,
+  path? : String? = None,
+) -> RunTarget {
+  GitHubTree({ owner, repo, git_ref, path })
 }
 
 ///|
@@ -20,7 +29,7 @@ test "parse_args run owner repo ref" {
   assert_eq(
     result,
     Ok({
-      target: github_target("actions", "checkout", git_ref=Some("v4")),
+      target: github_repo_target("actions", "checkout", git_ref=Some("v4")),
       format: Human,
       fail_on: Fail,
       config: None,
@@ -47,7 +56,7 @@ test "parse_args run with path" {
   assert_eq(
     result,
     Ok({
-      target: github_target(
+      target: github_repo_target(
         "maruloop",
         "papion",
         git_ref=Some("v1"),
@@ -66,7 +75,7 @@ test "parse_args json format" {
   assert_eq(
     result,
     Ok({
-      target: github_target("actions", "checkout", git_ref=Some("v4")),
+      target: github_repo_target("actions", "checkout", git_ref=Some("v4")),
       format: Json,
       fail_on: Fail,
       config: None,
@@ -80,7 +89,7 @@ test "parse_args fail_on warn" {
   assert_eq(
     result,
     Ok({
-      target: github_target("actions", "checkout", git_ref=Some("v4")),
+      target: github_repo_target("actions", "checkout", git_ref=Some("v4")),
       format: Human,
       fail_on: Warn,
       config: None,
@@ -94,7 +103,7 @@ test "parse_args fail_on none" {
   assert_eq(
     result,
     Ok({
-      target: github_target("actions", "checkout", git_ref=Some("v4")),
+      target: github_repo_target("actions", "checkout", git_ref=Some("v4")),
       format: Human,
       fail_on: NoneLevel,
       config: None,
@@ -108,7 +117,7 @@ test "parse_args short flag -f for format" {
   assert_eq(
     result,
     Ok({
-      target: github_target("actions", "checkout", git_ref=Some("v4")),
+      target: github_repo_target("actions", "checkout", git_ref=Some("v4")),
       format: Json,
       fail_on: Fail,
       config: None,
@@ -122,7 +131,7 @@ test "parse_args short flag -F for fail-on" {
   assert_eq(
     result,
     Ok({
-      target: github_target("actions", "checkout", git_ref=Some("v4")),
+      target: github_repo_target("actions", "checkout", git_ref=Some("v4")),
       format: Human,
       fail_on: Warn,
       config: None,
@@ -148,7 +157,7 @@ test "parse_args run owner repo without ref" {
   assert_eq(
     result,
     Ok({
-      target: github_target("actions", "checkout"),
+      target: github_repo_target("actions", "checkout"),
       format: Human,
       fail_on: Fail,
       config: None,
@@ -162,7 +171,7 @@ test "parse_args run github url without ref" {
   assert_eq(
     result,
     Ok({
-      target: github_target("actions", "checkout"),
+      target: github_repo_target("actions", "checkout"),
       format: Human,
       fail_on: Fail,
       config: None,
@@ -178,7 +187,7 @@ test "parse_args run github url ignores query and fragment" {
   assert_eq(
     result,
     Ok({
-      target: github_target("actions", "checkout"),
+      target: github_repo_target("actions", "checkout"),
       format: Human,
       fail_on: Fail,
       config: None,
@@ -192,7 +201,7 @@ test "parse_args run github url strips trailing dot git" {
   assert_eq(
     result,
     Ok({
-      target: github_target("actions", "checkout"),
+      target: github_repo_target("actions", "checkout"),
       format: Human,
       fail_on: Fail,
       config: None,
@@ -208,12 +217,11 @@ test "parse_args run github tree url with ref and path" {
   assert_eq(
     result,
     Ok({
-      target: github_target(
+      target: github_tree_target(
         "actions",
         "checkout",
-        git_ref=Some("v6.0.2"),
+        "v6.0.2",
         path=Some("action"),
-        allow_ref_fallback=true,
       ),
       format: Human,
       fail_on: Fail,
@@ -230,12 +238,11 @@ test "parse_args run github tree url decodes percent-escaped ref and path" {
   assert_eq(
     result,
     Ok({
-      target: github_target(
+      target: github_tree_target(
         "actions",
         "checkout",
-        git_ref=Some("release/v1"),
+        "release/v1",
         path=Some("sub dir"),
-        allow_ref_fallback=true,
       ),
       format: Human,
       fail_on: Fail,

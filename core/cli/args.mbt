@@ -47,12 +47,19 @@ pub impl Show for FailOnLevel with output(self, logger) {
 }
 
 ///|
-pub(all) struct GitHubRunTarget {
+pub(all) struct GitHubRepoRunTarget {
   owner : String
   repo : String
   path : String?
   git_ref : String?
-  allow_ref_fallback : Bool
+} derive(Debug, Eq)
+
+///|
+pub(all) struct GitHubTreeRunTarget {
+  owner : String
+  repo : String
+  path : String?
+  git_ref : String
 } derive(Debug, Eq)
 
 ///|
@@ -62,15 +69,16 @@ pub(all) struct LocalRunTarget {
 
 ///|
 pub(all) enum RunTarget {
-  GitHub(GitHubRunTarget)
+  GitHubRepo(GitHubRepoRunTarget)
+  GitHubTree(GitHubTreeRunTarget)
   Local(LocalRunTarget)
 } derive(Debug, Eq)
 
 ///|
 pub impl Show for RunTarget with output(self, logger) {
   match self {
-    GitHub(target) => {
-      logger.write_string("GitHub(owner: ")
+    GitHubRepo(target) => {
+      logger.write_string("GitHubRepo(owner: ")
       target.owner.output(logger)
       logger.write_string(", repo: ")
       target.repo.output(logger)
@@ -92,8 +100,24 @@ pub impl Show for RunTarget with output(self, logger) {
           logger.write_string(")")
         }
       }
-      logger.write_string(", allow_ref_fallback: ")
-      target.allow_ref_fallback.output(logger)
+      logger.write_string(")")
+    }
+    GitHubTree(target) => {
+      logger.write_string("GitHubTree(owner: ")
+      target.owner.output(logger)
+      logger.write_string(", repo: ")
+      target.repo.output(logger)
+      logger.write_string(", path: ")
+      match target.path {
+        None => logger.write_string("None")
+        Some(path) => {
+          logger.write_string("Some(")
+          path.output(logger)
+          logger.write_string(")")
+        }
+      }
+      logger.write_string(", git_ref: ")
+      target.git_ref.output(logger)
       logger.write_string(")")
     }
     Local(target) => {
@@ -189,12 +213,11 @@ fn parse_repo_target(segments : Array[String]) -> Result[RunTarget, String] {
     }
   }
   Ok(
-    GitHub({
+    GitHubRepo({
       owner: segments[0],
       repo: segments[1],
       path: None,
       git_ref: None,
-      allow_ref_fallback: false,
     }),
   )
 }
@@ -205,7 +228,7 @@ fn parse_tree_target(segments : Array[String]) -> Result[RunTarget, String] {
     return Err("invalid GitHub URL: expected /tree/ref after owner/repo")
   }
   Ok(
-    GitHub({
+    GitHubTree({
       owner: segments[0],
       repo: segments[1],
       path: if segments.length() > 4 {
@@ -213,8 +236,7 @@ fn parse_tree_target(segments : Array[String]) -> Result[RunTarget, String] {
       } else {
         None
       },
-      git_ref: Some(segments[3]),
-      allow_ref_fallback: true,
+      git_ref: segments[3],
     }),
   )
 }
@@ -237,15 +259,7 @@ fn parse_owner_repo_path(
           if rest.is_empty() {
             return Err("repo is empty")
           }
-          Ok(
-            GitHub({
-              owner,
-              repo: rest,
-              path: None,
-              git_ref,
-              allow_ref_fallback: false,
-            }),
-          )
+          Ok(GitHubRepo({ owner, repo: rest, path: None, git_ref }))
         }
         Some(slash2) => {
           let repo = rest[:slash2].to_string()
@@ -256,15 +270,7 @@ fn parse_owner_repo_path(
           if path.is_empty() {
             return Err("path is empty")
           }
-          Ok(
-            GitHub({
-              owner,
-              repo,
-              path: Some(path),
-              git_ref,
-              allow_ref_fallback: false,
-            }),
-          )
+          Ok(GitHubRepo({ owner, repo, path: Some(path), git_ref }))
         }
       }
     }

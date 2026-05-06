@@ -33,12 +33,18 @@ pub(all) enum FailOnLevel {
 } derive(Eq, @debug.Debug)
 pub impl Show for FailOnLevel
 
-pub(all) struct GitHubRunTarget {
+pub(all) struct GitHubRepoRunTarget {
   owner : String
   repo : String
   path : String?
   git_ref : String?
-  allow_ref_fallback : Bool
+} derive(Eq, @debug.Debug)
+
+pub(all) struct GitHubTreeRunTarget {
+  owner : String
+  repo : String
+  path : String?
+  git_ref : String
 } derive(Eq, @debug.Debug)
 
 pub(all) struct LocalRunTarget {
@@ -77,7 +83,8 @@ pub(all) struct RunOutcome {
 pub impl Show for RunOutcome
 
 pub(all) enum RunTarget {
-  GitHub(GitHubRunTarget)
+  GitHubRepo(GitHubRepoRunTarget)
+  GitHubTree(GitHubTreeRunTarget)
   Local(LocalRunTarget)
 } derive(Eq, @debug.Debug)
 pub impl Show for RunTarget
@@ -85,4 +92,3 @@ pub impl Show for RunTarget
 // Type aliases
 
 // Traits
-
