@@ -32,38 +32,32 @@ fn parent_dir(path : String) -> String? {
 }
 
 ///|
-/// Returns the repo root for an action at <root>/.github/actions/<name>/action.yml.
-/// Returns None when the path does not follow that convention.
-fn action_root_dir(path : String) -> String? {
-  match parent_dir(path) {
-    None => None
-    Some(action_dir) =>
-      match parent_dir(action_dir) {
-        None => None
-        Some(actions_dir) => {
-          let actions_name = match actions_dir.rev_find("/") {
-            Some(idx) => actions_dir[idx + 1:].to_string()
-            None => actions_dir
-          }
-          if actions_name != "actions" {
-            return None
-          }
-          match parent_dir(actions_dir) {
-            None => None
-            Some(github_dir) => {
-              let gh_name = match github_dir.rev_find("/") {
-                Some(idx) => github_dir[idx + 1:].to_string()
-                None => github_dir
-              }
-              if gh_name != ".github" {
-                return None
-              }
-              parent_dir(github_dir)
-            }
-          }
-        }
-      }
+fn path_basename(path : String) -> String {
+  match path.rev_find("/") {
+    Some(idx) => path[idx + 1:].to_string()
+    None => path
   }
+}
+
+///|
+/// Returns the repo root for an action anywhere under <root>/.github/actions/.
+/// Handles arbitrary nesting (e.g. .github/actions/group/name/action.yml).
+/// Returns None when no .github/actions/ ancestry is found.
+fn action_root_dir(path : String) -> String? {
+  let mut current = parent_dir(path)
+  while current is Some(dir) {
+    if path_basename(dir) == "actions" {
+      match parent_dir(dir) {
+        Some(github_dir) =>
+          if path_basename(github_dir) == ".github" {
+            return parent_dir(github_dir)
+          }
+        None => ()
+      }
+    }
+    current = parent_dir(dir)
+  }
+  None
 }
 
 ///|
@@ -73,21 +67,13 @@ fn workflow_root_dir(path : String) -> String? {
   match parent_dir(path) {
     None => None
     Some(workflows_dir) => {
-      let wf_name = match workflows_dir.rev_find("/") {
-        Some(idx) => workflows_dir[idx + 1:].to_string()
-        None => workflows_dir
-      }
-      if wf_name != "workflows" {
+      if path_basename(workflows_dir) != "workflows" {
         return None
       }
       match parent_dir(workflows_dir) {
         None => None
         Some(github_dir) => {
-          let gh_name = match github_dir.rev_find("/") {
-            Some(idx) => github_dir[idx + 1:].to_string()
-            None => github_dir
-          }
-          if gh_name != ".github" {
+          if path_basename(github_dir) != ".github" {
             return None
           }
           parent_dir(github_dir)

@@ -964,6 +964,98 @@ test "scan auto-derives repo root for action under .github/actions/<name>/" {
 }
 
 ///|
+test "scan auto-derives repo root for action nested under .github/actions/<group>/<name>/" {
+  // Action at two levels under actions/ (group/name) — fixed-depth walk would
+  // return None here; the loop-based action_root_dir must still find /repo.
+  let target = local_target("/repo/.github/actions/group/name/action.yml")
+  let root_yaml =
+    #|name: Nested Action
+    #|runs:
+    #|  using: composite
+    #|  steps:
+    #|    - uses: ./shared
+  let shared_yaml =
+    #|name: Shared
+    #|runs:
+    #|  using: composite
+    #|  steps:
+    #|    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+  let fetch_local = make_local_fetch_table({ "/repo/./shared": shared_yaml })
+  let result = scan(
+    target,
+    root_yaml,
+    @papion.Policy::default(),
+    unreachable_fetch,
+    fetch_local~,
+  )
+  match result {
+    Err(e) => fail("unexpected error: \{e}")
+    Ok(r) => assert_eq(r.findings.length(), 0)
+  }
+}
+
+///|
+test "scan auto-derives repo root for action three levels under .github/actions/" {
+  let target = local_target("/repo/.github/actions/lang/python/lint/action.yml")
+  let root_yaml =
+    #|name: Deep Action
+    #|runs:
+    #|  using: composite
+    #|  steps:
+    #|    - uses: ./tools/setup
+  let tool_yaml =
+    #|name: Setup
+    #|runs:
+    #|  using: composite
+    #|  steps:
+    #|    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+  let fetch_local = make_local_fetch_table({ "/repo/./tools/setup": tool_yaml })
+  let result = scan(
+    target,
+    root_yaml,
+    @papion.Policy::default(),
+    unreachable_fetch,
+    fetch_local~,
+  )
+  match result {
+    Err(e) => fail("unexpected error: \{e}")
+    Ok(r) => assert_eq(r.findings.length(), 0)
+  }
+}
+
+///|
+test "scan auto-derives repo root when .github is nested in subdirectory" {
+  // .github lives inside a subdirectory of the scanned path.
+  let target = local_target("/work/repo-a/sub/.github/actions/foo/action.yml")
+  let root_yaml =
+    #|name: Foo
+    #|runs:
+    #|  using: composite
+    #|  steps:
+    #|    - uses: ./bar
+  let bar_yaml =
+    #|name: Bar
+    #|runs:
+    #|  using: composite
+    #|  steps:
+    #|    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+  let fetch_local = make_local_fetch_table({
+    "/work/repo-a/sub/./bar": bar_yaml,
+  })
+  let result = scan(
+    target,
+    root_yaml,
+    @papion.Policy::default(),
+    unreachable_fetch,
+    fetch_local~,
+  )
+  match result {
+    Err(e) => fail("unexpected error: \{e}")
+    Ok(r) => assert_eq(r.findings.length(), 0)
+  }
+}
+
+///|
 test "scan falls back to action dir for action outside .github/actions/" {
   // Action at /repo/custom-actions/lint/action.yml — no canonical ancestry,
   // so base_dir falls back to /repo/custom-actions/lint (the file's parent).

@@ -46,6 +46,27 @@ fn strip_path_component(path : String) -> String? {
 }
 
 ///|
+/// Walk up the path's ancestry looking for a .github/actions/... subtree.
+/// Returns the repo root (parent of .github) if found, None otherwise.
+/// Mirrors the engine's action_root_dir helper but uses strip_path_component.
+fn github_actions_repo_root(path : String) -> String? {
+  let mut current = strip_path_component(path)
+  while current is Some(dir) {
+    if basename(dir) == "actions" {
+      match strip_path_component(dir) {
+        Some(github_dir) =>
+          if basename(github_dir) == ".github" {
+            return strip_path_component(github_dir)
+          }
+        None => ()
+      }
+    }
+    current = strip_path_component(dir)
+  }
+  None
+}
+
+///|
 fn build_fetch_local(
   path : String,
 ) -> (String, String) -> Result[(String, String), String] {
@@ -55,25 +76,21 @@ fn build_fetch_local(
   }
   // Compute the escape-guard boundary passed to make_fetch_local.
   //
-  // For workflow file targets (.github/workflows/*.yml) the engine resolves
-  // uses: ./... refs from the repo root (three levels up from the file), so
-  // the boundary must be at least that wide. For action files the boundary
-  // is the file's direct parent — action steps use ./relative refs that stay
-  // within the same directory tree, not ../sibling refs that cross checkouts.
+  // For workflow file targets (.github/workflows/*.yml) and action file targets
+  // anywhere under .github/actions/.../ the engine resolves uses: ./... refs
+  // from the repo root, so the boundary must be at least that wide. For all
+  // other files the boundary is the file's direct parent.
   //
-  // For directory targets the boundary is the directory itself, except when
-  // the target is a .github directory: workflows inside it resolve from the
-  // repo root (parent of .github), so use that parent as the boundary.
+  // For directory targets the boundary is the directory itself, except for
+  // .github, .github/workflows, or any directory under .github/actions/ where
+  // workflows and composite actions resolve from the repo root.
   let boundary = match path_kind(root_abs) {
     Ok(File) => {
       let direct_parent = match strip_path_component(root_abs) {
         Some(d) => d
         None => root_abs
       }
-      // Widen to repo root only for actual .github/workflows files (3 levels:
-      // file → workflows → .github → repo). Check the full ancestry so that
-      // YAML files in arbitrary directories named "workflows" don't get the
-      // wider boundary. For all other files the boundary is the direct parent.
+      // .github/workflows/<file>: widen to repo root.
       let workflows_dir = direct_parent
       let github_dir = strip_path_component(workflows_dir)
       let is_github_workflow = has_yaml_extension(root_abs) &&
@@ -86,39 +103,36 @@ fn build_fetch_local(
           None => direct_parent
         }
       } else {
-        direct_parent
+        // .github/actions/.../<name>/action.yml: widen to repo root.
+        match github_actions_repo_root(root_abs) {
+          Some(repo_root) => repo_root
+          None => direct_parent
+        }
       }
     }
     _ => {
-      // Widen to repo root for directory targets where workflow uses: ./...
-      // refs resolve from repo root rather than the target directory itself.
-      // Both .github and .github/workflows targets need this treatment.
+      // Directory target: widen to repo root for any path under .github
+      // (including .github itself, .github/workflows, and any depth under
+      // .github/actions/).
       let name = basename(root_abs)
       if name == ".github" {
         match strip_path_component(root_abs) {
           Some(parent) => parent
           None => root_abs
         }
-      } else if name == "workflows" {
-        // Could be <repo>/.github/workflows — check grandparent is .github.
-        let grandparent_name = match strip_path_component(root_abs) {
-          Some(p) => Some(basename(p))
-          None => None
-        }
-        if grandparent_name == Some(".github") {
-          match strip_path_component(root_abs) {
-            Some(p) =>
-              match strip_path_component(p) {
-                Some(repo_root) => repo_root
-                None => root_abs
-              }
-            None => root_abs
-          }
-        } else {
-          root_abs
+      } else if name == "workflows" &&
+        strip_path_component(root_abs) is Some(p) &&
+        basename(p) == ".github" {
+        match strip_path_component(p) {
+          Some(repo_root) => repo_root
+          None => root_abs
         }
       } else {
-        root_abs
+        // Any directory under .github/actions/ at arbitrary depth.
+        match github_actions_repo_root(root_abs) {
+          Some(repo_root) => repo_root
+          None => root_abs
+        }
       }
     }
   }
