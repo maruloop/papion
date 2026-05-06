@@ -948,8 +948,10 @@ test "scan_workflow traverses local composite and finds GitHub action" {
     #|  using: composite
     #|  steps:
     #|    - uses: actions/checkout@v4
+  // Engine auto-derives repo root (/repo) from the .github/workflows ancestry,
+  // so local refs resolve against /repo, not the workflow's own directory.
   let fetch_local = make_local_fetch_table({
-    "/repo/.github/workflows/./actions/my-action": local_action_yaml,
+    "/repo/./actions/my-action": local_action_yaml,
   })
   let result = scan_workflow(
     target,
@@ -1048,6 +1050,74 @@ test "scan_workflow emits Warn for unresolvable local ref" {
       assert_eq(r.findings[0].rule, "local-ref-unresolvable")
       assert_eq(r.findings[0].target, "./actions/missing")
     }
+  }
+}
+
+///|
+test "scan_workflow auto-derives repo root from .github/workflows ancestry" {
+  // workflow_base_dir omitted — engine should infer /repo from the path.
+  let target = local_target("/repo/.github/workflows/ci.yml")
+  let workflow_yaml =
+    #|name: CI
+    #|jobs:
+    #|  build:
+    #|    runs-on: ubuntu-latest
+    #|    steps:
+    #|      - uses: ./shared/action
+  let action_yaml =
+    #|name: Shared
+    #|runs:
+    #|  using: composite
+    #|  steps:
+    #|    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+  let fetch_local = make_local_fetch_table({
+    "/repo/./shared/action": action_yaml,
+  })
+  let result = scan_workflow(
+    target,
+    workflow_yaml,
+    @papion.Policy::default(),
+    unreachable_fetch,
+    fetch_local~,
+  )
+  match result {
+    Err(e) => fail("unexpected error: \{e}")
+    Ok(r) =>
+      // SHA pin — no finding expected
+      assert_eq(r.findings.length(), 0)
+  }
+}
+
+///|
+test "scan_workflow falls back to file parent for non-.github/workflows paths" {
+  // workflow at /ci/build.yml — not under .github/workflows, so base_dir is /ci.
+  let target = local_target("/ci/build.yml")
+  let workflow_yaml =
+    #|name: Build
+    #|jobs:
+    #|  build:
+    #|    runs-on: ubuntu-latest
+    #|    steps:
+    #|      - uses: ./helpers/setup
+  let action_yaml =
+    #|name: Setup
+    #|runs:
+    #|  using: composite
+    #|  steps:
+    #|    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+  let fetch_local = make_local_fetch_table({
+    "/ci/./helpers/setup": action_yaml,
+  })
+  let result = scan_workflow(
+    target,
+    workflow_yaml,
+    @papion.Policy::default(),
+    unreachable_fetch,
+    fetch_local~,
+  )
+  match result {
+    Err(e) => fail("unexpected error: \{e}")
+    Ok(r) => assert_eq(r.findings.length(), 0)
   }
 }
 

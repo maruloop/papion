@@ -20,6 +20,49 @@ priv enum VisitedKey {
 } derive(Eq, Hash)
 
 ///|
+fn parent_dir(path : String) -> String? {
+  let trimmed = path.trim_end(chars="/")
+  match trimmed.rev_find("/") {
+    None => None
+    Some(idx) => {
+      let p = trimmed[:idx].to_string()
+      Some(if p.is_empty() { "/" } else { p })
+    }
+  }
+}
+
+///|
+/// Returns the repo root for a workflow at <root>/.github/workflows/<name>.yml.
+/// Returns None when the path does not follow that convention.
+fn workflow_root_dir(path : String) -> String? {
+  match parent_dir(path) {
+    None => None
+    Some(workflows_dir) => {
+      let wf_name = match workflows_dir.rev_find("/") {
+        Some(idx) => workflows_dir[idx + 1:].to_string()
+        None => workflows_dir
+      }
+      if wf_name != "workflows" {
+        return None
+      }
+      match parent_dir(workflows_dir) {
+        None => None
+        Some(github_dir) => {
+          let gh_name = match github_dir.rev_find("/") {
+            Some(idx) => github_dir[idx + 1:].to_string()
+            None => github_dir
+          }
+          if gh_name != ".github" {
+            return None
+          }
+          parent_dir(github_dir)
+        }
+      }
+    }
+  }
+}
+
+///|
 fn normalize_path_part(path : String?) -> String {
   match path {
     None => ""
@@ -132,14 +175,24 @@ fn scan_impl(
       match workflow_base_dir {
         Some(d) => Some(d)
         None =>
-          match path.rev_find("/") {
-            Some(idx) => {
-              let parent = path[:idx].to_string()
-              // Preserve "/" for root-level targets like /ci.yml so the
-              // base_dir is a valid absolute path rather than an empty string.
-              Some(if parent.is_empty() { "/" } else { parent })
+          if root_kind == Workflow {
+            // For workflow files under <repo>/.github/workflows/, resolve local
+            // uses: ./ refs from the repo root, matching GitHub Actions semantics.
+            // Falls back to the file's own parent when the path doesn't follow
+            // that convention (e.g. a workflow stored at an ad-hoc location).
+            match workflow_root_dir(path) {
+              Some(root) => Some(root)
+              None =>
+                match parent_dir(path) {
+                  Some(d) => Some(d)
+                  None => Some(".")
+                }
             }
-            None => Some(".")
+          } else {
+            match parent_dir(path) {
+              Some(d) => Some(d)
+              None => Some(".")
+            }
           }
       }
     @papion.GitHub(_) => None
