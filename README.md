@@ -81,7 +81,7 @@ papion run ./.github/workflows/release.yml
 papion run ./action/action.yml
 ```
 
-Strings starting with `./`, `../`, or `/` are treated as local paths. Local scans still recurse through transitive `uses:` references via GitHub, so the root file is local but nested action dependencies are fetched the same way as repository scans.
+Strings starting with `./`, `../`, `/`, `.\`, `..\`, or a Windows drive letter (`C:\...`) are treated as local paths. Local scans still recurse through transitive `uses:` references via GitHub, so the root file is local but nested action dependencies are fetched the same way as repository scans.
 
 **JSON output shape for local scans differs from GitHub scans in two ways:**
 

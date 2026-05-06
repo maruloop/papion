@@ -133,7 +133,12 @@ fn scan_impl(
         Some(d) => Some(d)
         None =>
           match path.rev_find("/") {
-            Some(idx) => Some(path[:idx].to_string())
+            Some(idx) => {
+              let parent = path[:idx].to_string()
+              // Preserve "/" for root-level targets like /ci.yml so the
+              // base_dir is a valid absolute path rather than an empty string.
+              Some(if parent.is_empty() { "/" } else { parent })
+            }
             None => Some(".")
           }
       }
