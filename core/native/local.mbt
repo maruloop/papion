@@ -291,7 +291,10 @@ pub fn make_fetch_local(
     }
   }
   fn(base_dir : String, rel_path : String) -> Result[(String, String), String] {
-    let joined = "\{base_dir}/\{rel_path}"
+    // Normalise any Windows-style separators in rel_path before joining so
+    // that POSIX realpath receives a well-formed path on all platforms.
+    let norm_rel = rel_path.replace(old="\\", new="/")
+    let joined = "\{base_dir}/\{norm_rel}"
     let abs_path = match resolve_abs_path(joined) {
       Ok(p) => p
       Err(err) => return Err(err)
@@ -310,12 +313,28 @@ pub fn make_fetch_local(
       abs_path.has_suffix(".yaml") {
       abs_path
     } else {
+      // Resolve candidate paths through realpath so that symlinked action.yml
+      // files are checked against the boundary after symlink resolution, not
+      // before. This prevents a symlink outside the scan root from passing the
+      // boundary guard via the unresolved candidate path.
       let candidates = [abs_path + "/action.yml", abs_path + "/action.yaml"]
       let mut found : String? = None
       for candidate in candidates {
-        if path_kind(candidate) is Ok(File) {
-          found = Some(candidate)
-          break
+        match resolve_abs_path(candidate) {
+          Ok(real_candidate) => {
+            let cand_prefix = if root_abs.has_suffix("/") {
+              root_abs
+            } else {
+              root_abs + "/"
+            }
+            let in_boundary = real_candidate == root_abs ||
+              real_candidate.has_prefix(cand_prefix)
+            if in_boundary && path_kind(real_candidate) is Ok(File) {
+              found = Some(real_candidate)
+              break
+            }
+          }
+          Err(_) => ()
         }
       }
       match found {
