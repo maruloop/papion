@@ -282,9 +282,9 @@ fn collect_ref(refs : Array[@papion.ParsedRef], uses_str : String) -> Unit {
 ///|
 /// Extract all action references from the `uses:` fields of composite steps.
 ///
-/// Best-effort: unparseable refs are silently skipped. Local refs (./path) are
-/// included as ParsedRef::LocalPath. Returns an empty array for non-composite
-/// actions.
+/// Best-effort: unparseable refs are silently skipped. Local refs (./path and
+/// ../path) are included as ParsedRef::LocalPath. Returns an empty array for
+/// non-composite actions.
 pub fn extract_refs(yml : @papion.ActionYml) -> Array[@papion.ParsedRef] {
   let refs = Array::new()
   match yml.runs.steps {
