@@ -74,23 +74,23 @@ fn build_fetch_local(
     Ok(p) => p
     Err(_) => path
   }
-  // Compute the escape-guard boundary passed to make_fetch_local.
-  //
-  // For workflow file targets (.github/workflows/*.yml) and action file targets
-  // anywhere under .github/actions/.../ the engine resolves uses: ./... refs
-  // from the repo root, so the boundary must be at least that wide. For all
-  // other files the boundary is the file's direct parent.
-  //
-  // For directory targets the boundary is the directory itself, except for
-  // .github, .github/workflows, or any directory under .github/actions/ where
-  // workflows and composite actions resolve from the repo root.
-  let boundary = match path_kind(root_abs) {
+  // Git root is the authoritative boundary — matches GitHub Actions' $GITHUB_WORKSPACE.
+  // Fall back to .github-based heuristics for non-git contexts (CI artefact dirs, etc.).
+  let boundary = match find_git_root(root_abs) {
+    Some(git_root) => git_root
+    None => github_based_boundary(root_abs)
+  }
+  make_fetch_local(boundary)
+}
+
+///|
+fn github_based_boundary(root_abs : String) -> String {
+  match path_kind(root_abs) {
     Ok(File) => {
       let direct_parent = match strip_path_component(root_abs) {
         Some(d) => d
         None => root_abs
       }
-      // .github/workflows/<file>: widen to repo root.
       let workflows_dir = direct_parent
       let github_dir = strip_path_component(workflows_dir)
       let is_github_workflow = has_yaml_extension(root_abs) &&
@@ -103,7 +103,6 @@ fn build_fetch_local(
           None => direct_parent
         }
       } else {
-        // .github/actions/.../<name>/action.yml: widen to repo root.
         match github_actions_repo_root(root_abs) {
           Some(repo_root) => repo_root
           None => direct_parent
@@ -111,9 +110,6 @@ fn build_fetch_local(
       }
     }
     _ => {
-      // Directory target: widen to repo root for any path under .github
-      // (including .github itself, .github/workflows, and any depth under
-      // .github/actions/).
       let name = basename(root_abs)
       if name == ".github" {
         match strip_path_component(root_abs) {
@@ -128,7 +124,6 @@ fn build_fetch_local(
           None => root_abs
         }
       } else {
-        // Any directory under .github/actions/ at arbitrary depth.
         match github_actions_repo_root(root_abs) {
           Some(repo_root) => repo_root
           None => root_abs
@@ -136,15 +131,20 @@ fn build_fetch_local(
       }
     }
   }
-  make_fetch_local(boundary)
 }
 
 ///|
 fn run(args : Array[String]) -> Result[@cli.RunOutcome, @cli.CliError] {
   let parsed = @cli.parse_args(args)
-  let fetch_local = match parsed {
-    Ok({ target: Local({ path }), .. }) => Some(build_fetch_local(path))
-    _ => None
+  let (fetch_local, repo_root) = match parsed {
+    Ok({ target: Local({ path }), .. }) => {
+      let root_abs = match resolve_abs_path(path) {
+        Ok(p) => p
+        Err(_) => path
+      }
+      (Some(build_fetch_local(path)), find_git_root(root_abs))
+    }
+    _ => (None, None)
   }
   match fetch_local {
     Some(fl) =>
@@ -155,6 +155,7 @@ fn run(args : Array[String]) -> Result[@cli.RunOutcome, @cli.CliError] {
         read_local_target,
         fetch_local=fl,
         resolve_ref_kind=cached_ref_kind_resolver(),
+        repo_root?,
       )
     None =>
       @cli.run_with_host(

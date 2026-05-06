@@ -27,6 +27,10 @@ extern "c" fn local_path_kind_ffi(path : Bytes) -> Int = "papion_local_path_kind
 extern "c" fn local_is_symlink_ffi(path : Bytes) -> Int = "papion_local_is_symlink"
 
 ///|
+#borrow(path)
+extern "c" fn local_find_git_root_ffi(path : Bytes) -> Int = "papion_local_find_git_root"
+
+///|
 fn decode_result(len : Int, byte_at : (Int) -> Int) -> String {
   let bytes : Array[Byte] = []
   for i = 0; i < len; i = i + 1 {
@@ -68,6 +72,19 @@ fn resolve_abs_path(path : String) -> Result[String, String] {
     Err(error_string())
   } else {
     Ok(result_string())
+  }
+}
+
+///|
+fn find_git_root(path : String) -> String? {
+  if local_find_git_root_ffi(c_string_bytes(path)) == 0 {
+    return None
+  }
+  let r = result_string()
+  if r.is_empty() {
+    None
+  } else {
+    Some(r)
   }
 }
 

@@ -239,3 +239,25 @@ int papion_local_write_file(const char *path, const char *content) {
   fclose(file);
   return 1;
 }
+
+int papion_local_find_git_root(const char *start_path) {
+  char current[PATH_MAX];
+  if (realpath(start_path, current) == NULL) {
+    papion_local_set_errorf("failed to resolve %s: %s", start_path, strerror(errno));
+    return 0;
+  }
+  while (1) {
+    char candidate[PATH_MAX];
+    snprintf(candidate, sizeof(candidate), "%s/.git", current);
+    struct stat st;
+    if (stat(candidate, &st) == 0) {
+      if (!papion_local_set_result(current)) return 0;
+      return 1;
+    }
+    char *slash = strrchr(current, '/');
+    if (slash == NULL || slash == current) break;
+    *slash = '\0';
+  }
+  if (!papion_local_set_result("")) return 0;
+  return 1;
+}

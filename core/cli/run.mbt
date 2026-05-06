@@ -152,6 +152,7 @@ pub fn run_with_host(
   ) {
     @rules.classify_ref(git_ref)
   },
+  repo_root? : String,
 ) -> Result[RunOutcome, CliError] {
   let options = match parse_args(args) {
     Ok(options) => options
@@ -216,6 +217,7 @@ pub fn run_with_host(
                   engine_fetch,
                   fetch_local=fl,
                   resolve_ref_kind~,
+                  scan_base_dir?=repo_root,
                 )
               None =>
                 @engine.scan(
@@ -224,10 +226,14 @@ pub fn run_with_host(
                   policy,
                   engine_fetch,
                   resolve_ref_kind~,
+                  scan_base_dir?=repo_root,
                 )
             }
           Workflow => {
-            let wf_base_dir = workflow_repo_root(unit.abs_path)
+            let wf_base_dir = match repo_root {
+              Some(_) => repo_root
+              None => workflow_repo_root(unit.abs_path)
+            }
             match fetch_local {
               Some(fl) =>
                 @engine.scan_workflow(
