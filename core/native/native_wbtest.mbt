@@ -625,6 +625,10 @@ fn stub_fetch_action_yml(
 }
 
 ///|
+#borrow(old_path, new_path)
+extern "c" fn local_rename_ffi(old_path : Bytes, new_path : Bytes) -> Int = "papion_local_rename"
+
+///|
 fn rename_path(old_path : String, new_path : String) -> Result[Unit, String] {
   if local_rename_ffi(c_string_bytes(old_path), c_string_bytes(new_path)) == 0 {
     Err(error_string())

@@ -265,7 +265,7 @@ int papion_local_find_git_root(const char *start_path) {
     return 0;
   }
   while (1) {
-    char candidate[PATH_MAX];
+    char candidate[PATH_MAX + 6];
     snprintf(candidate, sizeof(candidate), "%s/.git", current);
     struct stat st;
     if (stat(candidate, &st) == 0) {
