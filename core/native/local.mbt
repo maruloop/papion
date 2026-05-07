@@ -141,7 +141,8 @@ fn basename(path : String) -> String {
 
 ///|
 fn parent_dir_name(path : String) -> String? {
-  let trimmed = path.trim(chars="/")
+  let norm = path.replace(old="\\", new="/")
+  let trimmed = norm.trim(chars="/")
   match trimmed.rev_find("/") {
     None => None
     Some(end_idx) => {
