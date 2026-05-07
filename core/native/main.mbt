@@ -48,9 +48,11 @@ fn strip_path_component(path : String) -> String? {
 ///|
 /// Walk up the path's ancestry looking for a .github/actions/... subtree.
 /// Returns the repo root (parent of .github) if found, None otherwise.
+/// Includes the path itself in the walk so callers passing the
+/// .github/actions directory directly are recognised.
 /// Mirrors the engine's action_root_dir helper but uses strip_path_component.
 fn github_actions_repo_root(path : String) -> String? {
-  let mut current = strip_path_component(path)
+  let mut current : String? = Some(path)
   while current is Some(dir) {
     if basename(dir) == "actions" {
       match strip_path_component(dir) {

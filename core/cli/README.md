@@ -20,7 +20,11 @@ papion run <target> [--format human|json] [--fail-on warn|fail|none] [--config p
 
 Rules:
 
-- `<target>` is either `org/repo[/path]@ref`, a GitHub repository URL, or a local path starting with `./`, `../`, `/`, `.\`, `..\`, or a Windows drive letter (`C:\...`).
+- `<target>` is one of:
+  - `org/repo[/path]@ref` — explicit owner/repo with optional sub-path and ref
+  - GitHub repository URL (`https://github.com/owner/repo`)
+  - GitHub tree URL (`https://github.com/owner/repo/tree/<ref>[/path]`) — the ref and path are extracted from the URL; blob URLs are rejected
+  - a local path starting with `./`, `../`, `/`, `.\`, `..\`, or a Windows drive letter (`C:\...`)
 - GitHub paths are parsed by the shared CLI package and propagated into `@papion.ScanTarget::GitHub` so the reported root target and root traversal identity match the action that was actually fetched.
 - Local paths are parsed by the shared CLI package into `RunTarget::Local { path }` without touching the filesystem.
 - Native host code resolves local paths, walks directories, reads YAML, and passes absolute paths into `@papion.ScanTarget::Local`.
