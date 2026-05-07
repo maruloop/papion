@@ -80,15 +80,6 @@ fn resolve_abs_path(path : String) -> Result[String, String] {
 }
 
 ///|
-fn rename_path(old_path : String, new_path : String) -> Result[Unit, String] {
-  if local_rename_ffi(c_string_bytes(old_path), c_string_bytes(new_path)) == 0 {
-    Err(error_string())
-  } else {
-    Ok(())
-  }
-}
-
-///|
 fn find_git_root(path : String) -> String? {
   if local_find_git_root_ffi(c_string_bytes(path)) == 0 {
     return None

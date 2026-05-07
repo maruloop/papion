@@ -625,6 +625,15 @@ fn stub_fetch_action_yml(
 }
 
 ///|
+fn rename_path(old_path : String, new_path : String) -> Result[Unit, String] {
+  if local_rename_ffi(c_string_bytes(old_path), c_string_bytes(new_path)) == 0 {
+    Err(error_string())
+  } else {
+    Ok(())
+  }
+}
+
+///|
 /// Activate the git-root marker for a scenario directory, run f(), then
 /// restore the marker regardless of whether f succeeds.  Each scenario
 /// directory ships a plain file named "dotgit" (committable) instead of
@@ -656,7 +665,7 @@ test "integration: local workflow -> local composite -> remote action (zero find
   }
   let scenario_dir = "\{cwd}/native/testdata/scenarios/wf-to-composite-to-remote"
   let scenario = "\{scenario_dir}/.github/workflows/ci.yml"
-  with_scenario_git_root(scenario_dir, fn() {
+  with_scenario_git_root(scenario_dir, () => {
     let fl = build_fetch_local(scenario)
     let repo_root = find_git_root(scenario_dir)
     let result = @cli.run_with_host(
@@ -681,7 +690,7 @@ test "integration: local workflow -> remote action (zero findings)" {
   }
   let scenario_dir = "\{cwd}/native/testdata/scenarios/wf-to-remote"
   let scenario = "\{scenario_dir}/.github/workflows/ci.yml"
-  with_scenario_git_root(scenario_dir, fn() {
+  with_scenario_git_root(scenario_dir, () => {
     let fl = build_fetch_local(scenario)
     let repo_root = find_git_root(scenario_dir)
     let result = @cli.run_with_host(
@@ -706,7 +715,7 @@ test "integration: local composite -> local composite -> remote action (zero fin
   }
   let scenario_dir = "\{cwd}/native/testdata/scenarios/composite-chain"
   let scenario = "\{scenario_dir}/first/action.yml"
-  with_scenario_git_root(scenario_dir, fn() {
+  with_scenario_git_root(scenario_dir, () => {
     let fl = build_fetch_local(scenario)
     let repo_root = find_git_root(scenario_dir)
     let result = @cli.run_with_host(
