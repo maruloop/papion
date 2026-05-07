@@ -144,7 +144,8 @@ fn read_utf8_file(path : String) -> Result[String, String] {
 
 ///|
 fn basename(path : String) -> String {
-  let trimmed = path.trim(chars="/")
+  let norm = path.replace(old="\\", new="/")
+  let trimmed = norm.trim(chars="/")
   match trimmed.rev_find("/") {
     Some(idx) => trimmed[idx + 1:].to_string()
     None => trimmed.to_string()
@@ -247,6 +248,9 @@ fn walk_dir(
   }
   entries.sort()
   for entry in entries {
+    if entry == ".git" || entry == ".hg" || entry == ".svn" {
+      continue
+    }
     let child = "\{dir}/\{entry}"
     match path_kind(child) {
       Ok(Directory) =>

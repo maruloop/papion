@@ -254,9 +254,13 @@ pub fn run_with_host(
                 )
             }
           Workflow => {
-            let wf_base_dir = match repo_root {
-              Some(_) => repo_root
-              None => workflow_repo_root(unit.abs_path)
+            let wf_base_dir = match workflow_repo_root(unit.abs_path) {
+              Some(_) as canonical =>
+                match repo_root {
+                  Some(_) => repo_root
+                  None => canonical
+                }
+              None => None
             }
             match fetch_local {
               Some(fl) =>

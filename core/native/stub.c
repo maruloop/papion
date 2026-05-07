@@ -120,7 +120,8 @@ int papion_local_path_kind(const char *path) {
   if (S_ISREG(st.st_mode)) {
     return 1;
   }
-  return 0;
+  papion_local_set_errorf("unsupported file type at %s", path);
+  return -1;
 }
 
 int papion_local_is_symlink(const char *path) {
@@ -156,9 +157,17 @@ int papion_local_list_dir(const char *path) {
     size_t name_len = strlen(entry->d_name);
     size_t needed = length + name_len + 1;
     if (needed > capacity) {
-      while (needed > capacity) {
-        capacity *= 2;
+      size_t new_cap = capacity;
+      while (needed > new_cap) {
+        if (new_cap > SIZE_MAX / 2) {
+          free(buffer);
+          closedir(dir);
+          papion_local_set_errorf("directory buffer overflow reading %s", path);
+          return 0;
+        }
+        new_cap *= 2;
       }
+      capacity = new_cap;
       char *grown = realloc(buffer, capacity);
       if (grown == NULL) {
         free(buffer);
