@@ -2,4 +2,4 @@ name: Entry
 runs:
   using: composite
   steps:
-    - uses: ./second
+    - uses: ./.github/actions/second

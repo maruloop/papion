@@ -718,7 +718,7 @@ test "integration: local composite -> local composite -> remote action (zero fin
     fail("expected current working directory")
   }
   let scenario_dir = "\{cwd}/native/testdata/scenarios/composite-chain"
-  let scenario = "\{scenario_dir}/first/action.yml"
+  let scenario = "\{scenario_dir}/.github/actions/first/action.yml"
   with_scenario_git_root(scenario_dir, () => {
     let fl = build_fetch_local(scenario)
     let repo_root = find_git_root(scenario_dir)

@@ -37,7 +37,8 @@ pub(all) struct LocalScanUnit {
 
 ///|
 fn parent_path(path : String) -> String? {
-  let trimmed = path.trim_end(chars="/")
+  let norm = path.replace(old="\\", new="/")
+  let trimmed = norm.trim_end(chars="/")
   match trimmed.rev_find("/") {
     Some(idx) => {
       let parent = trimmed[:idx].to_string()
@@ -83,6 +84,36 @@ fn workflow_repo_root(abs_path : String) -> String? {
       }
     }
   }
+}
+
+///|
+fn path_basename(path : String) -> String {
+  let norm = path.replace(old="\\", new="/")
+  match norm.rev_find("/") {
+    Some(idx) => norm[idx + 1:].to_string()
+    None => norm
+  }
+}
+
+///|
+/// Returns true when path is anywhere under <repo>/.github/actions/.
+/// Mirrors the engine's action_root_dir walk so the cli applies the same
+/// repo-root widening only for canonical composite-action layouts.
+fn under_github_actions(path : String) -> Bool {
+  let mut current = parent_path(path)
+  while current is Some(dir) {
+    if path_basename(dir) == "actions" {
+      match parent_path(dir) {
+        Some(github_dir) =>
+          if path_basename(github_dir) == ".github" {
+            return true
+          }
+        None => ()
+      }
+    }
+    current = parent_path(dir)
+  }
+  false
 }
 
 ///|
@@ -231,7 +262,12 @@ pub fn run_with_host(
       for unit in units {
         let target = @papion.Local({ path: unit.abs_path })
         let result = match unit.kind {
-          Action =>
+          Action => {
+            let action_base = if under_github_actions(unit.abs_path) {
+              repo_root
+            } else {
+              None
+            }
             match fetch_local {
               Some(fl) =>
                 @engine.scan(
@@ -241,7 +277,7 @@ pub fn run_with_host(
                   engine_fetch,
                   fetch_local=fl,
                   resolve_ref_kind~,
-                  scan_base_dir?=repo_root,
+                  scan_base_dir?=action_base,
                 )
               None =>
                 @engine.scan(
@@ -250,9 +286,10 @@ pub fn run_with_host(
                   policy,
                   engine_fetch,
                   resolve_ref_kind~,
-                  scan_base_dir?=repo_root,
+                  scan_base_dir?=action_base,
                 )
             }
+          }
           Workflow => {
             let wf_base_dir = match workflow_repo_root(unit.abs_path) {
               Some(_) as canonical =>
