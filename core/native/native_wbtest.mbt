@@ -377,7 +377,7 @@ test "run config error fires before fetch" {
   let result = @cli.run_with_host(
     ["run", "actions/checkout@v4", "--config", "cli/testdata/missing.toml"],
     load_config,
-    fn(_owner, _repo, _git_ref, _path, _allow_ref_fallback) {
+    fn(_owner, _repo, _git_ref, _path, _mode) {
       fetch_called = true
       Err("fetch_action_yml should not be called before config loading")
     },
@@ -401,7 +401,7 @@ test "run parse_args error on --config propagates before fetch" {
       load_config_called = true
       Ok(@papion.Policy::default())
     },
-    fn(_owner, _repo, _git_ref, _path, _allow_ref_fallback) {
+    fn(_owner, _repo, _git_ref, _path, _mode) {
       fetch_called = true
       Ok(("", "unused", None))
     },
@@ -613,7 +613,7 @@ fn stub_fetch_action_yml(
   _repo : String,
   git_ref : String?,
   path : String?,
-  _allow_ref_fallback : Bool,
+  _mode : @cli.FetchMode,
 ) -> Result[(String, String, String?), String] {
   let resolved_ref = match git_ref {
     Some(r) => r

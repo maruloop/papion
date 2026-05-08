@@ -23,6 +23,12 @@ pub impl Show for RunOutcome with output(self, logger) {
 }
 
 ///|
+pub(all) enum FetchMode {
+  Repo
+  Tree
+} derive(Debug, Eq, Show)
+
+///|
 pub(all) enum LocalScanKind {
   Action
   Workflow
@@ -89,7 +95,7 @@ fn format_results(
 pub fn run_with_host(
   args : Array[String],
   load_config : (String?) -> Result[@papion.Policy, String],
-  fetch_action_yml : (String, String, String?, String?, Bool) -> Result[
+  fetch_action_yml : (String, String, String?, String?, FetchMode) -> Result[
     (String, String, String?),
     String,
   ],
@@ -118,7 +124,7 @@ pub fn run_with_host(
     git_ref : String,
     path : String?,
   ) -> Result[String, String] {
-    match fetch_action_yml(owner, repo, Some(git_ref), path, false) {
+    match fetch_action_yml(owner, repo, Some(git_ref), path, Repo) {
       Ok((yaml, _, _)) => Ok(yaml)
       Err(err) => Err(err)
     }
@@ -126,7 +132,7 @@ pub fn run_with_host(
   match options.target {
     GitHubRepo({ owner, repo, path, git_ref }) => {
       let (action_yml, resolved_git_ref, resolved_path) = match
-        fetch_action_yml(owner, repo, git_ref, path, false) {
+        fetch_action_yml(owner, repo, git_ref, path, Repo) {
         Ok(result) => result
         Err(err) => return Err(RuntimeError(err))
       }
@@ -150,7 +156,7 @@ pub fn run_with_host(
     }
     GitHubTree({ owner, repo, path, git_ref }) => {
       let (action_yml, resolved_git_ref, resolved_path) = match
-        fetch_action_yml(owner, repo, Some(git_ref), path, true) {
+        fetch_action_yml(owner, repo, Some(git_ref), path, Tree) {
         Ok(result) => result
         Err(err) => return Err(RuntimeError(err))
       }

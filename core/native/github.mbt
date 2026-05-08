@@ -608,7 +608,7 @@ pub fn fetch_action_yml(
   repo : String,
   git_ref : String?,
   path : String?,
-  allow_ref_fallback : Bool,
+  mode : @cli.FetchMode,
 ) -> Result[(String, String, String?), String] {
   let requested_git_ref = match git_ref {
     Some(git_ref) => git_ref
@@ -620,7 +620,11 @@ pub fn fetch_action_yml(
   }
   let (bytes, resolved_git_ref, resolved_path) = match
     fetch_action_yml_with_fallback(
-      owner, repo, requested_git_ref, path, allow_ref_fallback,
+      owner,
+      repo,
+      requested_git_ref,
+      path,
+      mode == @cli.Tree,
     ) {
     Ok(result) => result
     Err((_, err)) => return Err(err)

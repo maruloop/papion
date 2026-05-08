@@ -398,7 +398,7 @@ test "run_with_host propagates arg error before host calls" {
       load_config_called = true
       Ok(@papion.Policy::default())
     },
-    fn(_owner, _repo, _git_ref, _path, _allow_ref_fallback) {
+    fn(_owner, _repo, _git_ref, _path, _mode) {
       fetch_called = true
       Ok(("", "unused", None))
     },
@@ -415,16 +415,16 @@ test "run_with_host uses resolved git ref from host fetch" {
   let mut captured_repo = ""
   let mut captured_git_ref = None
   let mut captured_path = None
-  let mut captured_allow_ref_fallback = false
+  let mut captured_mode = @cli.Repo
   let result = run_with_host(
     ["run", "actions/checkout@v4", "--format", "json"],
     fn(_config_path) { Ok(@papion.Policy::default()) },
-    fn(owner, repo, git_ref, path, allow_ref_fallback) {
+    fn(owner, repo, git_ref, path, mode) {
       captured_owner = owner
       captured_repo = repo
       captured_git_ref = git_ref
       captured_path = path
-      captured_allow_ref_fallback = allow_ref_fallback
+      captured_mode = mode
       Ok(
         (
           (
@@ -445,7 +445,7 @@ test "run_with_host uses resolved git ref from host fetch" {
       assert_eq(captured_repo, "checkout")
       assert_true(captured_git_ref == Some("v4"))
       assert_true(captured_path == None)
-      assert_eq(captured_allow_ref_fallback, false)
+      assert_eq(captured_mode, @cli.Repo)
       assert_true(
         outcome.output.contains("\"target\":\"actions/checkout@release/v1\""),
       )
@@ -456,8 +456,8 @@ test "run_with_host uses resolved git ref from host fetch" {
 }
 
 ///|
-test "run_with_host passes allow_ref_fallback for github tree urls" {
-  let mut captured_allow_ref_fallback = false
+test "run_with_host passes Tree mode for github tree urls" {
+  let mut captured_mode = @cli.Repo
   let mut captured_path = None
   let result = run_with_host(
     [
@@ -465,8 +465,8 @@ test "run_with_host passes allow_ref_fallback for github tree urls" {
       "json",
     ],
     fn(_config_path) { Ok(@papion.Policy::default()) },
-    fn(_owner, _repo, _git_ref, _path, allow_ref_fallback) {
-      captured_allow_ref_fallback = allow_ref_fallback
+    fn(_owner, _repo, _git_ref, _path, mode) {
+      captured_mode = mode
       captured_path = _path
       Ok(
         (
@@ -484,7 +484,7 @@ test "run_with_host passes allow_ref_fallback for github tree urls" {
   )
   match result {
     Ok(outcome) => {
-      assert_eq(captured_allow_ref_fallback, true)
+      assert_eq(captured_mode, @cli.Tree)
       assert_true(captured_path == Some("v1/action"))
       assert_true(
         outcome.output.contains(
@@ -505,7 +505,7 @@ test "run_with_host passes custom ref kind resolver into engine" {
   let result = run_with_host(
     ["run", "actions/checkout@v4", "--format", "json"],
     fn(_config_path) { Ok(@papion.Policy::default()) },
-    fn(_owner, _repo, _git_ref, _path, _allow_ref_fallback) {
+    fn(_owner, _repo, _git_ref, _path, _mode) {
       Ok(
         (
           (
