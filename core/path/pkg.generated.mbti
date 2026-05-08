@@ -1,0 +1,20 @@
+// Generated using `moon info`, DON'T EDIT IT
+package "maruloop/papion/path"
+
+// Values
+pub fn action_path_prefix(String?) -> String
+
+pub fn canonical_path(String?) -> String?
+
+pub fn normalize_separators(String) -> String
+
+pub fn path_part(String?) -> String
+
+// Errors
+
+// Types and methods
+
+// Type aliases
+
+// Traits
+

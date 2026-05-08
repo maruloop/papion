@@ -45,6 +45,6 @@ pub fn canonical_path(path : String?) -> String? {
   if prefix.is_empty() {
     None
   } else {
-    Some(prefix[0:prefix.length() - 1].to_owned())
+    Some(prefix[0:prefix.length() - 1].to_string())
   }
 }

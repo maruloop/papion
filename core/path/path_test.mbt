@@ -74,6 +74,11 @@ test "action_path_prefix: windows separator normalised" {
 }
 
 ///|
+test "action_path_prefix: windows path with trailing backslash normalised" {
+  assert_eq(action_path_prefix(Some("actions\\subdir\\")), "actions/subdir/")
+}
+
+///|
 test "canonical_path: None returns None" {
   assert_eq(canonical_path(None), None)
 }
@@ -96,4 +101,9 @@ test "canonical_path: leading and trailing slashes stripped" {
 ///|
 test "canonical_path: windows separator normalised" {
   assert_eq(canonical_path(Some("actions\\subdir")), Some("actions/subdir"))
+}
+
+///|
+test "canonical_path: windows path with trailing backslash normalised" {
+  assert_eq(canonical_path(Some("actions\\subdir\\")), Some("actions/subdir"))
 }
