@@ -3,10 +3,11 @@ package "maruloop/papion/native"
 
 import {
   "maruloop/papion",
+  "maruloop/papion/cli",
 }
 
 // Values
-pub fn fetch_action_yml(String, String, String?, String?, Bool) -> Result[(String, String, String?), String]
+pub fn fetch_action_yml(String, String, String?, String?, @cli.FetchMode) -> Result[(String, String, String?), String]
 
 pub fn load_config(String?) -> Result[@papion.Policy, String]
 
