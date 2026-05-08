@@ -911,6 +911,42 @@ test "scan normalizes action paths in transitive context" {
   }
 }
 
+///|
+test "scan normalizes GitHub action paths before recursive fetch" {
+  let target : @papion.ScanTarget = github_target("org", "action-a", "v1")
+  let root_yaml =
+    #|name: Action A
+    #|runs:
+    #|  using: composite
+    #|  steps:
+    #|    - uses: org/action-b/foo\bar@v1
+    #|    - uses: org/action-b/foo/bar@v1
+  let fetched_yaml =
+    #|name: Action B
+    #|runs:
+    #|  using: node20
+  let fetched_paths : Array[String?] = []
+  let fetch = fn(owner, repo, git_ref, path : String?) -> Result[String, String] {
+    fetched_paths.push(path)
+    if owner == "org" &&
+      repo == "action-b" &&
+      git_ref == "v1" &&
+      path == Some("foo/bar") {
+      Ok(fetched_yaml)
+    } else {
+      Err("unexpected fetch target")
+    }
+  }
+  let result = scan(target, root_yaml, @papion.Policy::default(), fetch)
+  match result {
+    Err(e) => fail("unexpected error: \{e}")
+    Ok(r) => {
+      assert_eq(r.findings.length(), 2)
+      assert_eq(fetched_paths, [Some("foo/bar")])
+    }
+  }
+}
+
 // ---- local ref traversal tests ----
 
 ///|

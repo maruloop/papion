@@ -304,7 +304,7 @@ fn scan_impl(
                     ref_.owner,
                     ref_.repo,
                     ref_.git_ref,
-                    ref_.path,
+                    @path.canonical_path(ref_.path),
                   ) {
                   Ok(fetched_yaml) =>
                     queue.push({
