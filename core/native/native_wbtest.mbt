@@ -663,6 +663,22 @@ fn with_scenario_git_root(
 }
 
 ///|
+test "make_fetch_local: rejects non-action yml (e.g. workflow file)" {
+  guard @env.current_dir() is Some(cwd) else {
+    fail("expected current working directory")
+  }
+  let scenario_dir = "\{cwd}/native/testdata/scenarios/wf-to-composite-to-remote"
+  let workflow_yml = "\{scenario_dir}/.github/workflows/ci.yml"
+  let fl = make_fetch_local(scenario_dir)
+  match fl(scenario_dir, "./.github/workflows/ci.yml") {
+    Ok(_) =>
+      fail("expected error for non-action yml \{workflow_yml}, but got Ok")
+    Err(msg) =>
+      assert_eq(msg.has_prefix("no action.yml or action.yaml found"), true)
+  }
+}
+
+///|
 test "integration: local workflow -> local composite -> remote action (zero findings)" {
   guard @env.current_dir() is Some(cwd) else {
     fail("expected current working directory")

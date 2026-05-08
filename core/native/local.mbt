@@ -331,8 +331,11 @@ pub fn make_fetch_local(
         "local ref escapes scan root: \{rel_path} resolves to \{abs_path}",
       )
     }
-    let action_yml_path = if abs_path.has_suffix(".yml") ||
-      abs_path.has_suffix(".yaml") {
+    let bn = basename(abs_path)
+    let action_yml_path = if (
+        abs_path.has_suffix(".yml") || abs_path.has_suffix(".yaml")
+      ) &&
+      (bn == "action.yml" || bn == "action.yaml") {
       abs_path
     } else {
       // Resolve candidate paths through realpath so that symlinked action.yml
