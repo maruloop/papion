@@ -66,6 +66,9 @@ static int papion_local_set_result(const char *value) {
 }
 
 int papion_local_result_len(void) {
+  if (papion_local_result_buf_len > (size_t)INT_MAX) {
+    return -1;
+  }
   return (int)papion_local_result_buf_len;
 }
 
@@ -193,61 +196,6 @@ int papion_local_list_dir(const char *path) {
   int ok = papion_local_replace_result(buffer, length);
   free(buffer);
   return ok;
-}
-
-int papion_local_make_temp_dir(const char *prefix) {
-  char templ[PATH_MAX];
-  snprintf(templ, sizeof(templ), "%sXXXXXX", prefix);
-  char *made = mkdtemp(templ);
-  if (made == NULL) {
-    papion_local_set_errorf("failed to create temp dir for %s: %s", prefix, strerror(errno));
-    return 0;
-  }
-  if (!papion_local_set_result(made)) {
-    return 0;
-  }
-  return 1;
-}
-
-int papion_local_mkdir_p(const char *path) {
-  char buffer[PATH_MAX];
-  size_t len = strlen(path);
-  if (len >= sizeof(buffer)) {
-    papion_local_set_errorf("path too long: %s", path);
-    return 0;
-  }
-  memcpy(buffer, path, len + 1);
-  for (size_t i = 1; i < len; ++i) {
-    if (buffer[i] == '/') {
-      buffer[i] = '\0';
-      if (mkdir(buffer, 0777) != 0 && errno != EEXIST) {
-        papion_local_set_errorf("failed to mkdir %s: %s", buffer, strerror(errno));
-        return 0;
-      }
-      buffer[i] = '/';
-    }
-  }
-  if (mkdir(buffer, 0777) != 0 && errno != EEXIST) {
-    papion_local_set_errorf("failed to mkdir %s: %s", buffer, strerror(errno));
-    return 0;
-  }
-  return 1;
-}
-
-int papion_local_write_file(const char *path, const char *content) {
-  FILE *file = fopen(path, "wb");
-  if (file == NULL) {
-    papion_local_set_errorf("failed to open %s for writing: %s", path, strerror(errno));
-    return 0;
-  }
-  size_t len = strlen(content);
-  if (len > 0 && fwrite(content, 1, len, file) != len) {
-    fclose(file);
-    papion_local_set_errorf("failed to write %s: %s", path, strerror(errno));
-    return 0;
-  }
-  fclose(file);
-  return 1;
 }
 
 int papion_local_rename(const char *old_path, const char *new_path) {

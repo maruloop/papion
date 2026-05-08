@@ -144,7 +144,7 @@ fn run(args : Array[String]) -> Result[@cli.RunOutcome, @cli.CliError] {
         Ok(p) => p
         Err(_) => path
       }
-      (Some(build_fetch_local(path)), find_git_root(root_abs))
+      (Some(build_fetch_local(root_abs)), find_git_root(root_abs))
     }
     _ => (None, None)
   }

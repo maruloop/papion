@@ -94,6 +94,9 @@ fn list_dir(path : String) -> Result[Array[String], String] {
     return Err(error_string())
   }
   let len = local_result_len_ffi()
+  if len < 0 {
+    return Err("directory listing result too large")
+  }
   if len == 0 {
     return Ok([])
   }
