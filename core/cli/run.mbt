@@ -29,6 +29,14 @@ pub(all) enum FetchMode {
 } derive(Debug, Eq)
 
 ///|
+pub impl Show for FetchMode with output(self, logger) {
+  match self {
+    Repo => logger.write_string("Repo")
+    Tree => logger.write_string("Tree")
+  }
+}
+
+///|
 pub(all) enum LocalScanKind {
   Action
   Workflow
