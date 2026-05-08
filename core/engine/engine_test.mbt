@@ -926,7 +926,12 @@ test "scan normalizes GitHub action paths before recursive fetch" {
     #|runs:
     #|  using: node20
   let fetched_paths : Array[String?] = []
-  let fetch = fn(owner, repo, git_ref, path : String?) -> Result[String, String] {
+  let fetch = fn(
+    owner,
+    repo,
+    git_ref,
+    path : String?,
+  ) -> Result[String, String] {
     fetched_paths.push(path)
     if owner == "org" &&
       repo == "action-b" &&
