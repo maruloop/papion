@@ -26,7 +26,7 @@ pub impl Show for RunOutcome with output(self, logger) {
 pub(all) enum FetchMode {
   Repo
   Tree
-} derive(Debug, Eq, Show)
+} derive(Debug, Eq)
 
 ///|
 pub(all) enum LocalScanKind {
