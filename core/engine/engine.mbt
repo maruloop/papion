@@ -166,6 +166,40 @@ fn summarize_findings(
 }
 
 ///|
+/// Single source of truth for the base directory used when resolving
+/// `uses: ./...` references inside a Local scan.
+///
+/// Tier order, top-to-bottom:
+/// 1. `explicit` — caller passed a specific directory (host knows best).
+/// 2. `shape_walk(path)` — path-shape-derived canonical root
+///    (`action_root_dir` or `workflow_root_dir`). This matches GitHub
+///    Actions' `$GITHUB_WORKSPACE` for canonical layouts.
+/// 3. `repo_root_fallback` — host-discovered repo root (e.g. parent of
+///    `.git`) used only for ad-hoc files that lack canonical ancestry.
+/// 4. `parent_dir(path)` — file's own directory.
+/// 5. `"."` — final fallback when even `parent_dir` returns None.
+fn derive_root_base_dir(
+  path : String,
+  explicit : String?,
+  shape_walk : (String) -> String?,
+  repo_root_fallback : String?,
+) -> String {
+  if explicit is Some(d) {
+    return d
+  }
+  if shape_walk(path) is Some(d) {
+    return d
+  }
+  if repo_root_fallback is Some(d) {
+    return d
+  }
+  if parent_dir(path) is Some(d) {
+    return d
+  }
+  "."
+}
+
+///|
 fn scan_impl(
   target : @papion.ScanTarget,
   root_yaml : String,
@@ -187,6 +221,7 @@ fn scan_impl(
   },
   workflow_base_dir? : String,
   scan_base_dir? : String,
+  repo_root_fallback? : String,
 ) -> Result[@papion.ScanResult, String] {
   let policy = match policy.normalized() {
     Ok(p) => p
@@ -194,40 +229,18 @@ fn scan_impl(
   }
   let root_base_dir : String? = match target {
     @papion.Local({ path }) =>
-      match workflow_base_dir {
-        Some(d) => Some(d)
-        None =>
-          if root_kind == Workflow {
-            // For workflow files under <repo>/.github/workflows/, resolve local
-            // uses: ./ refs from the repo root, matching GitHub Actions semantics.
-            // Falls back to the file's own parent when the path doesn't follow
-            // that convention (e.g. a workflow stored at an ad-hoc location).
-            match workflow_root_dir(path) {
-              Some(root) => Some(root)
-              None =>
-                match parent_dir(path) {
-                  Some(d) => Some(d)
-                  None => Some(".")
-                }
-            }
-          } else {
-            // For action scans: explicit scan_base_dir takes precedence.
-            // Otherwise infer the repo root for actions under the canonical
-            // .github/actions/<name>/action.yml layout. Falls back to the
-            // file's own parent for actions at arbitrary locations.
-            match scan_base_dir {
-              Some(d) => Some(d)
-              None =>
-                match action_root_dir(path) {
-                  Some(root) => Some(root)
-                  None =>
-                    match parent_dir(path) {
-                      Some(d) => Some(d)
-                      None => Some(".")
-                    }
-                }
-            }
-          }
+      if root_kind == Workflow {
+        Some(
+          derive_root_base_dir(
+            path, workflow_base_dir, workflow_root_dir, repo_root_fallback,
+          ),
+        )
+      } else {
+        Some(
+          derive_root_base_dir(
+            path, scan_base_dir, action_root_dir, repo_root_fallback,
+          ),
+        )
       }
     @papion.GitHub(_) => None
   }
@@ -390,6 +403,7 @@ pub fn scan(
     @rules.classify_ref(git_ref)
   },
   scan_base_dir? : String,
+  repo_root_fallback? : String,
 ) -> Result[@papion.ScanResult, String] {
   scan_impl(
     target,
@@ -400,6 +414,7 @@ pub fn scan(
     fetch_local~,
     resolve_ref_kind~,
     scan_base_dir?,
+    repo_root_fallback?,
   )
 }
 
@@ -423,6 +438,7 @@ pub fn scan_workflow(
     @rules.classify_ref(git_ref)
   },
   workflow_base_dir? : String,
+  repo_root_fallback? : String,
 ) -> Result[@papion.ScanResult, String] {
   scan_impl(
     target,
@@ -433,5 +449,6 @@ pub fn scan_workflow(
     fetch_local~,
     resolve_ref_kind~,
     workflow_base_dir?,
+    repo_root_fallback?,
   )
 }

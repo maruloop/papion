@@ -1354,3 +1354,223 @@ test "scan local ref without base_dir (GitHub root) is silently skipped" {
     }
   }
 }
+
+// ---- root_base_dir precedence tests ----
+//
+// New tier order in derive_root_base_dir:
+//   1. explicit (scan_base_dir / workflow_base_dir)
+//   2. shape-walk (action_root_dir / workflow_root_dir)
+//   3. repo_root_fallback (host-discovered, e.g. parent of .git)
+//   4. parent_dir(path)
+//   5. "."
+//
+// Each test pins exactly one tier by constructing inputs where higher tiers
+// return None and the tier under test produces a unique answer.
+
+///|
+test "scan_base_dir tier 1 wins over shape-walk and fallback" {
+  // Path is canonical (.github/actions/...) so shape-walk would pick /repo.
+  // repo_root_fallback is also set. scan_base_dir explicitly forces /override
+  // — must take precedence over both.
+  let target = local_target("/repo/.github/actions/lint/action.yml")
+  let root_yaml =
+    #|name: Lint
+    #|runs:
+    #|  using: composite
+    #|  steps:
+    #|    - uses: ./helpers/setup
+  let helper_yaml =
+    #|name: Setup
+    #|runs:
+    #|  using: composite
+    #|  steps:
+    #|    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+  let fetch_local = make_local_fetch_table({
+    "/override/./helpers/setup": helper_yaml,
+  })
+  let result = scan(
+    target,
+    root_yaml,
+    @papion.Policy::default(),
+    unreachable_fetch,
+    fetch_local~,
+    scan_base_dir="/override",
+    repo_root_fallback="/host-root",
+  )
+  match result {
+    Err(e) => fail("unexpected error: \{e}")
+    Ok(r) => assert_eq(r.findings.length(), 0)
+  }
+}
+
+///|
+test "shape-walk tier 2 wins over repo_root_fallback for canonical actions" {
+  // Path is /work/inner/.github/actions/foo/action.yml.
+  // repo_root_fallback simulates an outer .git at /work that should be
+  // ignored — shape-walk correctly picks /work/inner.
+  let target = local_target("/work/inner/.github/actions/foo/action.yml")
+  let root_yaml =
+    #|name: Foo
+    #|runs:
+    #|  using: composite
+    #|  steps:
+    #|    - uses: ./.github/actions/bar
+  let bar_yaml =
+    #|name: Bar
+    #|runs:
+    #|  using: composite
+    #|  steps:
+    #|    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+  let fetch_local = make_local_fetch_table({
+    "/work/inner/./.github/actions/bar": bar_yaml,
+  })
+  let result = scan(
+    target,
+    root_yaml,
+    @papion.Policy::default(),
+    unreachable_fetch,
+    fetch_local~,
+    repo_root_fallback="/work",
+  )
+  match result {
+    Err(e) => fail("unexpected error: \{e}")
+    Ok(r) => assert_eq(r.findings.length(), 0)
+  }
+}
+
+///|
+test "repo_root_fallback tier 3 wins over parent_dir for ad-hoc actions" {
+  // Path is /repo/scripts/lint/action.yml — no .github/actions/ ancestry,
+  // so shape-walk fails. repo_root_fallback=/repo should be used as base_dir
+  // (matching $GITHUB_WORKSPACE semantics for ad-hoc files inside a checkout).
+  let target = local_target("/repo/scripts/lint/action.yml")
+  let root_yaml =
+    #|name: Lint
+    #|runs:
+    #|  using: composite
+    #|  steps:
+    #|    - uses: ./scripts/setup
+  let setup_yaml =
+    #|name: Setup
+    #|runs:
+    #|  using: composite
+    #|  steps:
+    #|    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+  let fetch_local = make_local_fetch_table({
+    "/repo/./scripts/setup": setup_yaml,
+  })
+  let result = scan(
+    target,
+    root_yaml,
+    @papion.Policy::default(),
+    unreachable_fetch,
+    fetch_local~,
+    repo_root_fallback="/repo",
+  )
+  match result {
+    Err(e) => fail("unexpected error: \{e}")
+    Ok(r) => assert_eq(r.findings.length(), 0)
+  }
+}
+
+///|
+test "parent_dir tier 4 wins when no explicit, shape, or fallback" {
+  // Ad-hoc action with no fallback: base_dir falls through to parent_dir.
+  let target = local_target("/some/where/action.yml")
+  let root_yaml =
+    #|name: AdHoc
+    #|runs:
+    #|  using: composite
+    #|  steps:
+    #|    - uses: ./helpers/setup
+  let setup_yaml =
+    #|name: Setup
+    #|runs:
+    #|  using: composite
+    #|  steps:
+    #|    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+  let fetch_local = make_local_fetch_table({
+    "/some/where/./helpers/setup": setup_yaml,
+  })
+  let result = scan(
+    target,
+    root_yaml,
+    @papion.Policy::default(),
+    unreachable_fetch,
+    fetch_local~,
+  )
+  match result {
+    Err(e) => fail("unexpected error: \{e}")
+    Ok(r) => assert_eq(r.findings.length(), 0)
+  }
+}
+
+///|
+test "scan_workflow shape-walk wins over repo_root_fallback for nested workflows" {
+  // Workflow at /work/inner/.github/workflows/ci.yml with outer .git at /work.
+  // shape-walk returns /work/inner; repo_root_fallback=/work must be ignored.
+  let target = local_target("/work/inner/.github/workflows/ci.yml")
+  let workflow_yaml =
+    #|name: CI
+    #|on: [push]
+    #|jobs:
+    #|  build:
+    #|    runs-on: ubuntu-latest
+    #|    steps:
+    #|      - uses: ./.github/actions/setup
+  let setup_yaml =
+    #|name: Setup
+    #|runs:
+    #|  using: composite
+    #|  steps:
+    #|    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+  let fetch_local = make_local_fetch_table({
+    "/work/inner/./.github/actions/setup": setup_yaml,
+  })
+  let result = scan_workflow(
+    target,
+    workflow_yaml,
+    @papion.Policy::default(),
+    unreachable_fetch,
+    fetch_local~,
+    repo_root_fallback="/work",
+  )
+  match result {
+    Err(e) => fail("unexpected error: \{e}")
+    Ok(r) => assert_eq(r.findings.length(), 0)
+  }
+}
+
+///|
+test "scan_workflow repo_root_fallback wins over parent_dir for ad-hoc workflows" {
+  // Ad-hoc workflow at /repo/ci/build.yml — not under .github/workflows.
+  // shape-walk fails; repo_root_fallback=/repo is the right anchor.
+  let target = local_target("/repo/ci/build.yml")
+  let workflow_yaml =
+    #|name: Build
+    #|on: [push]
+    #|jobs:
+    #|  build:
+    #|    runs-on: ubuntu-latest
+    #|    steps:
+    #|      - uses: ./tools/setup
+  let setup_yaml =
+    #|name: Setup
+    #|runs:
+    #|  using: composite
+    #|  steps:
+    #|    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+  let fetch_local = make_local_fetch_table({ "/repo/./tools/setup": setup_yaml })
+  let result = scan_workflow(
+    target,
+    workflow_yaml,
+    @papion.Policy::default(),
+    unreachable_fetch,
+    fetch_local~,
+    repo_root_fallback="/repo",
+  )
+  match result {
+    Err(e) => fail("unexpected error: \{e}")
+    Ok(r) => assert_eq(r.findings.length(), 0)
+  }
+}
