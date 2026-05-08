@@ -475,31 +475,6 @@ fn fetch_matching_refs(
 }
 
 ///|
-fn normalize_action_path(path : String?) -> String {
-  match path {
-    None => ""
-    Some(p) => {
-      let trimmed = p.trim(chars="/")
-      if trimmed.is_empty() {
-        ""
-      } else {
-        "\{trimmed}/"
-      }
-    }
-  }
-}
-
-///|
-fn canonical_action_path(path : String?) -> String? {
-  let normalized = normalize_action_path(path)
-  if normalized.is_empty() {
-    None
-  } else {
-    Some(normalized[0:normalized.length() - 1].to_string())
-  }
-}
-
-///|
 fn select_best_matching_ref(
   candidates : Array[String],
   ref_prefix : String,
@@ -585,7 +560,7 @@ fn try_fetch_action_yml(
   git_ref : String,
   path : String?,
 ) -> Result[Bytes, (Int, String)] {
-  let prefix = normalize_action_path(path)
+  let prefix = @path.action_path_prefix(path)
   match fetch_contents(owner, repo, git_ref, "\{prefix}action.yml") {
     Ok(bytes) => Ok(bytes)
     Err((404, _)) =>
@@ -603,7 +578,7 @@ fn fetch_action_yml_with_fallback(
   allow_ref_fallback : Bool,
 ) -> Result[(Bytes, String, String?), (Int, String)] {
   match try_fetch_action_yml(owner, repo, git_ref, path) {
-    Ok(bytes) => Ok((bytes, git_ref, canonical_action_path(path)))
+    Ok(bytes) => Ok((bytes, git_ref, @path.canonical_path(path)))
     Err((404, message)) => {
       if !allow_ref_fallback || path is None {
         return Err((404, message))
@@ -612,7 +587,7 @@ fn fetch_action_yml_with_fallback(
         Ok((resolved_ref, resolved_path)) =>
           match try_fetch_action_yml(owner, repo, resolved_ref, resolved_path) {
             Ok(bytes) =>
-              Ok((bytes, resolved_ref, canonical_action_path(resolved_path)))
+              Ok((bytes, resolved_ref, @path.canonical_path(resolved_path)))
             Err(err) => Err(err)
           }
         Err((404, _)) => Err((404, message))
