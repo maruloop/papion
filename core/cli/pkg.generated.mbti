@@ -36,7 +36,8 @@ pub impl Show for FailOnLevel
 pub(all) enum FetchMode {
   Repo
   Tree
-} derive(Eq, Show, @debug.Debug)
+} derive(Eq, @debug.Debug)
+pub impl Show for FetchMode
 
 pub(all) struct GitHubRepoRunTarget {
   owner : String
