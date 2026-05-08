@@ -36,79 +36,6 @@ pub(all) struct LocalScanUnit {
 } derive(Debug, Eq)
 
 ///|
-fn parent_path(path : String) -> String? {
-  let norm = path.replace(old="\\", new="/")
-  let trimmed = norm.trim_end(chars="/")
-  match trimmed.rev_find("/") {
-    Some(idx) => {
-      let parent = trimmed[:idx].to_string()
-      // For root-level entries like /.github, parent is ""; return "/" so that
-      // workflow_repo_root stays anchored to the filesystem root.
-      if parent.is_empty() {
-        Some("/")
-      } else {
-        Some(parent)
-      }
-    }
-    None => None
-  }
-}
-
-///|
-/// Compute the repo root for a workflow file at <repo>/.github/workflows/<name>.yml.
-/// Returns None for workflow files not under .github/workflows so the engine
-/// defaults to the workflow file's own directory instead of an incorrect base.
-fn workflow_repo_root(abs_path : String) -> String? {
-  match parent_path(abs_path) {
-    None => None
-    Some(workflows_dir) => {
-      if path_basename(workflows_dir) != "workflows" {
-        return None
-      }
-      match parent_path(workflows_dir) {
-        None => None
-        Some(github_dir) => {
-          if path_basename(github_dir) != ".github" {
-            return None
-          }
-          parent_path(github_dir)
-        }
-      }
-    }
-  }
-}
-
-///|
-fn path_basename(path : String) -> String {
-  let norm = path.replace(old="\\", new="/")
-  match norm.rev_find("/") {
-    Some(idx) => norm[idx + 1:].to_string()
-    None => norm
-  }
-}
-
-///|
-/// Returns true when path is anywhere under <repo>/.github/actions/.
-/// Mirrors the engine's action_root_dir walk so the cli applies the same
-/// repo-root widening only for canonical composite-action layouts.
-fn under_github_actions(path : String) -> Bool {
-  let mut current = parent_path(path)
-  while current is Some(dir) {
-    if path_basename(dir) == "actions" {
-      match parent_path(dir) {
-        Some(github_dir) =>
-          if path_basename(github_dir) == ".github" {
-            return true
-          }
-        None => ()
-      }
-    }
-    current = parent_path(dir)
-  }
-  false
-}
-
-///|
 fn aggregate_summary(results : Array[@papion.ScanResult]) -> @papion.Summary {
   let mut failures = 0
   let mut warnings = 0
@@ -254,12 +181,7 @@ pub fn run_with_host(
       for unit in units {
         let target = @papion.Local({ path: unit.abs_path })
         let result = match unit.kind {
-          Action => {
-            let action_base = if under_github_actions(unit.abs_path) {
-              repo_root
-            } else {
-              None
-            }
+          Action =>
             match fetch_local {
               Some(fl) =>
                 @engine.scan(
@@ -269,7 +191,7 @@ pub fn run_with_host(
                   engine_fetch,
                   fetch_local=fl,
                   resolve_ref_kind~,
-                  scan_base_dir?=action_base,
+                  repo_root_fallback?=repo_root,
                 )
               None =>
                 @engine.scan(
@@ -278,19 +200,10 @@ pub fn run_with_host(
                   policy,
                   engine_fetch,
                   resolve_ref_kind~,
-                  scan_base_dir?=action_base,
+                  repo_root_fallback?=repo_root,
                 )
             }
-          }
-          Workflow => {
-            let wf_base_dir = match workflow_repo_root(unit.abs_path) {
-              Some(_) as canonical =>
-                match repo_root {
-                  Some(_) => repo_root
-                  None => canonical
-                }
-              None => None
-            }
+          Workflow =>
             match fetch_local {
               Some(fl) =>
                 @engine.scan_workflow(
@@ -300,7 +213,7 @@ pub fn run_with_host(
                   engine_fetch,
                   fetch_local=fl,
                   resolve_ref_kind~,
-                  workflow_base_dir?=wf_base_dir,
+                  repo_root_fallback?=repo_root,
                 )
               None =>
                 @engine.scan_workflow(
@@ -309,10 +222,9 @@ pub fn run_with_host(
                   policy,
                   engine_fetch,
                   resolve_ref_kind~,
-                  workflow_base_dir?=wf_base_dir,
+                  repo_root_fallback?=repo_root,
                 )
             }
-          }
         }
         match result {
           Ok(scan_result) => results.push(scan_result)
