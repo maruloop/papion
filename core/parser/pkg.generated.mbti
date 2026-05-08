@@ -6,11 +6,15 @@ import {
 }
 
 // Values
-pub fn extract_refs(@papion.ActionYml) -> Array[@papion.ActionRef]
+pub fn extract_refs(@papion.ActionYml) -> Array[@papion.ParsedRef]
+
+pub fn extract_refs_from_workflow(@papion.WorkflowYml) -> Array[@papion.ParsedRef]
 
 pub fn parse_action_ref(String) -> Result[@papion.ActionRef, String]
 
 pub fn parse_action_yml(String) -> Result[@papion.ActionYml, String]
+
+pub fn parse_workflow_yml(String) -> Result[@papion.WorkflowYml, String]
 
 // Errors
 

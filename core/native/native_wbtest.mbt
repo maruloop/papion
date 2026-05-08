@@ -298,7 +298,7 @@ test "select_best_matching_ref returns exact ref with no remaining path" {
   match select_best_matching_ref(["v4"], "v4", None) {
     Ok((ref_name, remaining)) => {
       assert_eq(ref_name, "v4")
-      assert_eq(remaining, None)
+      assert_true(remaining == None)
     }
     Err(e) => fail("expected Ok but got Err: \{e}")
   }
@@ -314,7 +314,7 @@ test "select_best_matching_ref picks longest matching ref" {
     ) {
     Ok((ref_name, remaining)) => {
       assert_eq(ref_name, "release/v1")
-      assert_eq(remaining, Some("action"))
+      assert_true(remaining == Some("action"))
     }
     Err(e) => fail("expected Ok but got Err: \{e}")
   }
@@ -342,7 +342,7 @@ test "select_best_matching_ref normalizes leading slash path" {
     select_best_matching_ref(["release/v1"], "release", Some("/v1/action")) {
     Ok((ref_name, remaining)) => {
       assert_eq(ref_name, "release/v1")
-      assert_eq(remaining, Some("action"))
+      assert_true(remaining == Some("action"))
     }
     Err(e) => fail("expected Ok but got Err: \{e}")
   }
@@ -354,7 +354,7 @@ test "select_best_matching_ref normalizes double slash path" {
     select_best_matching_ref(["release/v1"], "release", Some("v1//action")) {
     Ok((ref_name, remaining)) => {
       assert_eq(ref_name, "release/v1")
-      assert_eq(remaining, Some("action"))
+      assert_true(remaining == Some("action"))
     }
     Err(e) => fail("expected Ok but got Err: \{e}")
   }
@@ -365,7 +365,7 @@ test "select_best_matching_ref normalizes trailing slash path to none" {
   match select_best_matching_ref(["v4"], "v4", Some("/")) {
     Ok((ref_name, remaining)) => {
       assert_eq(ref_name, "v4")
-      assert_eq(remaining, None)
+      assert_true(remaining == None)
     }
     Err(e) => fail("expected Ok but got Err: \{e}")
   }
@@ -381,6 +381,7 @@ test "run config error fires before fetch" {
       fetch_called = true
       Err("fetch_action_yml should not be called before config loading")
     },
+    read_local_target,
   )
   match result {
     Err(@cli.RuntimeError(_)) => ()
@@ -404,10 +405,39 @@ test "run parse_args error on --config propagates before fetch" {
       fetch_called = true
       Ok(("", "unused", None))
     },
+    read_local_target,
   )
   assert_eq(result, Err(@cli.ArgError("missing value for --config")))
   assert_eq(load_config_called, false)
   assert_eq(fetch_called, false)
+}
+
+///|
+test "read_local_target reads local workflow and action roots" {
+  guard @env.current_dir() is Some(cwd) else {
+    fail("expected current working directory")
+  }
+  let root = "\{cwd}/../.github"
+  let abs_root = match resolve_abs_path(root) {
+    Ok(path) => path
+    Err(err) => fail(err)
+  }
+  let units = match read_local_target(root) {
+    Ok(units) => units
+    Err(err) => fail(err)
+  }
+  assert_true(units.length() >= 2)
+  assert_true(units[0].kind == @cli.Action || units[0].kind == @cli.Workflow)
+  assert_true(
+    units
+    .map(fn(unit) { unit.abs_path })
+    .contains(abs_root + "/actions/setup-moonbit/action.yml"),
+  )
+  assert_true(
+    units
+    .map(fn(unit) { unit.abs_path })
+    .contains(abs_root + "/workflows/release.yml"),
+  )
 }
 
 // Helpers for resolve_ref_kind_impl tests
@@ -575,4 +605,155 @@ test "cached_ref_kind_resolver_with: owner/repo case-insensitive" {
   assert_eq(call_count, 1)
   assert_eq(r1, Sha)
   assert_eq(r2, Sha)
+}
+
+///|
+fn stub_fetch_action_yml(
+  _owner : String,
+  _repo : String,
+  git_ref : String?,
+  path : String?,
+  _allow_ref_fallback : Bool,
+) -> Result[(String, String, String?), String] {
+  let resolved_ref = match git_ref {
+    Some(r) => r
+    None => "main"
+  }
+  Ok(
+    ("name: stub\nruns:\n  using: composite\n  steps: []\n", resolved_ref, path),
+  )
+}
+
+///|
+#borrow(old_path, new_path)
+extern "c" fn local_rename_ffi(old_path : Bytes, new_path : Bytes) -> Int = "papion_local_rename"
+
+///|
+fn rename_path(old_path : String, new_path : String) -> Result[Unit, String] {
+  if local_rename_ffi(c_string_bytes(old_path), c_string_bytes(new_path)) == 0 {
+    Err(error_string())
+  } else {
+    Ok(())
+  }
+}
+
+///|
+/// Activate the git-root marker for a scenario directory, run f(), then
+/// restore the marker regardless of whether f succeeds.  Each scenario
+/// directory ships a plain file named "dotgit" (committable) instead of
+/// ".git" (git refuses to track nested .git entries).  This helper renames
+/// it to ".git" before the test and back to "dotgit" after, so
+/// papion_local_find_git_root() sees a proper sentinel without requiring a
+/// CI setup step or a full git repository.
+fn with_scenario_git_root(
+  scenario_dir : String,
+  f : () -> Unit raise,
+) -> Unit raise {
+  let dotgit = "\{scenario_dir}/dotgit"
+  let git = "\{scenario_dir}/.git"
+  match rename_path(dotgit, git) {
+    Err(e) => fail("failed to activate .git marker in \{scenario_dir}: \{e}")
+    Ok(_) => ()
+  }
+  f() catch {
+    e => {
+      ignore(rename_path(git, dotgit))
+      raise e
+    }
+  }
+  match rename_path(git, dotgit) {
+    Err(e) => fail("failed to restore dotgit marker in \{scenario_dir}: \{e}")
+    Ok(_) => ()
+  }
+}
+
+///|
+test "make_fetch_local: rejects non-action yml (e.g. workflow file)" {
+  guard @env.current_dir() is Some(cwd) else {
+    fail("expected current working directory")
+  }
+  let scenario_dir = "\{cwd}/native/testdata/scenarios/wf-to-composite-to-remote"
+  let workflow_yml = "\{scenario_dir}/.github/workflows/ci.yml"
+  let fl = make_fetch_local(scenario_dir)
+  match fl(scenario_dir, "./.github/workflows/ci.yml") {
+    Ok(_) =>
+      fail("expected error for non-action yml \{workflow_yml}, but got Ok")
+    Err(msg) =>
+      assert_eq(msg.has_prefix("no action.yml or action.yaml found"), true)
+  }
+}
+
+///|
+test "integration: local workflow -> local composite -> remote action (zero findings)" {
+  guard @env.current_dir() is Some(cwd) else {
+    fail("expected current working directory")
+  }
+  let scenario_dir = "\{cwd}/native/testdata/scenarios/wf-to-composite-to-remote"
+  let scenario = "\{scenario_dir}/.github/workflows/ci.yml"
+  with_scenario_git_root(scenario_dir, () => {
+    let fl = build_fetch_local(scenario)
+    let repo_root = find_git_root(scenario_dir)
+    let result = @cli.run_with_host(
+      ["run", scenario, "--fail-on", "warn"],
+      fn(_) { Ok(@papion.Policy::default()) },
+      stub_fetch_action_yml,
+      read_local_target,
+      fetch_local=fl,
+      repo_root?,
+    )
+    match result {
+      Err(e) => fail("unexpected error: \{e}")
+      Ok(outcome) => assert_eq(outcome.exit_code, 0)
+    }
+  })
+}
+
+///|
+test "integration: local workflow -> remote action (zero findings)" {
+  guard @env.current_dir() is Some(cwd) else {
+    fail("expected current working directory")
+  }
+  let scenario_dir = "\{cwd}/native/testdata/scenarios/wf-to-remote"
+  let scenario = "\{scenario_dir}/.github/workflows/ci.yml"
+  with_scenario_git_root(scenario_dir, () => {
+    let fl = build_fetch_local(scenario)
+    let repo_root = find_git_root(scenario_dir)
+    let result = @cli.run_with_host(
+      ["run", scenario, "--fail-on", "warn"],
+      fn(_) { Ok(@papion.Policy::default()) },
+      stub_fetch_action_yml,
+      read_local_target,
+      fetch_local=fl,
+      repo_root?,
+    )
+    match result {
+      Err(e) => fail("unexpected error: \{e}")
+      Ok(outcome) => assert_eq(outcome.exit_code, 0)
+    }
+  })
+}
+
+///|
+test "integration: local composite -> local composite -> remote action (zero findings)" {
+  guard @env.current_dir() is Some(cwd) else {
+    fail("expected current working directory")
+  }
+  let scenario_dir = "\{cwd}/native/testdata/scenarios/composite-chain"
+  let scenario = "\{scenario_dir}/.github/actions/first/action.yml"
+  with_scenario_git_root(scenario_dir, () => {
+    let fl = build_fetch_local(scenario)
+    let repo_root = find_git_root(scenario_dir)
+    let result = @cli.run_with_host(
+      ["run", scenario, "--fail-on", "warn"],
+      fn(_) { Ok(@papion.Policy::default()) },
+      stub_fetch_action_yml,
+      read_local_target,
+      fetch_local=fl,
+      repo_root?,
+    )
+    match result {
+      Err(e) => fail("unexpected error: \{e}")
+      Ok(outcome) => assert_eq(outcome.exit_code, 0)
+    }
+  })
 }
