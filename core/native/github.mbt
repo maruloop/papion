@@ -577,6 +577,10 @@ fn fetch_action_yml_with_fallback(
   path : String?,
   allow_ref_fallback : Bool,
 ) -> Result[(Bytes, String, String?), (Int, String)] {
+  let path = match path {
+    Some(p) => Some(@path.normalize_separators(p))
+    None => None
+  }
   match try_fetch_action_yml(owner, repo, git_ref, path) {
     Ok(bytes) => Ok((bytes, git_ref, @path.canonical_path(path)))
     Err((404, message)) => {
