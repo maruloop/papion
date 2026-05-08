@@ -76,11 +76,19 @@ fn build_fetch_local(
     Ok(p) => p
     Err(_) => path
   }
-  // Git root is the authoritative boundary — matches GitHub Actions' $GITHUB_WORKSPACE.
-  // Fall back to .github-based heuristics for non-git contexts (CI artefact dirs, etc.).
+  let structural = github_based_boundary(root_abs)
+  // Use the more restrictive (deeper) of the structural root and the git root.
+  // For canonical .github/actions/ or .github/workflows/ layouts inside a
+  // parent git repo (e.g. a submodule), structural is deeper and is the right
+  // boundary. For ad-hoc files the git root may be deeper; use that instead.
   let boundary = match find_git_root(root_abs) {
-    Some(git_root) => git_root
-    None => github_based_boundary(root_abs)
+    None => structural
+    Some(git_root) =>
+      if structural == git_root || structural.has_prefix(git_root + "/") {
+        structural
+      } else {
+        git_root
+      }
   }
   make_fetch_local(boundary)
 }

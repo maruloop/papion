@@ -655,7 +655,12 @@ fn with_scenario_git_root(
     Err(e) => fail("failed to activate .git marker in \{scenario_dir}: \{e}")
     Ok(_) => ()
   }
-  f()
+  f() catch {
+    e => {
+      ignore(rename_path(git, dotgit))
+      raise e
+    }
+  }
   match rename_path(git, dotgit) {
     Err(e) => fail("failed to restore dotgit marker in \{scenario_dir}: \{e}")
     Ok(_) => ()
