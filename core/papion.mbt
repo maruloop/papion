@@ -235,7 +235,7 @@ pub fn Policy::normalized(self : Policy) -> Result[Policy, String] {
     Ok(patterns) => patterns
     Err(err) => return Err(err)
   }
-  Ok({ ..self, allowed, disallowed })
+  Ok({ allowed, disallowed })
 }
 
 ///|
