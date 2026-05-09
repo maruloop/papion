@@ -1,0 +1,201 @@
+name: Setup Papion
+description: Install the Papion CLI on the runner and add it to PATH.
+inputs:
+  version:
+    description: 'Papion version to install. Accepts "latest", "vX.Y.Z", or "X.Y.Z".'
+    required: false
+    default: latest
+  github-token:
+    description: Token used for the GitHub Releases API call and tarball download.
+    required: false
+    default: ${{ github.token }}
+outputs:
+  version:
+    description: Resolved release tag that was installed (e.g. v0.2.0).
+    value: ${{ steps.install.outputs.version }}
+runs:
+  using: composite
+  steps:
+    - id: install
+      shell: bash
+      env:
+        INPUT_VERSION: ${{ inputs.version }}
+        GH_TOKEN: ${{ inputs.github-token }}
+      run: |
+        set -euo pipefail
+
+        make_temp_dir() {
+          local dir
+          if dir="$(mktemp -d 2>/dev/null)"; then
+            printf '%s\n' "$dir"
+            return 0
+          fi
+          mktemp -d -t papion-setup
+        }
+
+        validate_tar_archive() {
+          local archive="$1"
+          local validate_dir
+          validate_dir="$(make_temp_dir)"
+          if ! tar -tzf "$archive" > "$validate_dir/paths"; then
+            echo "::error::Failed to list archive paths in $archive"
+            rm -rf "$validate_dir"
+            return 1
+          fi
+          if ! tar -tvzf "$archive" > "$validate_dir/metadata"; then
+            echo "::error::Failed to inspect archive metadata in $archive"
+            rm -rf "$validate_dir"
+            return 1
+          fi
+
+          local entry
+          local normalized_entry
+          while IFS= read -r entry; do
+            normalized_entry="$entry"
+            while [[ "$normalized_entry" == ./* ]]; do
+              normalized_entry="${normalized_entry#./}"
+            done
+            case "$normalized_entry" in
+              /*|../*|*/../*|..|*/..)
+                echo "::error::Unsafe archive entry '$entry' in $archive"
+                rm -rf "$validate_dir"
+                return 1
+                ;;
+            esac
+          done < "$validate_dir/paths"
+
+          local metadata
+          local type
+          while IFS= read -r metadata; do
+            type="${metadata:0:1}"
+            case "$type" in
+              d|-|x|g|L|K)
+                ;;
+              *)
+                echo "::error::Unsupported archive entry type '$type' in $archive: $metadata"
+                rm -rf "$validate_dir"
+                return 1
+                ;;
+            esac
+          done < "$validate_dir/metadata"
+
+          rm -rf "$validate_dir"
+        }
+
+        reject_symlinks() {
+          local root="$1"
+          local label="$2"
+          local link
+          link="$(find "$root" -type l -print -quit)"
+          if [ -n "$link" ]; then
+            echo "::error::Unexpected symlink in $label: $link"
+            return 1
+          fi
+        }
+
+        # Validate and normalise the requested version.
+        version="$INPUT_VERSION"
+        if [ -z "$version" ]; then
+          echo "::error::setup-papion: version input must not be empty"
+          exit 1
+        fi
+        case "$version" in
+          *[!A-Za-z0-9._+-]*|*..*)
+            echo "::error::setup-papion: invalid version string: $version"
+            exit 1
+            ;;
+        esac
+
+        if [ "$version" = "latest" ]; then
+          tag="$(curl -fsSL --retry 3 \
+            -H "Authorization: Bearer $GH_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            https://api.github.com/repos/maruloop/papion/releases/latest \
+            | jq -r '.tag_name')"
+          if [ -z "$tag" ] || [ "$tag" = "null" ]; then
+            echo "::error::setup-papion: could not resolve latest release tag"
+            exit 1
+          fi
+        else
+          # Normalise X.Y.Z → vX.Y.Z.
+          case "$version" in
+            v*) tag="$version" ;;
+            *)  tag="v$version" ;;
+          esac
+        fi
+
+        # Validate resolved tag (defence in depth against API tampering).
+        case "$tag" in
+          *[!A-Za-z0-9._+-]*|*..*)
+            echo "::error::setup-papion: resolved tag contains unsafe characters: $tag"
+            exit 1
+            ;;
+        esac
+
+        # Detect platform and map to release asset name.
+        case "$(uname -s)" in
+          Linux)  os="linux"  ;;
+          Darwin) os="macos"  ;;
+          *)
+            echo "::error::setup-papion: unsupported OS: $(uname -s). See supported runners: https://github.com/maruloop/papion/tree/main/action/setup-papion#supported-runners"
+            exit 1
+            ;;
+        esac
+
+        case "$(uname -m)" in
+          x86_64|amd64)
+            if [ "$os" = "linux" ]; then
+              platform="linux-x64"
+            else
+              echo "::error::setup-papion: macOS x86_64 (Intel) is not yet supported. See: https://github.com/maruloop/papion/tree/main/action/setup-papion#supported-runners"
+              exit 1
+            fi
+            ;;
+          arm64|aarch64)
+            if [ "$os" = "macos" ]; then
+              platform="macos-arm64"
+            else
+              echo "::error::setup-papion: Linux arm64 is not yet supported. See: https://github.com/maruloop/papion/tree/main/action/setup-papion#supported-runners"
+              exit 1
+            fi
+            ;;
+          *)
+            echo "::error::setup-papion: unsupported architecture: $(uname -m). See: https://github.com/maruloop/papion/tree/main/action/setup-papion#supported-runners"
+            exit 1
+            ;;
+        esac
+
+        artifact="papion-${platform}.tar.gz"
+        download_url="https://github.com/maruloop/papion/releases/download/${tag}/${artifact}"
+
+        tmpdir="$(make_temp_dir)"
+        trap 'rm -rf "$tmpdir"' EXIT
+
+        echo "::group::Download papion ${tag} (${platform})"
+        curl -fsSL --retry 3 \
+          -H "Authorization: Bearer $GH_TOKEN" \
+          -o "$tmpdir/$artifact" \
+          "$download_url"
+        echo "::endgroup::"
+
+        validate_tar_archive "$tmpdir/$artifact"
+
+        extract_dir="$tmpdir/extract"
+        mkdir -p "$extract_dir"
+        tar -xzf "$tmpdir/$artifact" -C "$extract_dir"
+        reject_symlinks "$extract_dir" "papion archive"
+
+        if [ ! -f "$extract_dir/papion" ]; then
+          echo "::error::setup-papion: could not locate papion binary in $artifact"
+          exit 1
+        fi
+
+        install_dir="$RUNNER_TEMP/papion-bin"
+        mkdir -p "$install_dir"
+        cp "$extract_dir/papion" "$install_dir/papion"
+        chmod +x "$install_dir/papion"
+
+        echo "$install_dir" >> "$GITHUB_PATH"
+
+        "$install_dir/papion" --version
+        echo "version=${tag}" >> "$GITHUB_OUTPUT"

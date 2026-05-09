@@ -189,44 +189,19 @@ papion run actions/checkout@v4 --format json
 
 ## GitHub Action
 
-Add Papion to your workflow as an action maintainer to scan your own action on every push.
-
-By default it scans the current repository at the current commit ref. You can override the ref with the `ref` input.
+Use `setup-papion` to install the Papion CLI on a runner, then invoke it with `run:`.
 
 ```yaml
-# .github/workflows/papion.yml
-name: Papion
-
-on:
-  push:
-    branches: [main]
-  schedule:
-    - cron: '0 0 * * 1'  # weekly
-
 jobs:
   scan:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-
-      - uses: maruloop/papion/action@v1
+      - uses: maruloop/papion/action/setup-papion@v1
+      - run: papion run "${{ github.repository }}@${{ github.sha }}"
 ```
 
-Override the ref to scan a specific tag or SHA:
-
-```yaml
-      - uses: maruloop/papion/action@v1
-        with:
-          ref: v2.1.0
-```
-
-### Inputs
-
-| Input | Required | Description |
-|-------|----------|-------------|
-| `ref` | no | Ref to scan (default: current commit SHA) |
-| `format` | no | Output format: `human` (default) or `json` |
-| `fail-on` | no | Minimum level to fail the job: `warn` or `fail` (default: `fail`) |
+Pin to a specific version with `with: version: vX.Y.Z`. See [`action/setup-papion/README.md`](action/setup-papion/README.md) for the full inputs/outputs reference.
 
 ---
 
