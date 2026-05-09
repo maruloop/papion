@@ -757,3 +757,28 @@ test "integration: local composite -> local composite -> remote action (zero fin
     }
   })
 }
+
+///|
+test "integration: local workflow with reusable workflow job ref (zero findings)" {
+  guard @env.current_dir() is Some(cwd) else {
+    fail("expected current working directory")
+  }
+  let scenario_dir = "\{cwd}/native/testdata/scenarios/wf-with-reusable"
+  let scenario = "\{scenario_dir}/.github/workflows/ci.yml"
+  with_scenario_git_root(scenario_dir, () => {
+    let fl = build_fetch_local(scenario)
+    let repo_root = find_git_root(scenario_dir)
+    let result = @cli.run_with_host(
+      ["run", scenario, "--fail-on", "warn"],
+      fn(_) { Ok(@papion.Policy::default()) },
+      stub_fetch_action_yml,
+      read_local_target,
+      fetch_local=fl,
+      repo_root?,
+    )
+    match result {
+      Err(e) => fail("unexpected error: \{e}")
+      Ok(outcome) => assert_eq(outcome.exit_code, 0)
+    }
+  })
+}
