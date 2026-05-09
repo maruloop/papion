@@ -1,5 +1,6 @@
 import {
   "maruloop/papion",
   "maruloop/papion/parser",
+  "maruloop/papion/path",
   "maruloop/papion/rules",
 }

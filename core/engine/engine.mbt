@@ -84,25 +84,10 @@ fn workflow_root_dir(path : String) -> String? {
 }
 
 ///|
-fn normalize_path_part(path : String?) -> String {
-  match path {
-    None => ""
-    Some(p) => {
-      let trimmed = p.trim(chars="/")
-      if trimmed.is_empty() {
-        ""
-      } else {
-        "/\{trimmed}"
-      }
-    }
-  }
-}
-
-///|
 /// Owner and repo are lowercased so the same repo spelled with different
 /// case does not bypass dedup or cycle detection.
 fn action_ref_key(ref_ : @papion.ActionRef) -> VisitedKey {
-  let path_part = normalize_path_part(ref_.path)
+  let path_part = @path.path_part(ref_.path)
   GitHub(
     "\{ref_.owner.to_lower()}/\{ref_.repo.to_lower()}\{path_part}@\{ref_.git_ref}",
   )
@@ -112,7 +97,7 @@ fn action_ref_key(ref_ : @papion.ActionRef) -> VisitedKey {
 fn scan_target_key(target : @papion.ScanTarget) -> VisitedKey {
   match target {
     @papion.GitHub({ owner, repo, git_ref, path }) => {
-      let path_part = normalize_path_part(path)
+      let path_part = @path.path_part(path)
       GitHub("\{owner.to_lower()}/\{repo.to_lower()}\{path_part}@\{git_ref}")
     }
     @papion.Local({ path }) => Local(path)
@@ -319,14 +304,14 @@ fn scan_impl(
                     ref_.owner,
                     ref_.repo,
                     ref_.git_ref,
-                    ref_.path,
+                    @path.canonical_path(ref_.path),
                   ) {
                   Ok(fetched_yaml) =>
                     queue.push({
                       yaml_str: fetched_yaml,
                       depth: node.depth + 1,
                       via: Some(
-                        "via \{ref_.owner}/\{ref_.repo}\{normalize_path_part(ref_.path)}@\{ref_.git_ref}",
+                        "via \{ref_.owner}/\{ref_.repo}\{@path.path_part(ref_.path)}@\{ref_.git_ref}",
                       ),
                       base_dir: None,
                     })
