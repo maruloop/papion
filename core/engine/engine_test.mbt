@@ -81,7 +81,6 @@ test "scan disallowed action produces failure" {
     #|  steps:
     #|    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
   let policy : @papion.Policy = {
-    sha_pinning: true,
     allowed: [],
     disallowed: ["actions/checkout"],
   }
@@ -105,11 +104,7 @@ test "scan allowed list restricts to listed actions" {
     #|  steps:
     #|    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
     #|    - uses: third-party/action@11bd71901bbe5b1630ceea73d27597364c9af683
-  let policy : @papion.Policy = {
-    sha_pinning: true,
-    allowed: ["actions/*"],
-    disallowed: [],
-  }
+  let policy : @papion.Policy = { allowed: ["actions/*"], disallowed: [] }
   let result = scan(target, yaml_str, policy, unreachable_fetch)
   match result {
     Err(e) => fail("unexpected error: \{e}")
@@ -255,11 +250,7 @@ test "scan normalizes policy patterns before evaluation" {
     #|  using: composite
     #|  steps:
     #|    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
-  let policy : @papion.Policy = {
-    sha_pinning: true,
-    allowed: ["Actions/*"],
-    disallowed: [],
-  }
+  let policy : @papion.Policy = { allowed: ["Actions/*"], disallowed: [] }
   let result = scan(target, yaml_str, policy, unreachable_fetch)
   match result {
     Err(e) => fail("unexpected error: \{e}")
@@ -275,11 +266,7 @@ test "scan rejects overlong policy patterns" {
     #|name: My Action
     #|runs:
     #|  using: node20
-  let policy : @papion.Policy = {
-    sha_pinning: true,
-    allowed: [long_pattern],
-    disallowed: [],
-  }
+  let policy : @papion.Policy = { allowed: [long_pattern], disallowed: [] }
   match scan(target, yaml_str, policy, unreachable_fetch) {
     Err(_) => ()
     Ok(_) => fail("expected Err for overlong policy pattern")
@@ -749,51 +736,6 @@ test "scan normalizes root key for mixed-case root cycle" {
       assert_eq(r.findings.length(), 1)
       // But the root action is not re-fetched when casing differs.
       assert_eq(fetch_count, 0)
-    }
-  }
-}
-
-///|
-test "scan skips resolver when sha_pinning disabled" {
-  let target : @papion.ScanTarget = github_target("org", "action-a", "v1")
-  let a_yaml =
-    #|name: Action A
-    #|runs:
-    #|  using: composite
-    #|  steps:
-    #|    - uses: org/action-b@main
-    #|    - uses: org/action-c@main
-  let b_yaml =
-    #|name: Action B
-    #|runs:
-    #|  using: node20
-  let c_yaml =
-    #|name: Action C
-    #|runs:
-    #|  using: node20
-  let fetch = make_fetch_table({
-    "org/action-b@main": b_yaml,
-    "org/action-c@main": c_yaml,
-  })
-  let policy : @papion.Policy = {
-    sha_pinning: false,
-    allowed: [],
-    disallowed: [],
-  }
-  let mut resolve_calls = 0
-  let result = scan(target, a_yaml, policy, fetch, resolve_ref_kind=fn(
-    _owner,
-    _repo,
-    _git_ref,
-  ) {
-    resolve_calls = resolve_calls + 1
-    ImmutableRelease
-  })
-  match result {
-    Err(e) => fail("unexpected error: \{e}")
-    Ok(r) => {
-      assert_eq(resolve_calls, 0)
-      assert_eq(r.findings, [])
     }
   }
 }

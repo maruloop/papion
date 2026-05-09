@@ -2,7 +2,7 @@
 /// Parse a policy configuration JSON string into a Policy.
 ///
 /// The host converts TOML to JSON before passing to this function.
-/// Missing fields use defaults: sha_pinning=true, allowed=[], disallowed=[].
+/// Missing fields use defaults: allowed=[], disallowed=[].
 /// Returns Err if any pattern exceeds 256 characters.
 /// Patterns are normalized to lowercase before returning.
 pub fn parse_policy(json_str : String) -> Result[@papion.Policy, String] {
@@ -15,12 +15,6 @@ pub fn parse_policy(json_str : String) -> Result[@papion.Policy, String] {
       None => obj
       Some(Object(inner)) => inner
       Some(_) => return Err("invalid 'policy' field: expected object")
-    }
-    let sha_pinning = match obj.get("sha_pinning") {
-      Some(True) => true
-      Some(False) => false
-      None => true
-      Some(_) => return Err("invalid 'sha_pinning' field: expected boolean")
     }
     let allowed = match obj.get("allowed") {
       None => []
@@ -50,7 +44,7 @@ pub fn parse_policy(json_str : String) -> Result[@papion.Policy, String] {
       }
       Some(_) => return Err("invalid 'disallowed' field: expected array")
     }
-    @papion.Policy::{ sha_pinning, allowed, disallowed }.normalized()
+    @papion.Policy::{ allowed, disallowed }.normalized()
   } catch {
     e => Err(e.to_string())
   }

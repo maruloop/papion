@@ -750,3 +750,32 @@ GitHub announced a major security roadmap for GitHub Actions in 2026, covering:
 ### Strategic implication
 
 Papion's SHA pinning rule for **action-internal dependencies** remains valid. The larger opportunity shifts toward the **policy engine and marketplace**. GitHub is securing the execution layer; Papion owns the **evaluation and discovery** layer.
+
+---
+
+## Decision 22: Make SHA pinning mandatory; remove configurable `sha_pinning` field
+
+### Context
+
+Papion's `sha-pinning` rule was previously gated by a configurable `policy.sha_pinning : Bool` field. Setting it to `false` disabled the rule entirely, allowing users to bypass the core security contract. This created unnecessary branching in the engine (`resolve_ref_kind` was skipped when `sha_pinning = false`), a conditional early-exit in `check_sha_pinning`, and ambiguity about what a "clean" scan actually means.
+
+### Decision
+
+Remove `sha_pinning` from `Policy`. SHA pinning is now always enforced.
+
+* `Policy` contains only `allowed` and `disallowed`.
+* `check_sha_pinning` no longer receives a `Policy` argument.
+* The engine always calls `resolve_ref_kind` unconditionally.
+* Config parsers (JSON and TOML) silently ignore a `sha_pinning` key if present, so old config files remain valid without producing an error.
+
+### Rationale
+
+* SHA pinning is Papion's minimum security floor, not an optional feature. A scanner that lets users skip it undermines its own purpose.
+* Removing the toggle simplifies all conditional code paths.
+* Silent ignore (rather than hard error or deprecation warning) keeps old configs working without a migration step, consistent with being pre-1.0.
+
+### Consequences
+
+* **Breaking change**: `Policy` struct drops one field. Any code constructing a `Policy` literal with `sha_pinning` must remove that field.
+* Old TOML/JSON configs with `sha_pinning = false` silently start enforcing SHA pinning.
+* `check_sha_pinning` signature: `(ActionRef, RefKind)` — no policy parameter.

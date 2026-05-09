@@ -210,7 +210,6 @@ pub impl Show for Finding with output(self, logger) {
 
 ///|
 pub(all) struct Policy {
-  sha_pinning : Bool
   allowed : Array[String]
   disallowed : Array[String]
 } derive(Debug, Eq, ToJson, FromJson)
@@ -222,7 +221,7 @@ pub impl Show for Policy with output(self, logger) {
 
 ///|
 pub fn Policy::default() -> Policy {
-  { sha_pinning: true, allowed: [], disallowed: [] }
+  { allowed: [], disallowed: [] }
 }
 
 ///|
@@ -236,7 +235,7 @@ pub fn Policy::normalized(self : Policy) -> Result[Policy, String] {
     Ok(patterns) => patterns
     Err(err) => return Err(err)
   }
-  Ok({ ..self, allowed, disallowed })
+  Ok({ allowed, disallowed })
 }
 
 ///|

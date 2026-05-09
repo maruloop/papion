@@ -10,7 +10,6 @@ test "load_config parses TOML fixture into policy" {
     Err(err) => fail(err)
   }
   assert_eq(policy, {
-    sha_pinning: false,
     allowed: ["actions/*", "github/*"],
     disallowed: ["bad-org/unsafe"],
   })
@@ -759,7 +758,7 @@ test "integration: local composite -> local composite -> remote action (zero fin
 }
 
 ///|
-test "integration: reusable workflow job ref is evaluated (unpinned ref fails sha_pinning policy)" {
+test "integration: reusable workflow job ref is evaluated (unpinned ref produces sha-pinning finding)" {
   guard @env.current_dir() is Some(cwd) else {
     fail("expected current working directory")
   }
@@ -770,7 +769,7 @@ test "integration: reusable workflow job ref is evaluated (unpinned ref fails sh
     let repo_root = find_git_root(scenario_dir)
     let result = @cli.run_with_host(
       ["run", scenario, "--fail-on", "warn"],
-      fn(_) { Ok({ ..@papion.Policy::default(), sha_pinning: true }) },
+      fn(_) { Ok(@papion.Policy::default()) },
       stub_fetch_action_yml,
       read_local_target,
       fetch_local=fl,

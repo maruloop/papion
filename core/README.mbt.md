@@ -101,11 +101,12 @@ Scanning policy configuration.
 
 ```
 Policy {
-  sha_pinning : Bool              // default: true
   allowed : Array[String]         // glob patterns, e.g. ["actions/*"]
   disallowed : Array[String]      // glob patterns
 }
 ```
+
+SHA pinning is always enforced and is not configurable.
 
 ### ScanTarget
 

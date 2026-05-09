@@ -20,17 +20,12 @@ pub fn classify_ref(git_ref : String) -> @papion.RefKind {
 ///|
 /// Check the SHA-pinning rule against an action reference.
 ///
-/// Produces a Fail finding when sha_pinning is enabled and the ref is neither
-/// a verified commit SHA nor an immutable release. Returns an empty array when
-/// the rule is disabled or the ref is already pinned.
+/// Produces a Fail finding when the ref is neither a verified commit SHA nor
+/// an immutable release. Returns an empty array when the ref is already pinned.
 pub fn check_sha_pinning(
   action_ref : @papion.ActionRef,
   ref_kind : @papion.RefKind,
-  policy : @papion.Policy,
 ) -> Array[@papion.Finding] {
-  if !policy.sha_pinning {
-    return []
-  }
   match ref_kind {
     Sha | ImmutableRelease => return []
     _ => ()
@@ -109,7 +104,7 @@ pub fn evaluate(
   policy : @papion.Policy,
 ) -> Array[@papion.Finding] {
   let findings : Array[@papion.Finding] = []
-  findings.append(check_sha_pinning(action_ref, ref_kind, policy))
+  findings.append(check_sha_pinning(action_ref, ref_kind))
   findings.append(check_allowed(action_ref, policy))
   findings.append(check_disallowed(action_ref, policy))
   findings
