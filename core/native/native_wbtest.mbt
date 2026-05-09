@@ -759,7 +759,7 @@ test "integration: local composite -> local composite -> remote action (zero fin
 }
 
 ///|
-test "integration: local workflow with reusable workflow job ref (zero findings)" {
+test "integration: reusable workflow job ref is evaluated (unpinned ref fails sha_pinning policy)" {
   guard @env.current_dir() is Some(cwd) else {
     fail("expected current working directory")
   }
@@ -770,7 +770,7 @@ test "integration: local workflow with reusable workflow job ref (zero findings)
     let repo_root = find_git_root(scenario_dir)
     let result = @cli.run_with_host(
       ["run", scenario, "--fail-on", "warn"],
-      fn(_) { Ok(@papion.Policy::default()) },
+      fn(_) { Ok({ ..@papion.Policy::default(), sha_pinning: true }) },
       stub_fetch_action_yml,
       read_local_target,
       fetch_local=fl,
@@ -778,7 +778,8 @@ test "integration: local workflow with reusable workflow job ref (zero findings)
     )
     match result {
       Err(e) => fail("unexpected error: \{e}")
-      Ok(outcome) => assert_eq(outcome.exit_code, 0)
+      // exit_code 1 only if the @main reusable job ref was evaluated; the step ref alone would be 0.
+      Ok(outcome) => assert_eq(outcome.exit_code, 1)
     }
   })
 }
