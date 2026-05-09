@@ -51,8 +51,7 @@ test "check_sha_pinning SHA ref passes" {
     git_ref: "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
     path: None,
   }
-  let policy = @papion.Policy::default()
-  assert_eq(check_sha_pinning(action_ref, Sha, policy), [])
+  assert_eq(check_sha_pinning(action_ref, Sha), [])
 }
 
 ///|
@@ -63,8 +62,7 @@ test "check_sha_pinning non-SHA ref fails" {
     git_ref: "v4",
     path: None,
   }
-  let policy = @papion.Policy::default()
-  let findings = check_sha_pinning(action_ref, Branch, policy)
+  let findings = check_sha_pinning(action_ref, Branch)
   assert_eq(findings.length(), 1)
   assert_eq(findings[0].level, @papion.FindingLevel::Fail)
   assert_eq(findings[0].rule, "sha-pinning")
@@ -83,8 +81,7 @@ test "check_sha_pinning immutable release passes" {
     git_ref: "v4",
     path: None,
   }
-  let policy = @papion.Policy::default()
-  assert_eq(check_sha_pinning(action_ref, ImmutableRelease, policy), [])
+  assert_eq(check_sha_pinning(action_ref, ImmutableRelease), [])
 }
 
 ///|
@@ -95,30 +92,13 @@ test "check_sha_pinning tag ref fails" {
     git_ref: "v4",
     path: None,
   }
-  let policy = @papion.Policy::default()
-  let findings = check_sha_pinning(action_ref, Tag, policy)
+  let findings = check_sha_pinning(action_ref, Tag)
   assert_eq(findings.length(), 1)
   assert_eq(findings[0].rule, "sha-pinning")
   assert_eq(
     findings[0].message,
     "action ref is not pinned to a SHA or immutable release",
   )
-}
-
-///|
-test "check_sha_pinning disabled skips" {
-  let action_ref : @papion.ActionRef = {
-    owner: "actions",
-    repo: "checkout",
-    git_ref: "v4",
-    path: None,
-  }
-  let policy : @papion.Policy = {
-    sha_pinning: false,
-    allowed: [],
-    disallowed: [],
-  }
-  assert_eq(check_sha_pinning(action_ref, Branch, policy), [])
 }
 
 ///|
@@ -129,11 +109,7 @@ test "check_allowed empty list passes all" {
     git_ref: "v4",
     path: None,
   }
-  let policy : @papion.Policy = {
-    sha_pinning: true,
-    allowed: [],
-    disallowed: [],
-  }
+  let policy : @papion.Policy = { allowed: [], disallowed: [] }
   assert_eq(check_allowed(action_ref, policy), [])
 }
 
@@ -145,11 +121,7 @@ test "check_allowed matching pattern passes" {
     git_ref: "v4",
     path: None,
   }
-  let policy : @papion.Policy = {
-    sha_pinning: true,
-    allowed: ["actions/*"],
-    disallowed: [],
-  }
+  let policy : @papion.Policy = { allowed: ["actions/*"], disallowed: [] }
   assert_eq(check_allowed(action_ref, policy), [])
 }
 
@@ -161,11 +133,7 @@ test "check_allowed no match fails" {
     git_ref: "v4",
     path: None,
   }
-  let policy : @papion.Policy = {
-    sha_pinning: true,
-    allowed: ["github/*"],
-    disallowed: [],
-  }
+  let policy : @papion.Policy = { allowed: ["github/*"], disallowed: [] }
   let findings = check_allowed(action_ref, policy)
   assert_eq(findings.length(), 1)
   assert_eq(findings[0].level, @papion.FindingLevel::Fail)
@@ -181,11 +149,7 @@ test "check_disallowed matching pattern fails" {
     git_ref: "v1",
     path: None,
   }
-  let policy : @papion.Policy = {
-    sha_pinning: true,
-    allowed: [],
-    disallowed: ["bad-org/*"],
-  }
+  let policy : @papion.Policy = { allowed: [], disallowed: ["bad-org/*"] }
   let findings = check_disallowed(action_ref, policy)
   assert_eq(findings.length(), 1)
   assert_eq(findings[0].level, @papion.FindingLevel::Fail)
@@ -201,11 +165,7 @@ test "check_disallowed no match passes" {
     git_ref: "v4",
     path: None,
   }
-  let policy : @papion.Policy = {
-    sha_pinning: true,
-    allowed: [],
-    disallowed: ["bad-org/*"],
-  }
+  let policy : @papion.Policy = { allowed: [], disallowed: ["bad-org/*"] }
   assert_eq(check_disallowed(action_ref, policy), [])
 }
 
@@ -259,11 +219,7 @@ test "evaluate non-SHA ref not in allowed list produces two findings" {
     git_ref: "v4",
     path: None,
   }
-  let policy : @papion.Policy = {
-    sha_pinning: true,
-    allowed: ["github/*"],
-    disallowed: [],
-  }
+  let policy : @papion.Policy = { allowed: ["github/*"], disallowed: [] }
   let findings = evaluate(action_ref, Branch, policy)
   assert_eq(findings.length(), 2)
   assert_eq(findings[0].rule, "sha-pinning")
@@ -279,7 +235,6 @@ test "evaluate action in both allowed and disallowed produces disallowed finding
     path: None,
   }
   let policy : @papion.Policy = {
-    sha_pinning: true,
     allowed: ["actions/*"],
     disallowed: ["actions/*"],
   }
@@ -296,8 +251,7 @@ test "check_sha_pinning with path includes path in target" {
     git_ref: "v2",
     path: Some("deploy"),
   }
-  let policy = @papion.Policy::default()
-  let findings = check_sha_pinning(action_ref, Branch, policy)
+  let findings = check_sha_pinning(action_ref, Branch)
   assert_eq(findings.length(), 1)
   assert_eq(findings[0].target, "myorg/actions/deploy@v2")
 }
@@ -310,11 +264,7 @@ test "evaluate with path includes path in finding target" {
     git_ref: "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2",
     path: Some("sub"),
   }
-  let policy : @papion.Policy = {
-    sha_pinning: true,
-    allowed: ["github/*"],
-    disallowed: [],
-  }
+  let policy : @papion.Policy = { allowed: ["github/*"], disallowed: [] }
   let findings = evaluate(action_ref, Sha, policy)
   assert_eq(findings.length(), 1)
   assert_eq(findings[0].rule, "allowed-list")
@@ -333,7 +283,6 @@ test "evaluate all passing produces no findings" {
     path: None,
   }
   let policy : @papion.Policy = {
-    sha_pinning: true,
     allowed: ["actions/*"],
     disallowed: ["bad-org/*"],
   }

@@ -1,22 +1,18 @@
 ///|
 test "parse_policy full config" {
   let json_str =
-    #|{"sha_pinning":false,"allowed":["actions/*","github/*"],"disallowed":["bad-org/unsafe"]}
+    #|{"allowed":["actions/*","github/*"],"disallowed":["bad-org/unsafe"]}
   let result = parse_policy(json_str)
   assert_eq(
     result,
-    Ok({
-      sha_pinning: false,
-      allowed: ["actions/*", "github/*"],
-      disallowed: ["bad-org/unsafe"],
-    }),
+    Ok({ allowed: ["actions/*", "github/*"], disallowed: ["bad-org/unsafe"] }),
   )
 }
 
 ///|
 test "parse_policy defaults on empty object" {
   let result = parse_policy("{}")
-  assert_eq(result, Ok({ sha_pinning: true, allowed: [], disallowed: [] }))
+  assert_eq(result, Ok({ allowed: [], disallowed: [] }))
 }
 
 ///|
@@ -37,13 +33,10 @@ test "parse_policy rejects non-object top-level JSON" {
 }
 
 ///|
-test "parse_policy rejects non-bool sha_pinning" {
+test "parse_policy ignores legacy sha_pinning field" {
   let json_str =
-    #|{"sha_pinning":"false"}
-  match parse_policy(json_str) {
-    Err(_) => ()
-    Ok(_) => fail("expected Err for non-bool sha_pinning")
-  }
+    #|{"sha_pinning":false,"allowed":[]}
+  assert_eq(parse_policy(json_str), Ok({ allowed: [], disallowed: [] }))
 }
 
 ///|
@@ -89,15 +82,11 @@ test "parse_policy rejects non-string entry in disallowed" {
 ///|
 test "parse_policy nested policy key full config" {
   let json_str =
-    #|{"policy":{"sha_pinning":false,"allowed":["actions/*"],"disallowed":["bad-org/unsafe"]}}
+    #|{"policy":{"allowed":["actions/*"],"disallowed":["bad-org/unsafe"]}}
   let result = parse_policy(json_str)
   assert_eq(
     result,
-    Ok({
-      sha_pinning: false,
-      allowed: ["actions/*"],
-      disallowed: ["bad-org/unsafe"],
-    }),
+    Ok({ allowed: ["actions/*"], disallowed: ["bad-org/unsafe"] }),
   )
 }
 
@@ -118,11 +107,7 @@ test "parse_policy normalizes patterns to lowercase" {
   let result = parse_policy(json_str)
   assert_eq(
     result,
-    Ok({
-      sha_pinning: true,
-      allowed: ["actions/*", "github/*"],
-      disallowed: ["bad-org/unsafe"],
-    }),
+    Ok({ allowed: ["actions/*", "github/*"], disallowed: ["bad-org/unsafe"] }),
   )
 }
 
@@ -151,16 +136,12 @@ test "parse_policy nested policy key empty object uses defaults" {
   let json_str =
     #|{"policy":{}}
   let result = parse_policy(json_str)
-  assert_eq(result, Ok({ sha_pinning: true, allowed: [], disallowed: [] }))
+  assert_eq(result, Ok({ allowed: [], disallowed: [] }))
 }
 
 ///|
 test "matches_allowed empty list passes all" {
-  let policy : @papion.Policy = {
-    sha_pinning: true,
-    allowed: [],
-    disallowed: [],
-  }
+  let policy : @papion.Policy = { allowed: [], disallowed: [] }
   let action_ref : @papion.ActionRef = {
     owner: "actions",
     repo: "checkout",
@@ -172,11 +153,7 @@ test "matches_allowed empty list passes all" {
 
 ///|
 test "matches_allowed with matching pattern" {
-  let policy : @papion.Policy = {
-    sha_pinning: true,
-    allowed: ["actions/*"],
-    disallowed: [],
-  }
+  let policy : @papion.Policy = { allowed: ["actions/*"], disallowed: [] }
   let action_ref : @papion.ActionRef = {
     owner: "actions",
     repo: "checkout",
@@ -188,11 +165,7 @@ test "matches_allowed with matching pattern" {
 
 ///|
 test "matches_allowed case-insensitive owner in target" {
-  let policy : @papion.Policy = {
-    sha_pinning: true,
-    allowed: ["actions/*"],
-    disallowed: [],
-  }
+  let policy : @papion.Policy = { allowed: ["actions/*"], disallowed: [] }
   let action_ref : @papion.ActionRef = {
     owner: "Actions",
     repo: "Checkout",
@@ -204,11 +177,7 @@ test "matches_allowed case-insensitive owner in target" {
 
 ///|
 test "matches_allowed no match returns false" {
-  let policy : @papion.Policy = {
-    sha_pinning: true,
-    allowed: ["github/*"],
-    disallowed: [],
-  }
+  let policy : @papion.Policy = { allowed: ["github/*"], disallowed: [] }
   let action_ref : @papion.ActionRef = {
     owner: "actions",
     repo: "checkout",
@@ -220,11 +189,7 @@ test "matches_allowed no match returns false" {
 
 ///|
 test "matches_disallowed with matching pattern" {
-  let policy : @papion.Policy = {
-    sha_pinning: true,
-    allowed: [],
-    disallowed: ["bad-org/*"],
-  }
+  let policy : @papion.Policy = { allowed: [], disallowed: ["bad-org/*"] }
   let action_ref : @papion.ActionRef = {
     owner: "bad-org",
     repo: "evil-action",
@@ -236,11 +201,7 @@ test "matches_disallowed with matching pattern" {
 
 ///|
 test "matches_disallowed case-insensitive owner in target" {
-  let policy : @papion.Policy = {
-    sha_pinning: true,
-    allowed: [],
-    disallowed: ["bad-org/*"],
-  }
+  let policy : @papion.Policy = { allowed: [], disallowed: ["bad-org/*"] }
   let action_ref : @papion.ActionRef = {
     owner: "Bad-Org",
     repo: "Evil-Action",
@@ -252,11 +213,7 @@ test "matches_disallowed case-insensitive owner in target" {
 
 ///|
 test "matches_disallowed no match returns false" {
-  let policy : @papion.Policy = {
-    sha_pinning: true,
-    allowed: [],
-    disallowed: ["other-org/*"],
-  }
+  let policy : @papion.Policy = { allowed: [], disallowed: ["other-org/*"] }
   let action_ref : @papion.ActionRef = {
     owner: "actions",
     repo: "checkout",

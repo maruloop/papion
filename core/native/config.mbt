@@ -30,11 +30,6 @@ fn parse_policy_toml(value : @toml.TomlValue) -> Result[@papion.Policy, String] 
     Some(@toml.TomlTable(inner)) => inner
     Some(_) => return Err("invalid 'policy' field: expected table")
   }
-  let sha_pinning = match obj.get("sha_pinning") {
-    Some(@toml.TomlBoolean(b)) => b
-    None => true
-    Some(_) => return Err("invalid 'sha_pinning' field: expected boolean")
-  }
   let allowed = match parse_pattern_list(obj.get("allowed"), "allowed") {
     Ok(allowed) => allowed
     Err(err) => return Err(err)
@@ -44,7 +39,7 @@ fn parse_policy_toml(value : @toml.TomlValue) -> Result[@papion.Policy, String] 
     Ok(disallowed) => disallowed
     Err(err) => return Err(err)
   }
-  @papion.Policy::{ sha_pinning, allowed, disallowed }.normalized()
+  @papion.Policy::{ allowed, disallowed }.normalized()
 }
 
 ///|

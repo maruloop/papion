@@ -26,10 +26,10 @@ Papion looks for configuration in the following order (first found wins):
 2. `.github/papion.toml`
 3. `papion.toml` (repo root)
 
+SHA pinning is always enforced — actions must resolve to a SHA or an immutable release.
+
 ```toml
 [policy]
-sha_pinning = true  # default: true
-
 allowed = [
   "actions/*",
   "github/*",

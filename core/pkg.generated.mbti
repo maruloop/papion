@@ -80,7 +80,6 @@ pub(all) enum ParsedRef {
 pub impl Show for ParsedRef
 
 pub(all) struct Policy {
-  sha_pinning : Bool
   allowed : Array[String]
   disallowed : Array[String]
 } derive(Eq, ToJson, @debug.Debug, @json.FromJson)
