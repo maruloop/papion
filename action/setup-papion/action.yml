@@ -4,7 +4,7 @@ inputs:
   version:
     description: 'Papion version to install. Accepts "latest", "vX.Y.Z", or "X.Y.Z".'
     required: false
-    default: latest
+    default: 0.0.0
   github-token:
     description: Token used for the GitHub Releases API call and tarball download.
     required: false

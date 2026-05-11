@@ -22,7 +22,7 @@ Pin to a specific version:
 
 | Input | Required | Default | Description |
 |-------|----------|---------|-------------|
-| `version` | no | `latest` | Papion version to install. Accepts `latest`, `vX.Y.Z`, or `X.Y.Z`. |
+| `version` | no | current release | Papion version to install. Accepts `latest`, `vX.Y.Z`, or `X.Y.Z`. The default is rewritten to the concrete release version by the release pipeline. |
 | `github-token` | no | `${{ github.token }}` | Token used for the GitHub Releases API call (resolving `latest`) and for the tarball download. |
 
 ## Outputs
