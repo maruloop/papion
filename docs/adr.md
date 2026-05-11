@@ -779,3 +779,33 @@ Remove `sha_pinning` from `Policy`. SHA pinning is now always enforced.
 * **Breaking change**: `Policy` struct drops one field. Any code constructing a `Policy` literal with `sha_pinning` must remove that field.
 * Old TOML/JSON configs with `sha_pinning = false` silently start enforcing SHA pinning.
 * `check_sha_pinning` signature: `(ActionRef, RefKind)` — no policy parameter.
+
+---
+
+## Decision 23: Ship `setup-papion` as an install-only composite action, separate from a future run action
+
+### Context
+
+Papion's release pipeline publishes `papion-<os>-<arch>.tar.gz` tarballs to GitHub Releases. Users wanting to invoke Papion from a workflow had to `curl | tar` manually. The original v1.0.0 plan (#11) tracks a single "run papion" action, but conflating install and invocation forces a combined inputs surface and prevents users from composing Papion with custom invocation patterns (multiple targets, scripted argument construction, conditional execution).
+
+### Decision
+
+Ship a dedicated `setup-papion` composite action at `action/setup-papion/` whose sole responsibility is to place the `papion` binary on `$GITHUB_PATH`. It does not execute a scan. A separate "run papion" action (#11) remains a future addition.
+
+* Inputs: `version` (default `latest`; accepts `latest`, `vX.Y.Z`, or `X.Y.Z`), `github-token` (default `${{ github.token }}`).
+* Output: `version` — the resolved tag actually installed.
+* Behavior: resolve version, detect platform, download tarball, validate, extract, install to `$RUNNER_TEMP/papion-bin/`, append to `$GITHUB_PATH`, verify with `papion --version`.
+* Platforms at v1: `linux-x64` and `macos-arm64` only. Other runners fail with a clear error.
+
+### Rationale
+
+* **Composability over configurability.** `setup-go` / `setup-node` set the precedent: install once, then let users write `run:` steps with their own arguments.
+* **No new release-pipeline coupling.** The action consumes existing tarballs as-is. Checksum verification is deferred until `.sha256` files are published from `release.yml`.
+* **Matches the runtime story.** Papion is a native binary (Decision 18); a composite action that downloads and runs it is the simplest possible packaging — no Docker pull, no JS runtime.
+
+### Consequences
+
+* `action/setup-papion/action.yml` is the user-facing entry point; users reference it as `maruloop/papion/action/setup-papion@v1`.
+* The future "run papion" action (#11) layers on top of `setup-papion` rather than reimplementing install logic.
+* Two follow-up issues are implied: (a) publish per-asset checksums from `release.yml` and verify them in the action; (b) extend the release matrix to Windows, `linux-arm64`, and `macos-x64`.
+* Caching is intentionally omitted at v1.
