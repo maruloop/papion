@@ -2,13 +2,9 @@ name: Setup Papion
 description: Install the Papion CLI on the runner and add it to PATH.
 inputs:
   version:
-    description: 'Papion version to install. Accepts "latest", "vX.Y.Z", or "X.Y.Z".'
+    description: 'Papion version to install. Accepts "vX.Y.Z" or "X.Y.Z". Must be pinned explicitly.'
     required: false
     default: 0.0.0
-  github-token:
-    description: Token used for the GitHub Releases API call and tarball download.
-    required: false
-    default: ${{ github.token }}
 outputs:
   version:
     description: Resolved release tag that was installed (e.g. v0.2.0).
@@ -20,7 +16,6 @@ runs:
       shell: bash
       env:
         INPUT_VERSION: ${{ inputs.version }}
-        GH_TOKEN: ${{ inputs.github-token }}
       run: |
         set -euo pipefail
 
@@ -107,22 +102,15 @@ runs:
         esac
 
         if [ "$version" = "latest" ]; then
-          tag="$(curl -fsSL --retry 3 \
-            -H "Authorization: Bearer $GH_TOKEN" \
-            -H "Accept: application/vnd.github+json" \
-            https://api.github.com/repos/maruloop/papion/releases/latest \
-            | jq -r '.tag_name')"
-          if [ -z "$tag" ] || [ "$tag" = "null" ]; then
-            echo "::error::setup-papion: could not resolve latest release tag"
-            exit 1
-          fi
-        else
-          # Normalise X.Y.Z → vX.Y.Z.
-          case "$version" in
-            v*) tag="$version" ;;
-            *)  tag="v$version" ;;
-          esac
+          echo "::error::setup-papion: version \"latest\" is not accepted. Pin to an explicit release tag (e.g. vX.Y.Z)."
+          exit 1
         fi
+
+        # Normalise X.Y.Z → vX.Y.Z.
+        case "$version" in
+          v*) tag="$version" ;;
+          *)  tag="v$version" ;;
+        esac
 
         # Validate resolved tag (defence in depth against API tampering).
         case "$tag" in
@@ -173,7 +161,6 @@ runs:
 
         echo "::group::Download papion ${tag} (${platform})"
         curl -fsSL --retry 3 \
-          -H "Authorization: Bearer $GH_TOKEN" \
           -o "$tmpdir/$artifact" \
           "$download_url"
         echo "::endgroup::"
